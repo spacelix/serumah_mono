@@ -29,8 +29,9 @@ Locked decisions:
 ## 5. UI Spec (React Native)
 Screens: `app/login.tsx`, `app/register.tsx`, splash (`app/index.tsx`).
 
-- **Splash**: app logo + tagline "Hunian Bersih, Hidup Tenang" → auto-redirect based on session:
-  - not logged in → `/login`; logged in + no profile → `/onboarding/profile`; has profile + no rumah → `/onboarding/create-rumah`; complete → `(tabs)`.
+- **Splash**: `splashGreen` (#3F6F61) background; app logo (118px) + wordmark **"Serumah"** (Space Grotesk 700, 31px, `paper`) + kicker **"Piket · Iuran · Galon"** (JetBrains Mono 500, 9.5px, letter-spacing .2em, uppercase, `paper` @ 55%). Shown only while session is being checked (`checking`). Matches `Serumah.html` splash exactly (via `splash-screen.tsx`).
+- **Welcome**: landing page shown after the splash when not logged in (auth entry screen). Centered logo (104px) + wordmark "Serumah" + kicker "Piket · Iuran · Galon", short blurb, primary **"Masuk"** CTA + outline **"Daftar akun baru"**. Session-based redirect after splash:
+  - not logged in → `/welcome`; logged in + no profile → `/onboarding/profile`; has profile + no rumah → `/onboarding/create-rumah`; complete → `(tabs)`.
 - **Login**: email field, password field, **"Masuk"** button (ink, full width), link **"Belum punya akun? Daftar"**.
 - **Register**: email, password, password confirmation, **"Daftar"** button, link **"Sudah punya akun? Masuk"**.
 - Loading state while submitting; errors show Indonesian API messages.

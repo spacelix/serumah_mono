@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+
 import { downloadUpdate, installApk, type UpdateManifest } from '@/lib/update';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -44,27 +44,27 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
           <View style={styles.badgeRow}>
             {force && (
               <View style={styles.badge}>
-                <ThemedText style={styles.badgeText}>WAJIB</ThemedText>
+                <Text style={styles.badgeText}>WAJIB</Text>
               </View>
             )}
           </View>
-          <ThemedText style={styles.title}>
+          <Text style={styles.title}>
             Update tersedia
-          </ThemedText>
-          <ThemedText style={styles.body}>
+          </Text>
+          <Text style={styles.body}>
             {force
               ? 'Versi sebelumnya tidak lagi didukung. Silakan perbaharui untuk melanjutkan.'
               : `Versi baru tersedia. Perbaharui untuk fitur terbaru dan perbaikan.`}
-          </ThemedText>
+          </Text>
           {manifest.versionName.length > 0 && (
-            <ThemedText style={styles.meta}>v{manifest.versionName}</ThemedText>
+            <Text style={styles.meta}>v{manifest.versionName}</Text>
           )}
-          {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+          {error && <Text style={styles.error}>{error}</Text>}
 
           <View style={styles.buttons}>
             {!force && (
               <Pressable style={[styles.button, styles.buttonSecondary]} onPress={onDismiss}>
-                <ThemedText style={styles.buttonSecondaryText}>Nanti saja</ThemedText>
+                <Text style={styles.buttonSecondaryText}>Nanti saja</Text>
               </Pressable>
             )}
             <Pressable
@@ -75,7 +75,7 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
               {downloading ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <ThemedText style={styles.buttonPrimaryText}>Update Sekarang</ThemedText>
+                <Text style={styles.buttonPrimaryText}>Update Sekarang</Text>
               )}
             </Pressable>
           </View>
@@ -85,7 +85,7 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${progress}%` }]} />
               </View>
-              <ThemedText style={styles.progressLabel}>{progress}%</ThemedText>
+              <Text style={styles.progressLabel}>{progress}%</Text>
             </View>
           )}
         </View>
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   buttonPrimaryText: {
-    color: colors.white,
+    color: colors.paper,
     fontFamily: fonts.body,
     fontSize: 13,
     fontWeight: '600',

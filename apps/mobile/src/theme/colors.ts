@@ -3,6 +3,7 @@ export const colors = {
   paper: '#EFEAE0',
   card: '#FBF9F4',
   paperDeep: '#E5DFD1',
+  paperFaint: '#EFEAE08C',
   line: '#D9D2C0',
   lineDash: '#C3BAA2',
   disabledBg: '#CFC7B4',
@@ -24,8 +25,18 @@ export const colors = {
   mustardSoft: '#F4E9C8',
   mustardBorder: '#E4D3A0',
   mustardInk: '#7D6C1F',
+  mustardText: '#6B6135',
   mustardInkStrong: '#241F08',
   olive: '#9A8A3A',
+
+  splashGreen: '#3F6F61',
+  frameRing: '#43514A',
+  logoDoor: '#27463D',
+  logoRoofMuted: '#B7C4BE',
+  logoRoof: '#FFFFFF',
+  goldCheck: '#F0B529',
+  textureA: '#DDD6C6',
+  textureB: '#E7E1D2',
 
   white: '#FFFFFF',
 } as const;

@@ -2,16 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../decorators/current-user.decorator';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-}
+import type { JwtPayload } from '../../modules/auth/auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -19,13 +19,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: JwtPayload): CurrentUserPayload {
+  async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
+    const anggota = await this.prisma.anggota.findUnique({
+      where: { id: payload.sub },
+      include: { rumah: true },
+    });
+
+    if (!anggota) {
+      return {
+        userId: payload.sub,
+        email: payload.email,
+        role: 'anggota',
+        rumahId: null,
+        anggota: null,
+      };
+    }
+
     return {
       userId: payload.sub,
       email: payload.email,
-      role: 'anggota',
-      rumahId: null,
-      anggota: null,
+      role: anggota.role,
+      rumahId: anggota.rumahId,
+      anggota,
     };
   }
 }

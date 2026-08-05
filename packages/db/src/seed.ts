@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { prisma } from './client';
-import type { User } from '../generated/client';
+import type { User } from '../generated/client/index.js';
 
 const DEMO_RUMAH = 'Kos Mawar';
 

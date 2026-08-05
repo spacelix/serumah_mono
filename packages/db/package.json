@@ -2,20 +2,24 @@
   "name": "@serumah/db",
   "version": "1.0.0",
   "exports": {
-    ".": "./src/client.ts"
+    ".": "./dist/client.js",
+    "./prisma": "./dist/prisma.module.js"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx src/seed.ts",
     "format": "prisma format",
     "generate": "prisma generate",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "tsc --noEmit",
     "prebuild": "bun run generate",
-    "studio": "prisma studio"
+    "studio": "prisma studio",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nestjs/common": "^11.0.1",
     "@prisma/client-runtime-utils": "latest",
     "@prisma/adapter-pg": "latest",
     "@prisma/client": "latest",

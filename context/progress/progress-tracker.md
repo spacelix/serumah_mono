@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M2 — Backend Core (IN PROGRESS)
-**Last completed:** M2 backend core auth/profile/rumah modules — register/login/logout/me, JWT with DB-lookup (fresh role/rumah per request), RolesGuard, profile upsert, create/join/preview rumah, avatar upload, idempotent seed with real bcrypt demo accounts. Verified via full smoke test (register → profile → create rumah → join → preview + error cases). `turbo run build lint typecheck test` all green.
+**Phase:** M4 — Mobile: Auth & Onboarding (IN PROGRESS)
+**Last completed:** M4 mobile auth — Expo theme tokens (colors/radius/typography) + Expo Router restructure (root Stack with `(auth)`/`(tabs)` groups), Zustand authStore (`useAuthStore`) with SecureStore persistence + `checking|anonymous|no-profile|no-rumah|ready` stages, `login`/`register` actions wired to NestJS `/auth/login` + `/auth/me`, axios api-client with Bearer + 401 handling. Splash (per `Serumah.html`: green bg, logo 118, wordmark + kicker), Welcome (auth entry landing with Masuk/Daftar), Login, Register screens built per `features/auth/context.md`. `turbo run lint typecheck` green.
 
-**Next:** Phase M3 — Backend Features (Ruangan & Jenis Piket CRUD, schedule, piket, verifikasi & denda, iuran & listrik, swap & galon, cron). Then M1 test loop runs on the first mobile change (bump to `v1.0.2`, cut tag, verify in-app update).
+**Next:** Onboarding screens (profile → create/join rumah) then M5 mobile tabs.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 
@@ -57,8 +57,8 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ### Phase M4 — Mobile: Auth & Onboarding
 
-- [ ] Expo theme + router + authStore guard
-- [ ] Splash, Login, Register
+- [x] Expo theme + router + authStore guard
+- [x] Splash, Login, Register
 - [ ] Onboarding (profile, create rumah, join rumah)
 
 ### Phase M5 — Mobile: Main Tabs

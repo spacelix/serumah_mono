@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { StorageService } from './storage.service';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -47,6 +49,31 @@ export class StorageController {
 
     const ext = this.extensionOf(file.originalname);
     const key = `${folder}/${randomUUID()}${ext}`;
+    const url = await this.storageService.upload(
+      file.buffer,
+      key,
+      file.mimetype,
+    );
+
+    return { url, key };
+  }
+
+  @Post('avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_FILE_SIZE },
+    }),
+  )
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() payload: CurrentUserPayload,
+  ): Promise<{ url: string; key: string }> {
+    if (!file) {
+      throw new BadRequestException('File wajib diunggah.');
+    }
+
+    const ext = this.extensionOf(file.originalname);
+    const key = `profiles/${payload.userId}/avatar${ext}`;
     const url = await this.storageService.upload(
       file.buffer,
       key,

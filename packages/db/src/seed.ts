@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { randomUUID } from 'node:crypto';
 import { prisma } from './client';
 import type { User } from '../generated/client/index.js';
 
@@ -13,8 +12,13 @@ const memberIds = [
   '00000000-0000-0000-0000-000000000004',
 ];
 
+// Precomputed bcrypt hash for "password123" (rounds = 10) — constant so the
+// seed stays idempotent and demo login works end-to-end.
+const DEMO_PASSWORD_HASH =
+  '$2b$10$nxMD2bdAaEOXsUaJ5X3bzeg0E33p39JunhF9w6sgwCl6cfBCac2.a';
+
 function makeUser(id: string, email: string): User {
-  return { id, email, passwordHash: 'demo-placeholder-bcrypt-hash' } as User;
+  return { id, email, passwordHash: DEMO_PASSWORD_HASH } as User;
 }
 
 async function main() {
@@ -28,7 +32,7 @@ async function main() {
   for (const user of users) {
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      update: { passwordHash: DEMO_PASSWORD_HASH },
       create: user,
     });
   }
@@ -63,25 +67,45 @@ async function main() {
     await prisma.anggota.upsert({
       where: { id: a.id },
       update: { rumahId: rumah.id, role: a.role, kamar: a.kamar },
-      create: { id: a.id, rumahId: rumah.id, nama: a.nama, role: a.role, kamar: a.kamar },
+      create: {
+        id: a.id,
+        rumahId: rumah.id,
+        nama: a.nama,
+        role: a.role,
+        kamar: a.kamar,
+      },
     });
   }
 
-  const ruangan = await prisma.ruangan.create({
-    data: {
+  const ruangan = await prisma.ruangan.upsert({
+    where: { id: '00000000-0000-0000-0000-00000000000b' },
+    update: { rumahId: rumah.id, nama: 'Ruang Tamu', urutan: 1 },
+    create: {
       id: '00000000-0000-0000-0000-00000000000b',
       rumahId: rumah.id,
       nama: 'Ruang Tamu',
       urutan: 1,
-      jenisPiket: {
-        create: [
-          { id: '00000000-0000-0000-0000-00000000000c', nama: 'Sapu' },
-          { id: '00000000-0000-0000-0000-00000000000d', nama: 'Pel' },
-          { id: '00000000-0000-0000-0000-00000000000e', nama: 'Rapikan sofa' },
-        ],
-      },
     },
   });
+
+  const jenisData = [
+    { id: '00000000-0000-0000-0000-00000000000c', nama: 'Sapu' },
+    { id: '00000000-0000-0000-0000-00000000000d', nama: 'Pel' },
+    { id: '00000000-0000-0000-0000-00000000000e', nama: 'Rapikan sofa' },
+  ];
+
+  for (const j of jenisData) {
+    await prisma.jenisPiket.upsert({
+      where: { id: j.id },
+      update: { ruanganId: ruangan.id, nama: j.nama, isActive: true },
+      create: {
+        id: j.id,
+        ruanganId: ruangan.id,
+        nama: j.nama,
+        isActive: true,
+      },
+    });
+  }
 
   console.log({
     rumah: rumah.nama,

@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M3 — Backend Features (IN PROGRESS)
-**Last completed:** M3.1 Ruangan & Jenis Piket — new `RuanganModule` (`/ruangan` CRUD + reorder + jenis piket), admin-gated via `@Roles('admin')` + shared `RumahScopeService` (single-PJ invariant), all queries rumah-scoped. `turbo run build lint typecheck test` green.
+**Last completed:** M3.2 Schedule — `ScheduleModule`: round-robin weekday roster (Mon/Wed/Fri, global ordinal counter), weekend from `di_kos` status with last-week inheritance, Jumat 20:00 freeze guard, `GET /schedule/week`, admin generate/weekday + generate/weekend, admin-guarded `run-auto-fine` (skips non-piket days, no-schedule days not fineable), and the 22:00 auto-fine cron. `turbo run build lint typecheck test` green.
 
-**Next:** M3.2 Schedule (round-robin, weekend, freeze, generate).
+**Next:** M3.3 Piket (submissions + ruangan_proof).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -47,7 +47,7 @@ Update after every completed feature. Any agent reading this should immediately 
 ### Phase M3 — Backend Features
 
 - [x] Ruangan & Jenis Piket (CRUD + reorder)
-- [ ] Schedule (round-robin, weekend, freeze, generate)
+- [x] Schedule (round-robin, weekend, freeze, generate)
 - [ ] Piket (submissions + ruangan_proof)
 - [ ] Verifikasi & Denda (per-submission approval, QRIS payment)
 - [ ] Iuran & Listrik (auto-split, total proof, pelunasan, adjust)

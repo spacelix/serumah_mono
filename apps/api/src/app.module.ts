@@ -10,6 +10,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
 import { StorageModule } from './modules/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ProfileModule } from './modules/profile/profile.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     }),
     StorageModule,
     AuthModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [

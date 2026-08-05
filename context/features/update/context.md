@@ -50,4 +50,6 @@ Locked decisions:
 - Required read: `core/code-standards.md` (env + storage).
 
 ## 8. Status
-Not yet implemented (M1 — first phase after scaffold). Parity with the GitHub-release flow from the Flutter era (`/mnt/d/Source/serumah/.github/workflows/release.yml`), adapted to Expo/RN: trigger stays `push: tags: ['v*']`, build via `expo prebuild` + `gradlew assembleRelease` with keystore secrets.
+Implemented (M1, first phase after scaffold). App side done: `src/lib/update.ts` (manifest fetch + resolve optional/force + download via `File.downloadFileAsync` + install via `contentUri` intent), `useUpdateCheck` hook, `UpdateDialog` (WAJIB badge, progress bar, optional/force buttons), wired in `src/app/_layout.tsx` (release mode only, after first frame, dismissible optional). Theme tokens in `src/theme/`. CI done: `.github/workflows/release.yml` — trigger `push: tags: ['v*']`, `expo prebuild` + `gradlew assembleRelease` signed via keystore secrets, publishes `serumah-app.apk` + `version.json`. App: `android.package=com.serumah.serumah`, `versionCode: 1`, `REQUEST_INSTALL_PACKAGES` permission.
+
+Pending: the M1 **test loop** — cut a test release, install older APK, verify in-app update prompt, update, confirm new version. Requires GitHub secrets (`KEYSTORE_*`, `EXPO_PUBLIC_API_URL`).

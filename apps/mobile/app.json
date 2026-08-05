@@ -11,6 +11,8 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.serumah.serumah",
+      "versionCode": 1,
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],

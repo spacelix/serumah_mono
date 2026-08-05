@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M0 — Documentation & Foundation (COMPLETE)
-**Last completed:** M0.2 — Monorepo scaffold complete. Root workspaces + turbo (build/lint/typecheck/test), docker-compose (Postgres 16 + MinIO), `packages/db` (Prisma schema, 0_init migration, seed, builds to `dist/` for runtime), `apps/api` (NestJS: Config, PrismaModule, JWT guard+strategy, exception filter in Indonesian, MinIO storage module w/ auto bucket, health endpoint — boots & tested), `apps/mobile` (Expo 57 + expo-router scaffold, React Query + Zustand + axios deps, `eslint-config-expo`, typechecks & lints).
+**Phase:** M1 — Release & In-App Update (ACTIVE)
+**Last completed:** M1 — In-app update check + `UpdateDialog` (release-mode only, optional vs force via `minVersionCode`, APK download + install) and GitHub Actions `release.yml` (tag `v*` → `expo prebuild` → signed `gradlew assembleRelease` → `version.json` + APK GitHub Release).
 
-**Next:** M1 — Release & In-App Update (FIRST, per locked decision).
+**Next:** M1 test loop — cut a test release, verify the in-app update prompt & install. Then Phase M2 (Backend Core).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 
@@ -31,8 +31,8 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ### Phase M1 — Release & In-App Update (FIRST)
 
-- [ ] In-app update check + dialog (release mode only)
-- [ ] GitHub Actions build APK + version.json + release on tag `v*` (signed keystore)
+- [x] In-app update check + dialog (release mode only)
+- [x] GitHub Actions build APK + version.json + release on tag `v*` (signed keystore)
 - [ ] Test loop (older APK → new APK → in-app update) per phase
 
 ### Phase M2 — Backend Core (NestJS)

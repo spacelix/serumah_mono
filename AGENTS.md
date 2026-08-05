@@ -25,6 +25,8 @@ packages/db/   → Prisma schema + migrations + seed (bunx prisma migrate dev)
 docker-compose → Postgres 16 + MinIO locally
 ```
 
+`@serumah/db` ships **compiled JS** (src → `dist/`) so the NestJS runtime can load it. Always run `turbo build` (or `bun run build` inside `packages/db`) **before** starting `apps/api`, and after any schema change regnerate via `prisma generate`. The generated client lives at `packages/db/generated/client` (gitignored, regenerated). Import it in `packages/db` sources as `../generated/client/index.js` (explicit extension required by NodeNext).
+
 Native build verification (Android APK) happens via GitHub Actions / EAS — not in WSL.
 
 ---
@@ -74,6 +76,12 @@ Every feature follows this lifecycle:
 
 No backend integration before UI approval.
 No feature is complete until it is testable.
+
+## Verification & Per-Item Commits (mandatory)
+
+1. **Verify before done.** Every item (feature, endpoint, refactor, fix) is **not** complete until it is verified: run its `build`, `lint`, `typecheck`, and tests (`turbo run build lint typecheck test --filter=<pkg>`) and confirm they pass. Never mark an item done or start the next item on unverified work.
+2. **Commit per item.** Commit changes **after each completed (and verified) item**, never as one bundled WIP commit. One commit = one logical item, message in the repo style and scoped to that item. Cross-cutting files (e.g. `bun.lock`) go with the item they belong to.
+3. **Update docs with the item.** `context/progress/progress-tracker.md` (and any affected context) is updated in the same commit as its item — never a separate later catch-up.
 
 ---
 

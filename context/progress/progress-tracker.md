@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M0 — Documentation & Foundation (in progress)
-**Last completed:** M0.1 — Per-feature context split (docs-first). `AGENTS.md` rewritten (RN+NestJS stack), new `context/` structure (core/, architecture/, 14 features/, progress/), `architecture/data-model.md` (Prisma schema source of truth). Also added `README.md` (architecture diagrams, dev & production runbooks).
+**Phase:** M0 — Documentation & Foundation (COMPLETE)
+**Last completed:** M0.2 — Monorepo scaffold complete. Root workspaces + turbo (build/lint/typecheck/test), docker-compose (Postgres 16 + MinIO), `packages/db` (Prisma schema, 0_init migration, seed, builds to `dist/` for runtime), `apps/api` (NestJS: Config, PrismaModule, JWT guard+strategy, exception filter in Indonesian, MinIO storage module w/ auto bucket, health endpoint — boots & tested), `apps/mobile` (Expo 57 + expo-router scaffold, React Query + Zustand + axios deps, `eslint-config-expo`, typechecks & lints).
 
-**Next:** M0.2 — Monorepo scaffold (root workspaces, docker-compose, packages/db Prisma, apps/api NestJS, apps/mobile Expo).
+**Next:** M1 — Release & In-App Update (FIRST, per locked decision).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 
@@ -22,7 +22,12 @@ Update after every completed feature. Any agent reading this should immediately 
 ### Phase M0 — Documentation & Foundation
 
 - [x] M0.1 Per-feature context split (AGENTS.md + context/core + data-model + 14 features/ + progress/)
-- [ ] M0.2 Monorepo scaffold (root, docker-compose, packages/db, apps/api NestJS, apps/mobile Expo)
+- [x] M0.2 Monorepo scaffold
+  - [x] Root workspaces + turbo (build/lint/typecheck/test)
+  - [x] docker-compose (Postgres 16 + MinIO)
+  - [x] packages/db (schema, 0_init migration, seed, builds to dist/)
+  - [x] apps/api (Config, PrismaModule, JWT guard, exception filter, MinIO storage, health)
+  - [x] apps/mobile (Expo 57 scaffold, React Query + Zustand + axios, lint+typecheck green)
 
 ### Phase M1 — Release & In-App Update (FIRST)
 

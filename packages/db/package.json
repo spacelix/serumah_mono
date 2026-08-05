@@ -1,0 +1,32 @@
+{
+  "name": "@serumah/db",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./src/client.ts"
+  },
+  "scripts": {
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx src/seed.ts",
+    "format": "prisma format",
+    "generate": "prisma generate",
+    "lint": "eslint . --max-warnings 0",
+    "prebuild": "bun run generate",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client-runtime-utils": "latest",
+    "@prisma/adapter-pg": "latest",
+    "@prisma/client": "latest",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@serumah/typescript-config": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "prisma": "latest",
+    "tsx": "4.21.0",
+    "typescript": "5.9.2"
+  }
+}

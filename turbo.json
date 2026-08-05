@@ -1,0 +1,29 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "description": "Builds the API (tsc → dist/) and packages",
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"]
+    },
+    "lint": {
+      "description": "Lints code in all packages",
+      "dependsOn": ["^lint"]
+    },
+    "test": {
+      "description": "Runs tests in all packages",
+      "dependsOn": ["build"]
+    },
+    "typecheck": {
+      "description": "Runs TypeScript type checking",
+      "dependsOn": ["^typecheck"]
+    },
+    "dev": {
+      "description": "Runs long-lived dev servers",
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

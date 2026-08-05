@@ -1,0 +1,326 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output = "../generated/client"
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  anggota   Anggota?
+  fcmTokens FcmToken[]
+
+  @@map("users")
+}
+
+// ── RUMAH & ANGGOTA ───────────────────────────────────────────────────
+model Rumah {
+  id                String   @id @default(uuid()) @db.Uuid
+  nama              String
+  alamat            String
+  biayaKos          Int      @default(0) @map("biaya_kos")
+  biayaWifi         Int      @default(0) @map("biaya_wifi")
+  biayaListrikWajib Int      @default(0) @map("biaya_listrik_wajib")
+  nominalDenda      Int      @default(50000) @map("nominal_denda")
+  rekeningBank      String?  @map("rekening_bank")
+  rekeningNomor     String?  @map("rekening_nomor")
+  rekeningNama      String?  @map("rekening_nama")
+  qrisUrl           String?  @map("qris_url")
+  inviteCode        String   @unique @map("invite_code")
+  createdById       String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  anggota             Anggota[]
+  undangan            UndanganKos[]
+  jadwal              Jadwal[]
+  ruangan             Ruangan[]
+  pelunasan           PelunasanBulanan[]
+  pembayaranListrik   PembayaranListrik[]
+  giliranGalon        GiliranGalon[]
+
+  @@map("rumah")
+}
+
+model Anggota {
+  id            String   @id @db.Uuid
+  rumahId       String?  @map("rumah_id") @db.Uuid
+  nama          String
+  fotoProfil    String?  @map("foto_profil")
+  kamar         String?
+  kontakDarurat String?  @map("kontak_darurat")
+  alamat        String?
+  role          String   @default("anggota")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user              User?             @relation(fields: [id], references: [id])
+  rumah             Rumah?            @relation(fields: [rumahId], references: [id])
+  jadwal            Jadwal[]
+  weekendStatus     WeekendStatus[]
+  submissions       PiketSubmission[]
+  denda             Denda[]
+  iuran             IuranBulanan[]
+  pembayaranListrik PembayaranListrik[]
+  giliranGalon      GiliranGalon[]
+  swapDari          SwapRequest[]     @relation("SwapDari")
+  swapKe            SwapRequest[]     @relation("SwapKe")
+
+  @@index([rumahId])
+  @@map("anggota")
+}
+
+model UndanganKos {
+  id        String   @id @default(uuid()) @db.Uuid
+  rumahId   String   @map("rumah_id") @db.Uuid
+  kode      String
+  dibuatOleh String  @map("dibuat_oleh") @db.Uuid
+  expiredAt DateTime? @map("expired_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rumah Rumah @relation(fields: [rumahId], references: [id])
+
+  @@index([kode])
+  @@map("undangan_kos")
+}
+
+// ── SCHEDULE ──────────────────────────────────────────────────────────
+model Jadwal {
+  id       String   @id @default(uuid()) @db.Uuid
+  rumahId  String   @map("rumah_id") @db.Uuid
+  tanggal  DateTime @db.Date
+  anggotaId String  @map("anggota_id") @db.Uuid
+  ruangan  String[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rumah       Rumah           @relation(fields: [rumahId], references: [id])
+  anggota     Anggota         @relation(fields: [anggotaId], references: [id])
+  submissions PiketSubmission[]
+
+  @@index([rumahId, tanggal])
+  @@map("jadwal")
+}
+
+model WeekendStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  anggotaId   String   @map("anggota_id") @db.Uuid
+  mingguMulai DateTime @map("minggu_mulai") @db.Date
+  hari        String
+  status      String
+
+  anggota Anggota @relation(fields: [anggotaId], references: [id])
+
+  @@unique([anggotaId, mingguMulai, hari])
+  @@map("weekend_status")
+}
+
+// ── RUANGAN & JENIS PIKET ─────────────────────────────────────────────
+model Ruangan {
+  id      String   @id @default(uuid()) @db.Uuid
+  rumahId String   @map("rumah_id") @db.Uuid
+  nama    String
+  urutan  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rumah      Rumah       @relation(fields: [rumahId], references: [id])
+  jenisPiket JenisPiket[]
+  proofs     RuanganProof[]
+
+  @@index([rumahId, urutan])
+  @@map("ruangan")
+}
+
+model JenisPiket {
+  id        String   @id @default(uuid()) @db.Uuid
+  ruanganId String   @map("ruangan_id") @db.Uuid
+  nama      String
+  isActive  Boolean  @default(true) @map("is_active")
+
+  ruangan Ruangan @relation(fields: [ruanganId], references: [id])
+
+  @@index([ruanganId])
+  @@map("jenis_piket")
+}
+
+// ── PIKET EXECUTION ───────────────────────────────────────────────────
+model PiketSubmission {
+  id          String    @id @default(uuid()) @db.Uuid
+  jadwalId    String    @map("jadwal_id") @db.Uuid
+  anggotaId   String    @map("anggota_id") @db.Uuid
+  status      String    @default("menunggu")
+  submittedAt DateTime? @map("submitted_at") @db.Timestamptz
+
+  jadwal    Jadwal         @relation(fields: [jadwalId], references: [id])
+  anggota   Anggota        @relation(fields: [anggotaId], references: [id])
+  proofs    RuanganProof[]
+  approvals PiketApproval[]
+  denda     Denda[]
+
+  @@index([jadwalId])
+  @@map("piket_submissions")
+}
+
+model RuanganProof {
+  id           String   @id @default(uuid()) @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  ruanganId    String   @map("ruangan_id") @db.Uuid
+  fotoBefore   String?  @map("foto_before")
+  fotoAfter    String?  @map("foto_after")
+  jenisSelesai String[] @map("jenis_selesai")
+
+  submission PiketSubmission @relation(fields: [submissionId], references: [id])
+  ruangan    Ruangan         @relation(fields: [ruanganId], references: [id])
+
+  @@unique([submissionId, ruanganId])
+  @@map("ruangan_proof")
+}
+
+model PiketApproval {
+  id           String   @id @default(uuid()) @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  status       String
+  reviewerId   String   @map("reviewer_id") @db.Uuid
+  reviewedAt   DateTime @default(now()) @map("reviewed_at") @db.Timestamptz
+
+  submission PiketSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+  @@map("piket_approval")
+}
+
+// ── FINES (DENDA) & PAYMENT ───────────────────────────────────────────
+model Denda {
+  id             String    @id @default(uuid()) @db.Uuid
+  anggotaId      String    @map("anggota_id") @db.Uuid
+  submissionId   String?   @map("submission_id") @db.Uuid
+  nominal        Int
+  status         String    @default("belum_bayar")
+  bayarKeAnggotaId String? @map("bayar_ke_anggota_id") @db.Uuid
+  buktiBayar     String?   @map("bukti_bayar")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  anggota             Anggota             @relation(fields: [anggotaId], references: [id])
+  submission          PiketSubmission?    @relation(fields: [submissionId], references: [id])
+  pembayaranApproval  PembayaranApproval[]
+
+  @@index([anggotaId])
+  @@map("denda")
+}
+
+model PembayaranApproval {
+  id         String   @id @default(uuid()) @db.Uuid
+  dendaId    String   @map("denda_id") @db.Uuid
+  approverId String   @map("approver_id") @db.Uuid
+  status     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  denda Denda @relation(fields: [dendaId], references: [id])
+
+  @@index([dendaId])
+  @@map("pembayaran_approval")
+}
+
+// ── IURAN & LISTRIK ───────────────────────────────────────────────────
+model IuranBulanan {
+  id        String   @id @default(uuid()) @db.Uuid
+  anggotaId String   @map("anggota_id") @db.Uuid
+  bulan     DateTime @db.Date
+  kategori  String
+  label     String
+  nominal   Int
+  status    String   @default("belum_bayar")
+  buktiBayar String? @map("bukti_bayar")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  anggota Anggota @relation(fields: [anggotaId], references: [id])
+
+  @@unique([anggotaId, bulan, kategori])
+  @@index([bulan])
+  @@map("iuran_bulanan")
+}
+
+model PelunasanBulanan {
+  id         String   @id @default(uuid()) @db.Uuid
+  rumahId    String   @map("rumah_id") @db.Uuid
+  bulan      DateTime @db.Date
+  kategori   String
+  buktiLunas String   @map("bukti_lunas")
+  createdById String  @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rumah Rumah @relation(fields: [rumahId], references: [id])
+
+  @@unique([rumahId, bulan, kategori])
+  @@map("pelunasan_bulanan")
+}
+
+model PembayaranListrik {
+  id         String   @id @default(uuid()) @db.Uuid
+  rumahId    String   @map("rumah_id") @db.Uuid
+  anggotaId  String   @map("anggota_id") @db.Uuid
+  bulan      DateTime @db.Date
+  nominal    Int
+  buktiBayar String?  @map("bukti_bayar")
+  keterangan String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  rumah   Rumah   @relation(fields: [rumahId], references: [id])
+  anggota Anggota @relation(fields: [anggotaId], references: [id])
+
+  @@index([rumahId, bulan])
+  @@map("pembayaran_listrik")
+}
+
+// ── SWAP & GALON ──────────────────────────────────────────────────────
+model SwapRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  dariAnggotaId String @map("dari_anggota_id") @db.Uuid
+  keAnggotaId   String @map("ke_anggota_id") @db.Uuid
+  tanggal     DateTime @db.Date
+  status      String   @default("diajukan")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  dari Anggota @relation("SwapDari", fields: [dariAnggotaId], references: [id])
+  ke   Anggota @relation("SwapKe", fields: [keAnggotaId], references: [id])
+
+  @@index([keAnggotaId])
+  @@map("swap_requests")
+}
+
+model GiliranGalon {
+  id          String    @id @default(uuid()) @db.Uuid
+  rumahId     String    @map("rumah_id") @db.Uuid
+  anggotaId   String    @map("anggota_id") @db.Uuid
+  periodeMulai DateTime @map("periode_mulai") @db.Date
+  status      String    @default("menunggu")
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz
+
+  rumah   Rumah   @relation(fields: [rumahId], references: [id])
+  anggota Anggota @relation(fields: [anggotaId], references: [id])
+
+  @@map("giliran_galon")
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────
+model FcmToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  anggotaId String   @map("anggota_id") @db.Uuid
+  token     String
+  platform  String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [anggotaId], references: [id])
+
+  @@unique([token])
+  @@map("fcm_tokens")
+}

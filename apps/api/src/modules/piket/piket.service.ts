@@ -189,4 +189,148 @@ export class PiketService {
   private toDay(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
+
+  // ── VERIFIKASI (approval) ────────────────────────────────────────────
+  async listSubmissions(
+    payload: CurrentUserPayload,
+    status: 'pending' | 'resolved',
+  ) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) return [];
+
+    const isPending = status === 'pending';
+    const submissions = await this.prisma.piketSubmission.findMany({
+      where: {
+        jadwal: { rumahId: anggota.rumahId },
+        status: isPending ? 'menunggu' : { in: ['approved', 'rejected'] },
+      },
+      orderBy: { submittedAt: isPending ? 'asc' : 'desc' },
+      include: {
+        anggota: { select: { id: true, nama: true, kamar: true } },
+        jadwal: { select: { tanggal: true } },
+        proofs: {
+          include: {
+            ruangan: { select: { id: true, nama: true } },
+          },
+        },
+      },
+    });
+
+    return submissions.map((s) => ({
+      id: s.id,
+      status: s.status,
+      submittedAt: s.submittedAt,
+      tanggal: s.jadwal.tanggal,
+      anggota: s.anggota,
+      proofs: s.proofs.map((p) => ({
+        ruanganId: p.ruanganId,
+        ruanganNama: p.ruangan.nama,
+        fotoBefore: p.fotoBefore,
+        fotoAfter: p.fotoAfter,
+        jenisSelesai: p.jenisSelesai,
+      })),
+      isMine: s.anggotaId === anggota.id,
+    }));
+  }
+
+  async approveSubmission(payload: CurrentUserPayload, submissionId: string) {
+    const pj = await this.requireReviewer(payload);
+    const submission = await this.getSubmissionForReview(
+      submissionId,
+      pj.rumahId!,
+      payload.userId,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.piketSubmission.update({
+        where: { id: submission.id },
+        data: { status: 'approved' },
+      }),
+      this.prisma.piketApproval.create({
+        data: {
+          submissionId: submission.id,
+          reviewerId: pj.id,
+          status: 'approved',
+        },
+      }),
+    ]);
+
+    this.logger.log(
+      `[PiketService] Submission ${submission.id} disetujui oleh ${pj.nama}`,
+    );
+    return { submission: { id: submission.id, status: 'approved' } };
+  }
+
+  async rejectSubmission(payload: CurrentUserPayload, submissionId: string) {
+    const pj = await this.requireReviewer(payload);
+    const submission = await this.getSubmissionForReview(
+      submissionId,
+      pj.rumahId!,
+      payload.userId,
+    );
+
+    const rumah = await this.prisma.rumah.findUnique({
+      where: { id: pj.rumahId! },
+    });
+    const nominal = rumah?.nominalDenda ?? 0;
+
+    const { denda } = await this.prisma.$transaction(async (tx) => {
+      await tx.piketSubmission.update({
+        where: { id: submission.id },
+        data: { status: 'rejected' },
+      });
+      await tx.piketApproval.create({
+        data: {
+          submissionId: submission.id,
+          reviewerId: pj.id,
+          status: 'rejected',
+        },
+      });
+      const created = await tx.denda.create({
+        data: {
+          anggotaId: submission.anggotaId,
+          submissionId: submission.id,
+          nominal,
+          bayarKeAnggotaId: pj.id,
+        },
+      });
+      return { denda: created };
+    });
+
+    this.logger.log(
+      `[PiketService] Submission ${submission.id} ditolak, denda ${denda.id}`,
+    );
+    return { submission: { id: submission.id, status: 'rejected' }, denda };
+  }
+
+  private async requireReviewer(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    return this.scope.requirePj(payload.userId, anggota.rumahId);
+  }
+
+  private async getSubmissionForReview(
+    submissionId: string,
+    rumahId: string,
+    reviewerId: string,
+  ) {
+    const submission = await this.prisma.piketSubmission.findUnique({
+      where: { id: submissionId },
+      include: { jadwal: true },
+    });
+    if (!submission || submission.jadwal.rumahId !== rumahId) {
+      throw new BadRequestException('Pengumpulan tidak ditemukan.');
+    }
+    if (submission.status !== 'menunggu') {
+      throw new ConflictException('Pengumpulan sudah diverifikasi.');
+    }
+    if (submission.anggotaId === reviewerId) {
+      throw new ForbiddenException(
+        'Anda tidak dapat memverifikasi pengumpulan sendiri.',
+      );
+    }
+    return submission;
+  }
 }

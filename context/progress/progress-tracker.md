@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M3 — Backend Features (IN PROGRESS)
-**Last completed:** M3.3 Piket — `PiketModule`: `GET /piket/today` (jadwal + active rooms + jenis checklist + existing submission), `POST /piket/submissions` (server-validated every active room has before+after photo + ≥1 jenis, one per jadwal, rejected final per TBC-1). `/storage/upload` extended to accept deterministic client `path` keys under an allowed folder (Decision 3). `turbo run build lint typecheck test` green.
+**Last completed:** M3.4 Verifikasi & Denda — Piket approval part (`GET /piket/submissions?status=`, `approve`/`reject`, all-or-nothing, reject → flat Denda, reviewer cannot approve own) + `DendaModule` (`GET /denda?bulan=`, upload-bukti with PJ-instant-lunas vs member→menunggu_konfirmasi to PJ, approve/reject with `PembayaranApproval`). Enforced TBC-1/2/5. `turbo run build lint typecheck test` green.
 
-**Next:** M3.4 Verifikasi & Denda (approval, QRIS payment).
+**Next:** M3.5 Iuran & Listrik (auto-split, pelunasan, adjust).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -49,7 +49,7 @@ Update after every completed feature. Any agent reading this should immediately 
 - [x] Ruangan & Jenis Piket (CRUD + reorder)
 - [x] Schedule (round-robin, weekend, freeze, generate)
 - [x] Piket (submissions + ruangan_proof)
-- [ ] Verifikasi & Denda (per-submission approval, QRIS payment)
+- [x] Verifikasi & Denda (per-submission approval, QRIS payment)
 - [ ] Iuran & Listrik (auto-split, total proof, pelunasan, adjust)
 - [ ] Swap & Galon
 - [ ] Cron (auto-fine, weekend freeze)

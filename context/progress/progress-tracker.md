@@ -27,7 +27,7 @@ Update after every completed feature. Any agent reading this should immediately 
 ### Phase M1 — Release & In-App Update (FIRST)
 
 - [ ] In-app update check + dialog (release mode only)
-- [ ] GitHub Actions build APK + version.json + release on tag `v*`
+- [ ] GitHub Actions build APK + version.json + release on tag `v*` (signed keystore)
 - [ ] Test loop (older APK → new APK → in-app update) per phase
 
 ### Phase M2 — Backend Core (NestJS)

@@ -10,13 +10,15 @@ No DB tables. Uses:
 
 ## 3. API / Configuration
 - `UPDATE_MANIFEST_URL` (env `EXPO_PUBLIC_UPDATE_MANIFEST_URL`) → GitHub raw `version.json`.
+- Repo: `https://github.com/spacelix/serumah_mono`.
 - Manifest shape:
 ```json
 {
-  "versionName": "1.0.1",
   "versionCode": 2,
+  "versionName": "1.0.1",
   "minVersionCode": 1,
-  "apkUrl": "https://github.com/<owner>/<repo>/releases/download/v1.0.1/serumah-app.apk"
+  "apkUrl": "https://github.com/spacelix/serumah_mono/releases/download/v1.0.1/serumah-app.apk",
+  "notes": "commit message of the tag"
 }
 ```
 - Compare with the installed version (expo-application):
@@ -30,7 +32,9 @@ Locked decisions:
 - Check only in **release** mode, skip in debug/dev.
 - Check once on app open (after first frame).
 - Force update: non-dismissible dialog.
-- Release: bump version (app.json) → tag `v{versionName}` → GitHub Actions builds APK + generates `version.json` + publishes release.
+- **Release trigger = tag `v*` pushed to GitHub** (locked decision, option 1). A plain commit/code change does NOT trigger an update — only bumping `app.json` version + pushing a `v{versionName}` tag starts the build.
+- Release: bump version (app.json) → tag `v{versionName}` → GitHub Actions (`release.yml`) builds APK + generates `version.json` + publishes release.
+- **Signed APK**: keystore from GitHub secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). No unsigned builds.
 
 ## 5. UI Spec (React Native)
 - `UpdateDialog`: title "Update tersedia" + description + progress bar while downloading. Optional → "Nanti saja" + "Update Sekarang" buttons. Force → only "Update Sekarang".
@@ -46,4 +50,4 @@ Locked decisions:
 - Required read: `core/code-standards.md` (env + storage).
 
 ## 8. Status
-Not yet implemented (awaiting Phase 3–4). Parity with the GitHub-release flow from the Flutter era.
+Not yet implemented (M1 — first phase after scaffold). Parity with the GitHub-release flow from the Flutter era (`/mnt/d/Source/serumah/.github/workflows/release.yml`), adapted to Expo/RN: trigger stays `push: tags: ['v*']`, build via `expo prebuild` + `gradlew assembleRelease` with keystore secrets.

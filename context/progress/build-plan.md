@@ -31,8 +31,8 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 > Why first: the in-app update feature is built and tested **now** so it can be monitored through the whole development cycle. From here on, every release (even partial builds) exercises the same update pipeline.
 
 - **In-app update**: version check at launch (release mode only), Update dialog, optional vs force update (`minVersionCode`), APK download + install. (`features/update`)
-- **GitHub Actions**: build Android APK + generate `version.json` + publish GitHub Release on tag `v*`.
-- **Manifest**: `version.json` fields (versionName, versionCode, minVersionCode, apkUrl) served from the release.
+- **GitHub Actions**: build Android APK + generate `version.json` + publish GitHub Release on tag `v*`. Trigger = tag `v*` pushed (locked decision, option 1). Signed APK via keystore secrets.
+- **Manifest**: `version.json` fields (versionCode, versionName, minVersionCode, apkUrl, notes) served from the release. Repo: `spacelix/serumah_mono`.
 - **Test loop**: cut a test release → install older APK → ship new APK → verify in-app update prompt appears → update → confirm new version. Repeat on each phase.
 - **Native build verification** (EAS/GitHub — not WSL).
 

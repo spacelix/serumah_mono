@@ -317,11 +317,13 @@ model SwapRequest {
 
 model GiliranGalon {
   id          String    @id @default(uuid()) @db.Uuid
+  rumahId     String    @map("rumah_id") @db.Uuid
   anggotaId   String    @map("anggota_id") @db.Uuid
   periodeMulai DateTime @map("periode_mulai") @db.Date
   status      String    @default("menunggu") // 'menunggu' | 'sudah_dibeli'
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz
 
+  rumah   Rumah   @relation(fields: [rumahId], references: [id])
   anggota Anggota @relation(fields: [anggotaId], references: [id])
 
   @@map("giliran_galon")

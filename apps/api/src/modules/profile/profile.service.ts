@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/profile.dto';
@@ -28,18 +28,24 @@ export class ProfileService {
   }
 
   async updateProfile(payload: CurrentUserPayload, dto: UpdateProfileDto) {
-    const anggota = await this.prisma.anggota.findUnique({
+    const existing = await this.prisma.anggota.findUnique({
       where: { id: payload.userId },
     });
-    if (!anggota) {
-      throw new NotFoundException(
-        'Profil tidak ditemukan. Selesaikan onboarding terlebih dahulu.',
-      );
+
+    if (!existing && !dto.nama) {
+      throw new BadRequestException('Nama wajib diisi untuk membuat profil.');
     }
 
-    const updated = await this.prisma.anggota.update({
+    const anggota = await this.prisma.anggota.upsert({
       where: { id: payload.userId },
-      data: {
+      create: {
+        id: payload.userId,
+        nama: dto.nama!,
+        fotoProfil: dto.fotoProfil,
+        kontakDarurat: dto.kontakDarurat,
+        alamat: dto.alamat,
+      },
+      update: {
         nama: dto.nama ?? undefined,
         fotoProfil: dto.fotoProfil ?? undefined,
         kontakDarurat: dto.kontakDarurat ?? undefined,
@@ -47,7 +53,7 @@ export class ProfileService {
       },
     });
 
-    this.logger.log(`[ProfileService] Profil diperbarui: ${updated.id}`);
-    return { anggota: updated };
+    this.logger.log(`[ProfileService] Profil diperbarui: ${anggota.id}`);
+    return { anggota };
   }
 }

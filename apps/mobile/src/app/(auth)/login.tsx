@@ -8,7 +8,6 @@ import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function LoginScreen() {
@@ -34,47 +33,51 @@ export default function LoginScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.logoChip}>
-              <SerumahLogo size={30} variant="mark" roofColor={colors.paper} />
+              <SerumahLogo size={28} variant="mark" roofColor={colors.paper} />
             </View>
-            <Text style={styles.kicker}>Masuk akun</Text>
-            <Text style={styles.title}>Selamat datang kembali</Text>
+            <View style={styles.headerText}>
+              <Text style={styles.kicker}>Masuk akun</Text>
+              <Text style={styles.title}>Selamat datang kembali</Text>
+            </View>
           </View>
 
-          <View style={styles.form}>
-            <SerumahInput
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="nama@email.com"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-            />
-            <SerumahInput
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="• • • • • • • •"
-              secureTextEntry
-              autoCapitalize="none"
-              textContentType="password"
-            />
-          </View>
+          <View style={styles.center}>
+            <View style={styles.form}>
+              <SerumahInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="nama@email.com"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+              />
+              <SerumahInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="• • • • • • • •"
+                secureTextEntry
+                autoCapitalize="none"
+                textContentType="password"
+              />
+            </View>
 
-          <View style={styles.actions}>
-            <SerumahButton
-              title={loading ? 'Memproses…' : 'Masuk'}
-              disabled={loading || email.trim() === '' || password === ''}
-              onPress={handleSubmit}
-            />
-          </View>
+            <View style={styles.actions}>
+              <SerumahButton
+                title={loading ? 'Memproses…' : 'Masuk'}
+                disabled={loading || email.trim() === '' || password === ''}
+                onPress={handleSubmit}
+              />
+            </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Belum punya akun? </Text>
-            <Link href="/register" style={styles.link}>
-              Daftar
-            </Link>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Belum punya akun? </Text>
+              <Link href="/register" style={styles.link}>
+                Daftar
+              </Link>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -92,13 +95,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing['2xl'],
+    paddingHorizontal: 24,
+    paddingTop: 52,
+    paddingBottom: 26,
+    gap: 18,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: spacing['2xl'],
+    gap: 10,
   },
   logoChip: {
     width: 40,
@@ -107,7 +112,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pine,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+  },
+  headerText: {
+    flexDirection: 'column',
+    gap: 2,
   },
   kicker: {
     ...type.kicker,
@@ -121,20 +129,23 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     letterSpacing: -0.46,
     color: colors.ink,
-    textAlign: 'center',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
   },
   form: {
-    gap: spacing.lg,
+    gap: 15,
   },
   actions: {
-    marginTop: spacing['2xl'],
+    marginTop: 15,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
-    paddingBottom: spacing.lg,
+    marginTop: 20,
+    gap: 4,
   },
   footerText: {
     ...type.body,

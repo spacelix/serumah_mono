@@ -7,7 +7,6 @@ import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function RegisterScreen() {
@@ -37,55 +36,56 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.kicker}>Serumah</Text>
+            <Text style={styles.kicker}>Langkah 1 dari 1</Text>
             <Text style={styles.title}>Buat akun</Text>
-            <Text style={styles.subtitle}>Mulai hidup rapi di kos-mu.</Text>
           </View>
 
-          <View style={styles.form}>
-            <SerumahInput
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="nama@email.com"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-            />
-            <SerumahInput
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Minimal 8 karakter"
-              secureTextEntry
-              autoCapitalize="none"
-              textContentType="newPassword"
-            />
-            <SerumahInput
-              label="Konfirmasi password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Ulangi password"
-              secureTextEntry
-              autoCapitalize="none"
-              textContentType="newPassword"
-            />
-          </View>
+          <View style={styles.center}>
+            <View style={styles.form}>
+              <SerumahInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="nama@email.com"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+              />
+              <SerumahInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Minimal 8 karakter"
+                secureTextEntry
+                autoCapitalize="none"
+                textContentType="newPassword"
+              />
+              <SerumahInput
+                label="Konfirmasi password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Ulangi password"
+                secureTextEntry
+                autoCapitalize="none"
+                textContentType="newPassword"
+              />
+            </View>
 
-          <View style={styles.actions}>
-            <SerumahButton
-              title={loading ? 'Memproses…' : 'Daftar'}
-              disabled={loading || email.trim() === '' || password === '' || confirmPassword === ''}
-              onPress={handleSubmit}
-            />
-          </View>
+            <View style={styles.actions}>
+              <SerumahButton
+                title={loading ? 'Memproses…' : 'Daftar'}
+                disabled={loading || email.trim() === '' || password === '' || confirmPassword === ''}
+                onPress={handleSubmit}
+              />
+            </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Sudah punya akun? </Text>
-            <Link href="/login" style={styles.link}>
-              Masuk
-            </Link>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Sudah punya akun? </Text>
+              <Link href="/login" style={styles.link}>
+                Masuk
+              </Link>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -103,12 +103,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing['2xl'],
+    paddingHorizontal: 24,
+    paddingTop: 52,
+    paddingBottom: 26,
+    gap: 18,
   },
   header: {
-    gap: spacing.sm,
-    marginBottom: spacing['2xl'],
+    gap: 4,
   },
   kicker: {
     ...type.kicker,
@@ -123,23 +124,22 @@ const styles = StyleSheet.create({
     letterSpacing: -0.46,
     color: colors.ink,
   },
-  subtitle: {
-    ...type.body,
-    color: colors.inkSoft,
-    fontSize: 13,
+  center: {
+    flex: 1,
+    justifyContent: 'center',
   },
   form: {
-    gap: spacing.lg,
+    gap: 15,
   },
   actions: {
-    marginTop: spacing['2xl'],
+    marginTop: 15,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
-    paddingBottom: spacing.lg,
+    marginTop: 20,
+    gap: 4,
   },
   footerText: {
     ...type.body,

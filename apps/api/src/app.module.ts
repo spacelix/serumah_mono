@@ -19,6 +19,8 @@ import { PiketModule } from './modules/piket/piket.module';
 import { DendaModule } from './modules/denda/denda.module';
 import { IuranModule } from './modules/iuran/iuran.module';
 import { ListrikModule } from './modules/listrik/listrik.module';
+import { SwapModule } from './modules/swap/swap.module';
+import { GalonModule } from './modules/galon/galon.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -46,6 +48,8 @@ import { AppService } from './app.service';
     DendaModule,
     IuranModule,
     ListrikModule,
+    SwapModule,
+    GalonModule,
   ],
   controllers: [AppController],
   providers: [

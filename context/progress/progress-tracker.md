@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M3 — Backend Features (IN PROGRESS)
-**Last completed:** M3.5 Iuran & Listrik — `IuranModule` (`GET /iuran` with on-read `ensure-bulan` idempotent, auto-split floor+rotating remainder, `ensure-bulan`, `upload-bukti-total` PJ-instant-lunas vs member pending, `confirm-lunas`, `pelunasan`) + `ListrikModule` (`GET /listrik`, `POST /listrik` self-record, next-month credit/surcharge recompute). `turbo run build lint typecheck test` green.
+**Last completed:** M3.6 Swap & Galon — `SwapModule` (`GET /swap`, `GET /swap/available-days`, `POST /swap`, accept → transfers Jadwal.anggotaId in-transaction + rejects already-submitted days, reject) + `GalonModule` (`GET /galon/current` menunggu asc limit 1 + auto-seed, `POST /galon/:id/confirm` → rotate round-robin, no amount). `turbo run build lint typecheck test` green.
 
-**Next:** M3.6 Swap & Galon.
+**Next:** M3.7 Cron (auto-fine, weekend freeze) + M3.8 Update manifest.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -51,7 +51,7 @@ Update after every completed feature. Any agent reading this should immediately 
 - [x] Piket (submissions + ruangan_proof)
 - [x] Verifikasi & Denda (per-submission approval, QRIS payment)
 - [x] Iuran & Listrik (auto-split, total proof, pelunasan, adjust)
-- [ ] Swap & Galon
+- [x] Swap & Galon
 - [ ] Cron (auto-fine, weekend freeze)
 - [ ] Update manifest
 

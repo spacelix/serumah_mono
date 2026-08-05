@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Serumah — Logo Exploration</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --paper: #EFEAE0;
+      --ink: #1E2A24;
+      --ink-soft: #5B6862;
+      --pine: #3D6B5C;
+      --pine-deep: #2B4E43;
+      --brick: #B33F3F;
+      --mustard: #C9A227;
+      --card: #FBF9F4;
+      --line: #D9D2C0;
+    }
+
+    body {
+      margin: 0;
+      background: #DAD3BF;
+      font-family: 'Inter', sans-serif;
+      padding: 40px;
+    }
+
+    h1 {
+      font-family: 'Space Grotesk';
+      color: var(--ink);
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    p.sub {
+      color: var(--ink-soft);
+      font-size: 13px;
+      margin-top: 0;
+      margin-bottom: 30px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .box {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .box.dark {
+      background: var(--ink);
+    }
+
+    .box .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .box.dark .label {
+      color: #B9C4BE;
+    }
+
+    .wordmark {
+      font-family: 'Space Grotesk';
+      font-weight: 700;
+      font-size: 26px;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .box.dark .wordmark {
+      color: var(--paper);
+    }
+
+    .tagline {
+      font-family: 'Inter';
+      font-size: 11px;
+      color: var(--ink-soft);
+      margin-top: -8px;
+    }
+
+    .app-icon-frame {
+      width: 120px;
+      height: 120px;
+      border-radius: 28px;
+      background: var(--pine);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px -6px rgba(43, 78, 67, .5);
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Serumah — Logo Exploration</h1>
+  <p class="sub">Konsep: dua garis atap yang saling overlap (kebersamaan/serumah) + motif stempel bulat di sudut,
+    konsisten dengan signature element desain Piket Kos.</p>
+
+  <div class="grid">
+
+    <!-- ICON ONLY -->
+    <div class="box">
+      <div class="label">Icon</div>
+      <svg width="90" height="90" viewBox="0 0 100 100">
+        <!-- roof shape 1 -->
+        <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="var(--pine)" />
+        <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="#3D6B5C" />
+        <!-- roof shape 2 offset (overlap = togetherness) -->
+        <path d="M14 68 L50 36 L86 68 L86 76 L50 46 L14 76 Z" fill="#2B4E43" opacity="0.9" />
+        <!-- base house body -->
+        <rect x="34" y="60" width="32" height="24" rx="3" fill="#FBF9F4" />
+        <!-- stamp seal accent -->
+        <circle cx="76" cy="76" r="13" fill="none" stroke="var(--brick)" stroke-width="3" />
+        <path d="M71 76 l3.5 4 7-8" stroke="var(--brick)" stroke-width="3" fill="none" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </div>
+
+    <!-- APP ICON STYLE -->
+    <div class="box dark">
+      <div class="label">App Icon</div>
+      <div class="app-icon-frame">
+        <svg width="64" height="64" viewBox="0 0 100 100">
+          <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="#EFEAE0" />
+          <path d="M14 68 L50 36 L86 68 L86 76 L50 46 L14 76 Z" fill="#EFEAE0" opacity="0.55" />
+          <rect x="34" y="60" width="32" height="24" rx="3" fill="#2B4E43" />
+          <circle cx="76" cy="76" r="13" fill="none" stroke="#C9A227" stroke-width="3" />
+          <path d="M71 76 l3.5 4 7-8" stroke="#C9A227" stroke-width="3" fill="none" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- HORIZONTAL LOCKUP -->
+    <div class="box" style="flex-direction:row; padding:24px 26px;">
+      <svg width="52" height="52" viewBox="0 0 100 100">
+        <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="var(--pine)" />
+        <path d="M14 68 L50 36 L86 68 L86 76 L50 46 L14 76 Z" fill="#2B4E43" opacity="0.9" />
+        <rect x="34" y="60" width="32" height="24" rx="3" fill="#FBF9F4" />
+        <circle cx="76" cy="76" r="13" fill="none" stroke="var(--brick)" stroke-width="3" />
+        <path d="M71 76 l3.5 4 7-8" stroke="var(--brick)" stroke-width="3" fill="none" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <div class="wordmark">Serumah</div>
+        <div class="tagline">piket, iuran &amp; galon jadi satu atap</div>
+      </div>
+    </div>
+
+    <!-- STACKED LOCKUP -->
+    <div class="box">
+      <svg width="70" height="70" viewBox="0 0 100 100">
+        <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="var(--pine)" />
+        <path d="M14 68 L50 36 L86 68 L86 76 L50 46 L14 76 Z" fill="#2B4E43" opacity="0.9" />
+        <rect x="34" y="60" width="32" height="24" rx="3" fill="#FBF9F4" />
+        <circle cx="76" cy="76" r="13" fill="none" stroke="var(--brick)" stroke-width="3" />
+        <path d="M71 76 l3.5 4 7-8" stroke="var(--brick)" stroke-width="3" fill="none" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+      <div class="wordmark">Serumah</div>
+    </div>
+
+    <!-- MONOCHROME / FAVICON VERSION -->
+    <div class="box dark">
+      <div class="label">Monochrome (favicon)</div>
+      <svg width="56" height="56" viewBox="0 0 100 100">
+        <path d="M20 55 L50 25 L80 55 L80 62 L50 34 L20 62 Z" fill="#EFEAE0" />
+        <path d="M14 68 L50 36 L86 68 L86 76 L50 46 L14 76 Z" fill="#EFEAE0" opacity="0.5" />
+        <rect x="34" y="60" width="32" height="24" rx="3" fill="#EFEAE0" opacity="0.15" />
+      </svg>
+    </div>
+
+  </div>
+
+</body>
+
+</html>

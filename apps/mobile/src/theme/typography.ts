@@ -1,36 +1,24 @@
 import { useFonts as useExpoFonts } from 'expo-font';
-import {
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from '@expo-google-fonts/space-grotesk';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
-import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_600SemiBold,
-  JetBrainsMono_700Bold,
-} from '@expo-google-fonts/jetbrains-mono';
 
+/**
+ * Google font families bundled locally under `assets/fonts/` (copied from the
+ * `@expo-google-fonts/*` packages, which Metro can't resolve through bun's
+ * `.bun` store). Each weight is its own family name, so `fontWeight` is NOT
+ * used to select — pick the exact weight family here.
+ */
 const fontAssets = {
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_600SemiBold,
-  JetBrainsMono_700Bold,
+  SpaceGrotesk_400Regular: require('@/assets/fonts/SpaceGrotesk_400Regular.ttf'),
+  SpaceGrotesk_500Medium: require('@/assets/fonts/SpaceGrotesk_500Medium.ttf'),
+  SpaceGrotesk_600SemiBold: require('@/assets/fonts/SpaceGrotesk_600SemiBold.ttf'),
+  SpaceGrotesk_700Bold: require('@/assets/fonts/SpaceGrotesk_700Bold.ttf'),
+  Inter_400Regular: require('@/assets/fonts/Inter_400Regular.ttf'),
+  Inter_500Medium: require('@/assets/fonts/Inter_500Medium.ttf'),
+  Inter_600SemiBold: require('@/assets/fonts/Inter_600SemiBold.ttf'),
+  Inter_700Bold: require('@/assets/fonts/Inter_700Bold.ttf'),
+  JetBrainsMono_400Regular: require('@/assets/fonts/JetBrainsMono_400Regular.ttf'),
+  JetBrainsMono_500Medium: require('@/assets/fonts/JetBrainsMono_500Medium.ttf'),
+  JetBrainsMono_600SemiBold: require('@/assets/fonts/JetBrainsMono_600SemiBold.ttf'),
+  JetBrainsMono_700Bold: require('@/assets/fonts/JetBrainsMono_700Bold.ttf'),
 } as const;
 
 /**

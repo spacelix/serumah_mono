@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M1 — Release & In-App Update (ACTIVE)
-**Last completed:** M1 — In-app update check + `UpdateDialog` (release-mode only, optional vs force via `minVersionCode`, APK download + install) and GitHub Actions `release.yml` (tag `v*` → `expo prebuild` → signed `gradlew assembleRelease` → `version.json` + APK GitHub Release).
+**Phase:** M1 — Release & In-App Update (COMPLETE — test loop pending for locks)
+**Last completed:** M1 — Release pipeline verified live: `v1.0.1` released via GitHub Actions (tag `v*` → `expo prebuild` → `gradlew assembleRelease` signed → `serumah-app.apk` + `version.json` published). Manifest confirmed (`versionCode 2`, apkUrl, notes). In-app update check + `UpdateDialog` implemented (release-mode, optional vs force, APK download + install). Cleanup done: `key.properties`, `.env`, `*.jks`, `/android` all gitignored; nothing secret tracked.
 
-**Next:** M1 test loop — cut a test release, verify the in-app update prompt & install. Then Phase M2 (Backend Core).
+**Next:** M1 test loop — install `v1.0.1` APK on emulator/device, bump to `v1.0.2`, cut tag, verify the in-app update prompt appears and installs. Then Phase M2 (Backend Core).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 

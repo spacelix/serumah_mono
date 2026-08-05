@@ -21,9 +21,11 @@ interface SerumahLogoProps {
  * Door and badge/check are intentionally omitted from every logo mark.
  */
 export function SerumahLogo({ size = 118, variant = 'full', roofColor = colors.logoRoof }: SerumahLogoProps) {
+  const viewBox = variant === 'full' ? '0 102 512 211' : '0 115 512 160';
+
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      <Svg width={size} height={size} viewBox="0 0 512 512" fill="none">
+      <Svg width={size} height={size} viewBox={viewBox} fill="none">
         {variant === 'full' && (
           <Path
             d="M150 270L256 170L362 270"

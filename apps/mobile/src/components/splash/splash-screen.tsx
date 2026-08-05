@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
@@ -13,14 +14,57 @@ import { fontFamilies } from '@/theme/typography';
  */
 export function SplashScreen() {
   const version = Constants.expoConfig?.version ?? '';
+  const rise = useMemo(() => new Animated.Value(0), []);
+  const word = useMemo(() => new Animated.Value(0), []);
+  const riseTranslate = useMemo(
+    () => rise.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
+    [rise],
+  );
+  const wordTranslate = useMemo(
+    () => word.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }),
+    [word],
+  );
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(rise, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(word, {
+        toValue: 1,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [rise, word]);
 
   return (
     <View style={styles.container}>
-      <SerumahLogo size={118} />
-      <View style={styles.wordmarkBlock}>
+      <Animated.View
+        style={[
+          styles.riseWrap,
+          {
+            opacity: rise,
+            transform: [{ translateY: riseTranslate }],
+          },
+        ]}>
+        <SerumahLogo size={130} />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.wordmarkBlock,
+          {
+            opacity: word,
+            transform: [{ translateY: wordTranslate }],
+          },
+        ]}>
         <Text style={styles.wordmark}>Serumah</Text>
         <Text style={styles.kicker}>Piket · Iuran · Galon</Text>
-      </View>
+      </Animated.View>
       {version !== '' && <Text style={styles.version}>v{version}</Text>}
     </View>
   );
@@ -32,7 +76,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.splashGreen,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 22,
+    gap: 18,
+  },
+  riseWrap: {
+    alignItems: 'center',
   },
   wordmarkBlock: {
     alignItems: 'center',

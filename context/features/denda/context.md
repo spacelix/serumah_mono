@@ -18,7 +18,7 @@ Module: `denda`.
 | POST | `/denda/:id/approve` | — (admin) | `{ denda }` | Insert `PembayaranApproval` approved + `lunas`. |
 | POST | `/denda/:id/reject` | — (admin) | `{ denda }` | Insert approval rejected + reset `belum_bayar`, `bayarKeAnggotaId` null, `buktiBayar` null. |
 
-Storage: proof → `photos/denda_bukti/{denda_id}_{ts}.jpg` (upload via `/storage` first, then send URL).
+Storage: proof → `photos/denda_bukti/{denda_id}_{ts}.jpg` (upload via `/storage` first, then send URL). **Locked (TBC-3): MinIO bucket is public — DB stores permanent public URLs.**
 
 ## 4. Business Rules & State Machine
 Locked decisions:

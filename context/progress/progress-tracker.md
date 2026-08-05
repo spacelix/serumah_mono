@@ -95,4 +95,4 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## TBC to Confirm
 
-See `context/progress/to-be-confirmed.md`. Open item blocking implementation: **TBC-2 (who may review piket)** — must ask the user before working on the verifikasi feature.
+See `context/progress/to-be-confirmed.md`. **All verifikasi/denda TBCs (1–5) locked on 2026-08-06** (auto-fine on reject; review = Admin/PJ only; public photo URLs; Verifikasi tab always visible; history visible to all members). M3 verifikasi feature is now unblocked.

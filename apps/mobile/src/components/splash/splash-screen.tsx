@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
-import { fonts } from '@/theme/typography';
+import { fontFamilies } from '@/theme/typography';
 
 /**
  * Splash per `Serumah.html`:
@@ -35,16 +35,14 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   wordmark: {
-    fontFamily: fonts.display,
-    fontWeight: '700',
+    fontFamily: fontFamilies.display[700],
     fontSize: 31,
     lineHeight: 34,
     color: colors.paper,
     letterSpacing: -0.62,
   },
   kicker: {
-    fontFamily: fonts.mono,
-    fontWeight: '500',
+    fontFamily: fontFamilies.mono[500],
     fontSize: 9.5,
     lineHeight: 14,
     letterSpacing: 1.9,

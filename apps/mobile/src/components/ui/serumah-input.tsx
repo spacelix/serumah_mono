@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { type } from '@/theme/typography';
+import { fontFamilies, type } from '@/theme/typography';
 
 interface SerumahInputProps extends Omit<TextInputProps, 'style'> {
   label: string;
@@ -52,17 +52,16 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 14,
     color: colors.ink,
-    fontFamily: type.body.fontFamily,
+    fontFamily: fontFamilies.body[500],
     fontSize: 13.5,
-    fontWeight: '500',
   },
   inputError: {
     borderColor: colors.brick,
   },
   error: {
-    ...type.body,
+    fontFamily: fontFamilies.body[500],
     fontSize: 11.5,
-    fontWeight: '500',
+    lineHeight: 16,
     color: colors.brickDeep,
   },
   hint: {

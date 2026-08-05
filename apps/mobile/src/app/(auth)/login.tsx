@@ -9,7 +9,7 @@ import { SerumahInput } from '@/components/ui/serumah-input';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/radius';
-import { type } from '@/theme/typography';
+import { fontFamilies, type } from '@/theme/typography';
 
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login);
@@ -142,9 +142,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   link: {
-    ...type.body,
-    color: colors.pine,
+    fontFamily: fontFamilies.body[600],
     fontSize: 12,
-    fontWeight: '600',
+    lineHeight: 16,
+    color: colors.pine,
   },
 });

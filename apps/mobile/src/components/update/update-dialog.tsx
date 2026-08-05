@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 
 import { downloadUpdate, installApk, type UpdateManifest } from '@/lib/update';
 import { colors } from '@/theme/colors';
-import { fonts } from '@/theme/typography';
+import { fontFamilies } from '@/theme/typography';
 import { radius } from '@/theme/radius';
 
 interface UpdateDialogProps {
@@ -124,28 +124,26 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: colors.white,
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[700],
     fontSize: 9,
-    fontWeight: '700',
     letterSpacing: 0.1,
   },
   title: {
     fontSize: 22,
     lineHeight: 28,
     color: colors.ink,
-    fontFamily: fonts.display,
-    fontWeight: '600',
+    fontFamily: fontFamilies.display[600],
     marginBottom: 8,
   },
   body: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.inkSoft,
-    fontFamily: fonts.body,
+    fontFamily: fontFamilies.body[400],
   },
   meta: {
     marginTop: 12,
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[500],
     fontSize: 12,
     color: colors.inkMuted,
   },
@@ -153,7 +151,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: colors.brick,
     fontSize: 13,
-    fontFamily: fonts.body,
+    fontFamily: fontFamilies.body[400],
   },
   buttons: {
     flexDirection: 'row',
@@ -180,15 +178,13 @@ const styles = StyleSheet.create({
   },
   buttonPrimaryText: {
     color: colors.paper,
-    fontFamily: fonts.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 13,
-    fontWeight: '600',
   },
   buttonSecondaryText: {
     color: colors.ink,
-    fontFamily: fonts.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 13,
-    fontWeight: '600',
   },
   progressWrap: {
     marginTop: 16,
@@ -207,7 +203,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     marginTop: 6,
     textAlign: 'center',
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[500],
     fontSize: 11,
     color: colors.inkSoft,
   },

@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
-import { fonts, type } from '@/theme/typography';
+import { fontFamilies, type } from '@/theme/typography';
 
 interface ObStep {
   key: number;
@@ -93,7 +93,15 @@ export default function WelcomeScreen() {
                 styles.backBtn,
                 pressed && styles.backBtnPressed,
               ]}>
-              <Text style={styles.backText}>←</Text>
+              <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M15 18l-6-6 6-6"
+                  stroke={colors.paper}
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
             </Pressable>
           )}
           <Pressable
@@ -145,14 +153,40 @@ function StampArt() {
     <View style={styles.artBox}>
       <View style={styles.stampBox}>
         <View style={styles.stampBlocks}>
-          <View style={styles.stampBlock} />
-          <View style={styles.stampBlock} />
+          <Stripes />
+          <Stripes />
         </View>
         <View style={styles.stampBadge}>
           <Text style={styles.stampBadgeText}>MENUNGGU</Text>
         </View>
         <Text style={styles.stampAmount}>−Rp 13.000</Text>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Diagonal 45° stripes at { paper28 .. paper14 }, 7px each — replicates the
+ * `repeating-linear-gradient(135deg, rgba(paper,.28) 0 7px, rgba(paper,.14) 7px 14px)`
+ * from Serumah.html stamp art.
+ */
+function Stripes() {
+  return (
+    <View style={styles.stampStripesWrap}>
+      <Svg width="100%" height="100%" fill="none" preserveAspectRatio="none">
+        <Defs>
+          <Pattern
+            id="serumahStripe"
+            patternUnits="userSpaceOnUse"
+            width={9.9}
+            height={9.9}
+            patternTransform="rotate(45)">
+            <Rect width="4.95" height="9.9" fill={colors.paper28} />
+            <Rect x="4.95" width="4.95" height="9.9" fill={colors.paper14} />
+          </Pattern>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#serumahStripe)" />
+      </Svg>
     </View>
   );
 }
@@ -206,18 +240,18 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   brand: {
-    fontFamily: fonts.display,
-    fontWeight: '700',
+    fontFamily: fontFamilies.display[700],
     fontSize: 15,
     letterSpacing: -0.15,
     color: colors.paper,
-  },  skipBtn: {
+  },
+  skipBtn: {
     padding: 4,
   },
   skipText: {
-    ...type.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 11.5,
-    fontWeight: '600',
+    lineHeight: 16,
     color: colors.paper60,
   },
   stage: {
@@ -236,8 +270,7 @@ const styles = StyleSheet.create({
     color: colors.paper50,
   },
   title: {
-    fontFamily: fonts.display,
-    fontWeight: '600',
+    fontFamily: fontFamilies.display[600],
     fontSize: 24,
     lineHeight: 29,
     letterSpacing: -0.48,
@@ -245,7 +278,7 @@ const styles = StyleSheet.create({
     color: colors.paper,
   },
   body: {
-    ...type.body,
+    fontFamily: fontFamilies.body[400],
     fontSize: 12.5,
     lineHeight: 19,
     textAlign: 'center',
@@ -285,12 +318,6 @@ const styles = StyleSheet.create({
   backBtnPressed: {
     backgroundColor: colors.paper16,
   },
-  backText: {
-    ...type.body,
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: colors.paper,
-  },
   primaryBtn: {
     flex: 1,
     paddingVertical: 15,
@@ -301,9 +328,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paperDeep,
   },
   primaryText: {
-    ...type.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 13.5,
-    fontWeight: '600',
+    lineHeight: 20,
     textAlign: 'center',
     color: colors.ink,
   },
@@ -334,31 +361,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper16,
   },
   calRowDash: {
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: colors.paper35,
   },
   calName: {
-    ...type.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 10.5,
-    fontWeight: '600',
+    lineHeight: 14,
     color: colors.ink,
   },
   calNameDim: {
-    ...type.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 10.5,
-    fontWeight: '600',
+    lineHeight: 14,
     color: colors.paper,
   },
   calNameDash: {
-    ...type.body,
+    fontFamily: fontFamilies.body[500],
     fontSize: 10.5,
+    lineHeight: 14,
     color: colors.paper65,
   },
   calTag: {
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[600],
     fontSize: 8,
-    fontWeight: '600',
+    lineHeight: 12,
     color: colors.pineDeep,
     backgroundColor: colors.pineSoft,
     borderRadius: 20,
@@ -366,13 +395,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
   },
   calTagDim: {
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[500],
     fontSize: 8,
+    lineHeight: 12,
     color: colors.paper60,
   },
   calTagDash: {
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[500],
     fontSize: 8,
+    lineHeight: 12,
     color: colors.paper50,
   },
   stampBox: {
@@ -384,11 +415,11 @@ const styles = StyleSheet.create({
     gap: 8,
     width: '100%',
   },
-  stampBlock: {
+  stampStripesWrap: {
     flex: 1,
     height: 52,
     borderRadius: 10,
-    backgroundColor: colors.paper16,
+    overflow: 'hidden',
   },
   stampBadge: {
     transform: [{ rotate: '-6deg' }],
@@ -399,16 +430,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   stampBadgeText: {
-    fontFamily: fonts.display,
+    fontFamily: fontFamilies.display[700],
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
     letterSpacing: 1.44,
     color: colors.goldCheck,
   },
   stampAmount: {
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[700],
     fontSize: 15,
-    fontWeight: '700',
+    lineHeight: 20,
     color: colors.paper,
   },
   moneyBox: {
@@ -420,14 +451,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   moneyLabel: {
-    ...type.body,
+    fontFamily: fontFamilies.body[500],
     fontSize: 9.5,
+    lineHeight: 14,
     color: colors.paper60,
   },
   moneyValue: {
-    fontFamily: fonts.mono,
+    fontFamily: fontFamilies.mono[700],
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
     color: colors.paper,
   },
   moneyDivider: {
@@ -445,9 +477,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   galonText: {
-    ...type.body,
+    fontFamily: fontFamilies.body[600],
     fontSize: 10.5,
-    fontWeight: '600',
+    lineHeight: 14,
     color: colors.ink,
   },
 });

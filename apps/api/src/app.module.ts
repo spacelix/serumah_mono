@@ -15,6 +15,7 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { RumahModule } from './modules/rumah/rumah.module';
 import { RuanganModule } from './modules/ruangan/ruangan.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { PiketModule } from './modules/piket/piket.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -38,6 +39,7 @@ import { AppService } from './app.service';
     RumahModule,
     RuanganModule,
     ScheduleModule,
+    PiketModule,
   ],
   controllers: [AppController],
   providers: [

@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from '@serumah/db/prisma';
+import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
@@ -12,6 +13,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { RumahModule } from './modules/rumah/rumah.module';
+import { RuanganModule } from './modules/ruangan/ruangan.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -20,6 +22,7 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    CommonModule,
     PassportModule,
     JwtModule.registerAsync({
       global: true,
@@ -32,6 +35,7 @@ import { AppService } from './app.service';
     AuthModule,
     ProfileModule,
     RumahModule,
+    RuanganModule,
   ],
   controllers: [AppController],
   providers: [

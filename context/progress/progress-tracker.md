@@ -7,8 +7,11 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M0 — Documentation & Foundation (in progress)
-**Last completed:** M0.1 — Per-feature context split (docs-first). `AGENTS.md` rewritten (RN+NestJS stack), new `context/` structure (core/, architecture/, 14 features/, progress/), `architecture/data-model.md` (Prisma schema source of truth).
+**Last completed:** M0.1 — Per-feature context split (docs-first). `AGENTS.md` rewritten (RN+NestJS stack), new `context/` structure (core/, architecture/, 14 features/, progress/), `architecture/data-model.md` (Prisma schema source of truth). Also added `README.md` (architecture diagrams, dev & production runbooks).
+
 **Next:** M0.2 — Monorepo scaffold (root workspaces, docker-compose, packages/db Prisma, apps/api NestJS, apps/mobile Expo).
+
+> **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 
 > Migration from **Flutter + Supabase + Riverpod** → **React Native (Expo) + NestJS + PostgreSQL/Prisma + MinIO (React Query + Zustand)**. Locked decisions: monorepo in `/mnt/d/Source/House`, full re-seed from scratch (no supabase data migration, project not live), in-app update stays via GitHub Releases. The old Flutter repo `/mnt/d/Source/serumah` is kept as reference (not the code base).
 
@@ -21,7 +24,13 @@ Update after every completed feature. Any agent reading this should immediately 
 - [x] M0.1 Per-feature context split (AGENTS.md + context/core + data-model + 14 features/ + progress/)
 - [ ] M0.2 Monorepo scaffold (root, docker-compose, packages/db, apps/api NestJS, apps/mobile Expo)
 
-### Phase M1 — Backend Core (NestJS)
+### Phase M1 — Release & In-App Update (FIRST)
+
+- [ ] In-app update check + dialog (release mode only)
+- [ ] GitHub Actions build APK + version.json + release on tag `v*`
+- [ ] Test loop (older APK → new APK → in-app update) per phase
+
+### Phase M2 — Backend Core (NestJS)
 
 - [ ] Auth (register/login/JWT)
 - [ ] Anggota/Profile
@@ -29,7 +38,7 @@ Update after every completed feature. Any agent reading this should immediately 
 - [ ] Storage service (MinIO)
 - [ ] Seed dev data
 
-### Phase M2 — Backend Features
+### Phase M3 — Backend Features
 
 - [ ] Ruangan & Jenis Piket (CRUD + reorder)
 - [ ] Schedule (round-robin, weekend, freeze, generate)
@@ -40,13 +49,13 @@ Update after every completed feature. Any agent reading this should immediately 
 - [ ] Cron (auto-fine, weekend freeze)
 - [ ] Update manifest
 
-### Phase M3 — Mobile: Auth & Onboarding
+### Phase M4 — Mobile: Auth & Onboarding
 
 - [ ] Expo theme + router + authStore guard
 - [ ] Splash, Login, Register
 - [ ] Onboarding (profile, create rumah, join rumah)
 
-### Phase M4 — Mobile: Main Tabs
+### Phase M5 — Mobile: Main Tabs
 
 - [ ] Beranda (weekend, galon, billing, schedule)
 - [ ] Piket (per-room flow)
@@ -54,10 +63,11 @@ Update after every completed feature. Any agent reading this should immediately 
 - [ ] Swap
 - [ ] Profile & Rumah Management
 
-### Phase M5 — Release
+### Phase M6 — Final Release & E2E
 
-- [ ] In-app update (GitHub Releases)
-- [ ] GitHub Actions build APK + release
+- [ ] End-to-end testing across all features
+- [ ] Final release through the update pipeline
+- [ ] Production hardening
 
 ---
 

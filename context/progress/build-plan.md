@@ -4,6 +4,8 @@ Phased plan for implementing the Serumah monorepo (RN + NestJS + Postgres/Prisma
 
 Each phase must be fully complete before the next starts (Phase Gating). When a phase is complete → stop & ask the user: *"Phase X done. Proceed to Phase Y?"*
 
+**Phase ordering (locked):** the **Release pipeline comes FIRST** (M1), right after the scaffold. This is a user decision — it lets the in-app update feature be tested and monitored continuously while the rest of the app is built. Every phase after M1 ships an APK that updates in-app through the same mechanism.
+
 ---
 
 ## Phase M0 — Documentation & Foundation (ACTIVE)
@@ -24,7 +26,21 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 
 ---
 
-## Phase M1 — Backend Core (NestJS)
+## Phase M1 — Release & In-App Update (FIRST — user decision)
+
+> Why first: the in-app update feature is built and tested **now** so it can be monitored through the whole development cycle. From here on, every release (even partial builds) exercises the same update pipeline.
+
+- **In-app update**: version check at launch (release mode only), Update dialog, optional vs force update (`minVersionCode`), APK download + install. (`features/update`)
+- **GitHub Actions**: build Android APK + generate `version.json` + publish GitHub Release on tag `v*`.
+- **Manifest**: `version.json` fields (versionName, versionCode, minVersionCode, apkUrl) served from the release.
+- **Test loop**: cut a test release → install older APK → ship new APK → verify in-app update prompt appears → update → confirm new version. Repeat on each phase.
+- **Native build verification** (EAS/GitHub — not WSL).
+
+Dependency: needs a buildable `apps/mobile` (M0.2 scaffold) — even before features exist, a skeleton APK with the update check can be distributed.
+
+---
+
+## Phase M2 — Backend Core (NestJS)
 
 - **Auth**: register/login/JWT, `/auth/*`. (`features/auth`)
 - **Anggota/Profile**: `/anggota/me`, profile update, avatar upload. (`features/profile`, `features/onboarding`)
@@ -34,7 +50,7 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 
 ---
 
-## Phase M2 — Backend Features
+## Phase M3 — Backend Features
 
 - **Ruangan & Jenis Piket**: CRUD + reorder. (`features/rumah`)
 - **Schedule**: weekday round-robin, dynamic weekend, freeze, generate. (`features/schedule`)
@@ -43,11 +59,10 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 - **Iuran & Listrik**: ensure-bulan, auto-split, total proof, pelunasan, listrik adjustment. (`features/iuran`, `features/listrik`)
 - **Swap & Galon**. (`features/swap`, `features/galon`)
 - **Cron**: auto-fine (22:00), weekend freeze (Fri 20:00). (`features/schedule`)
-- **Update manifest**: serve `version.json` info + release wiring. (`features/update`)
 
 ---
 
-## Phase M3 — Mobile: Auth & Onboarding
+## Phase M4 — Mobile: Auth & Onboarding
 
 - Expo theme (tokens), Expo Router (auth stack vs tabs), authStore Zustand + guard.
 - Splash, Login, Register. (`features/auth`)
@@ -55,7 +70,7 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 
 ---
 
-## Phase M4 — Mobile: Main Tabs
+## Phase M5 — Mobile: Main Tabs
 
 - **Beranda**: weekend card, galon widget, billing summary, schedule list. (`features/dashboard`)
 - **Piket**: per-room before→checklist→after, submit. (`features/piket`)
@@ -65,11 +80,11 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 
 ---
 
-## Phase M5 — Release
+## Phase M6 — Final Release & E2E
 
-- In-app update via GitHub Releases (`version.json` + APK). (`features/update`)
-- GitHub Actions: build Android APK + release on tag `v*`.
-- Native build verification (EAS/GitHub) + end-to-end testing.
+- Full end-to-end testing across all features.
+- Final release through the (already working) update pipeline.
+- Production hardening (logs, monitoring, backup).
 
 ---
 
@@ -82,3 +97,9 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 | Mobile | 14 screen-groups (auth, onboarding, dashboard, piket, tagihan×3, swap, profile, rumah, update) |
 
 Every feature has `context/features/<feature>/context.md` — read before coding (see `core/AGENTS-ROUTING.md`).
+
+## Build Order Summary
+
+1. **M0** docs + scaffold → 2. **M1** release/update pipeline (FIRST) → 3. **M2** backend core → 4. **M3** backend features → 5. **M4** mobile auth/onboarding → 6. **M5** mobile tabs → 7. **M6** final E2E release.
+
+From M1 onward, every phase ships an APK through the same update pipeline so in-app updates are continuously testable.

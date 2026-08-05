@@ -463,11 +463,14 @@ flowchart TD
 | Phase | Scope | Status |
 |---|---|---|
 | **M0** | Documentation & foundation (docs-first context split) | ✅ M0.1 done · ⏳ M0.2 scaffold |
-| **M1** | Backend core (auth, profile, rumah, storage, seed) | ⏳ pending |
-| **M2** | Backend features (rooms, schedule, piket, fines, iuran, listrik, swap, galon, cron, update) | ⏳ pending |
-| **M3** | Mobile: auth & onboarding | ⏳ pending |
-| **M4** | Mobile: main tabs (Beranda, Piket, Tagihan, Swap) + profile/rumah | ⏳ pending |
-| **M5** | Release (in-app update + GitHub Actions APK) | ⏳ pending |
+| **M1** | Release & in-app update pipeline (**first** — testable APKs throughout development) | ⏳ pending |
+| **M2** | Backend core (auth, profile, rumah, storage, seed) | ⏳ pending |
+| **M3** | Backend features (rooms, schedule, piket, fines, iuran, listrik, swap, galon, cron, update) | ⏳ pending |
+| **M4** | Mobile: auth & onboarding | ⏳ pending |
+| **M5** | Mobile: main tabs (Beranda, Piket, Tagihan, Swap) + profile/rumah | ⏳ pending |
+| **M6** | Final release & E2E (via the update pipeline) | ⏳ pending |
+
+> **Release-first (user decision):** the update pipeline is built right after the scaffold so in-app updates can be tested and monitored continuously while the rest of the app is developed — every phase ships an APK that updates in-app.
 
 > Active phase is recorded in `context/progress/progress-tracker.md`. Full detail in `context/progress/build-plan.md`.
 

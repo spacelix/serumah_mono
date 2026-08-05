@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
 import { useAuthStore } from '@/stores/auth-store';
@@ -32,9 +33,11 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.kicker}>Serumah</Text>
-            <Text style={styles.title}>Masuk akun</Text>
-            <Text style={styles.subtitle}>Selamat datang kembali.</Text>
+            <View style={styles.logoChip}>
+              <SerumahLogo size={30} variant="mark" roofColor={colors.paper} />
+            </View>
+            <Text style={styles.kicker}>Masuk akun</Text>
+            <Text style={styles.title}>Selamat datang kembali</Text>
           </View>
 
           <View style={styles.form}>
@@ -93,8 +96,18 @@ const styles = StyleSheet.create({
     paddingTop: spacing['2xl'],
   },
   header: {
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: 12,
     marginBottom: spacing['2xl'],
+  },
+  logoChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.pine,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   kicker: {
     ...type.kicker,
@@ -108,11 +121,7 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     letterSpacing: -0.46,
     color: colors.ink,
-  },
-  subtitle: {
-    ...type.body,
-    color: colors.inkSoft,
-    fontSize: 13,
+    textAlign: 'center',
   },
   form: {
     gap: spacing.lg,

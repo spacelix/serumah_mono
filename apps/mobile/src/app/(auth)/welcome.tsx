@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
@@ -58,7 +59,7 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <SerumahLogo size={36} />
+          <SerumahLogo size={36} variant="mark" />
           <Text style={styles.brand}>Serumah</Text>
         </View>
         <Pressable onPress={goLogin} style={styles.skipBtn} hitSlop={8}>
@@ -170,7 +171,15 @@ function MoneyArt() {
         </View>
         <View style={styles.moneyDivider} />
         <View style={styles.galonChip}>
-          <View style={styles.galonIcon} />
+          <Svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M9 2.5h6M10 2.5v3l-3 3.5V20a1.5 1.5 0 001.5 1.5h7A1.5 1.5 0 0017 20V9l-3-3.5v-3M7.4 13h9.2"
+              stroke={colors.mustard}
+              strokeWidth={1.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
           <Text style={styles.galonText}>Galon · giliran lo</Text>
         </View>
       </View>
@@ -202,8 +211,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: -0.15,
     color: colors.paper,
-  },
-  skipBtn: {
+  },  skipBtn: {
     padding: 4,
   },
   skipText: {
@@ -328,7 +336,7 @@ const styles = StyleSheet.create({
   calRowDash: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.paper30,
+    borderColor: colors.paper35,
   },
   calName: {
     ...type.body,
@@ -345,7 +353,7 @@ const styles = StyleSheet.create({
   calNameDash: {
     ...type.body,
     fontSize: 10.5,
-    color: colors.paper60,
+    color: colors.paper65,
   },
   calTag: {
     fontFamily: fonts.mono,
@@ -435,13 +443,6 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     paddingVertical: 9,
     paddingHorizontal: 10,
-  },
-  galonIcon: {
-    width: 15,
-    height: 15,
-    borderRadius: 4,
-    borderWidth: 1.9,
-    borderColor: colors.mustard,
   },
   galonText: {
     ...type.body,

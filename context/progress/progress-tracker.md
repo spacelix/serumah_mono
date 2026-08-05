@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M1 — Release & In-App Update (COMPLETE — test loop pending for locks)
-**Last completed:** M1 — Release pipeline verified live: `v1.0.1` released via GitHub Actions (tag `v*` → `expo prebuild` → `gradlew assembleRelease` signed → `serumah-app.apk` + `version.json` published). Manifest confirmed (`versionCode 2`, apkUrl, notes). In-app update check + `UpdateDialog` implemented (release-mode, optional vs force, APK download + install). Cleanup done: `key.properties`, `.env`, `*.jks`, `/android` all gitignored; nothing secret tracked.
+**Phase:** M2 — Backend Core (IN PROGRESS)
+**Last completed:** M2 backend core auth/profile/rumah modules — register/login/logout/me, JWT with DB-lookup (fresh role/rumah per request), RolesGuard, profile upsert, create/join/preview rumah, avatar upload, idempotent seed with real bcrypt demo accounts. Verified via full smoke test (register → profile → create rumah → join → preview + error cases). `turbo run build lint typecheck test` all green.
 
-**Next:** M1 test loop — install `v1.0.1` APK on emulator/device, bump to `v1.0.2`, cut tag, verify the in-app update prompt appears and installs. Then Phase M2 (Backend Core).
+**Next:** Phase M3 — Backend Features (Ruangan & Jenis Piket CRUD, schedule, piket, verifikasi & denda, iuran & listrik, swap & galon, cron). Then M1 test loop runs on the first mobile change (bump to `v1.0.2`, cut tag, verify in-app update).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline.
 
@@ -37,11 +37,12 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ### Phase M2 — Backend Core (NestJS)
 
-- [ ] Auth (register/login/JWT)
-- [ ] Anggota/Profile
-- [ ] Rumah (create/join/invite)
-- [ ] Storage service (MinIO)
-- [ ] Seed dev data
+- [x] Auth (register/login/JWT)
+- [x] Anggota/Profile
+- [x] Rumah (create/join/invite)
+- [x] Storage service (MinIO + avatar)
+- [x] Seed dev data (real bcrypt demo accounts)
+- [x] JWT DB-lookup + RolesGuard (verified end-to-end)
 
 ### Phase M3 — Backend Features
 

@@ -30,7 +30,11 @@ Locked decisions:
 Screens: `app/login.tsx`, `app/register.tsx`, splash (`app/index.tsx`).
 
 - **Splash**: `splashGreen` (#3F6F61) background; app logo (118px) + wordmark **"Serumah"** (Space Grotesk 700, 31px, `paper`) + kicker **"Piket · Iuran · Galon"** (JetBrains Mono 500, 9.5px, letter-spacing .2em, uppercase, `paper` @ 55%). Shown only while session is being checked (`checking`). Matches `Serumah.html` splash exactly (via `splash-screen.tsx`).
-- **Welcome**: landing page shown after the splash when not logged in (auth entry screen). Centered logo (104px) + wordmark "Serumah" + kicker "Piket · Iuran · Galon", short blurb, primary **"Masuk"** CTA + outline **"Daftar akun baru"**. Session-based redirect after splash:
+- **Welcome (onboarding tutorial)**: shown right after the splash (auth entry screen). Matches `Serumah.html` onboarding: `splashGreen` bg, logo chip 36 + "Serumah" header + **"Lewati"** (skip), centered art box (200×186, radius 26, `paper09`/`paper16`) + kicker (mono 9.5, .16em, `paper50`) + title (Space Grotesk 600 24px) + body (Inter 12.5/1.55, `paper70`), 3 dots (active 18×7 pill), back (←) + **"Lanjut"** / last step **"Mulai · Masuk"** (paper pill, radius 13, py 15). Steps (from `Serumah.html`):
+  1. **Jadwal piket yang adil sendiri** — kicker "Papan piket digital", art cal
+  2. **Bolong ya kena denda** — kicker "Bukti, bukan alasan", art stamp
+  3. **Iuran & galon transparan** — kicker "Satu atap, satu catatan", art money
+  Skip (`Lewati`) and final "Mulai · Masuk" both → `/login`. Session-based redirect after splash:
   - not logged in → `/welcome`; logged in + no profile → `/onboarding/profile`; has profile + no rumah → `/onboarding/create-rumah`; complete → `(tabs)`.
 - **Login**: email field, password field, **"Masuk"** button (ink, full width), link **"Belum punya akun? Daftar"**.
 - **Register**: email, password, password confirmation, **"Daftar"** button, link **"Sudah punya akun? Masuk"**.

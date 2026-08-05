@@ -1,90 +1,452 @@
-import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
-import { SerumahButton } from '@/components/ui/serumah-button';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/radius';
-import { type } from '@/theme/typography';
+import { fonts, type } from '@/theme/typography';
+
+interface ObStep {
+  key: number;
+  title: string;
+  body: string;
+  kicker: string;
+  art: 'cal' | 'stamp' | 'money';
+}
+
+const OB_STEPS: ObStep[] = [
+  {
+    key: 0,
+    title: 'Jadwal piket yang adil sendiri',
+    body: 'Update status weekend, jadwalnya kegenerate otomatis. Yang piket Sabtu–Minggu bebas piket Senin–Jumat.',
+    kicker: 'Papan piket digital',
+    art: 'cal',
+  },
+  {
+    key: 1,
+    title: 'Bolong ya kena denda',
+    body: 'Checklist per jenis piket plus foto before/after. Yang nggak dikerjain sampai jam 8 malam langsung jadi tagihan.',
+    kicker: 'Bukti, bukan alasan',
+    art: 'stamp',
+  },
+  {
+    key: 2,
+    title: 'Iuran & galon transparan',
+    body: 'Sewa, wifi, listrik, sampai giliran galon dicatat satu tempat. Bayar cash diverifikasi anggota lain.',
+    kicker: 'Satu atap, satu catatan',
+    art: 'money',
+  },
+];
 
 /**
- * Welcome / landing page shown after the splash, when not logged in.
- * Serumah visual language: centered logo, wordmark, then primary
- * "Masuk" CTA + outline "Daftar akun baru".
+ * Welcome screen — Serumah.html onboarding tutorial (3 steps).
+ * Matches the prototype: green bg, logo chip + "Serumah" header, step art
+ * box, kicker + title + body, dots, "Lewati" skip → login, back/Lanjut, and
+ * last step "Mulai · Masuk" → login (email/password, not PIN).
  */
 export default function WelcomeScreen() {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+
+  const stepData = OB_STEPS[step];
+  const isLast = step === OB_STEPS.length - 1;
+  const isFirst = step === 0;
+
+  const goLogin = () => router.replace('/login');
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <View style={styles.hero}>
-          <SerumahLogo size={104} />
-          <Text style={styles.wordmark}>Serumah</Text>
-          <Text style={styles.kicker}>Piket · Iuran · Galon</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <SerumahLogo size={36} />
+          <Text style={styles.brand}>Serumah</Text>
         </View>
+        <Pressable onPress={goLogin} style={styles.skipBtn} hitSlop={8}>
+          <Text style={styles.skipText}>Lewati</Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.blurb}>
-          <Text style={styles.blurbText}>
-            Jadwal piket rumah jadi rapi, adil, dan otomatis kepantau dari satu tempat.
-          </Text>
-        </View>
-
-        <View style={styles.actions}>
-          <Link href="/login" asChild>
-            <SerumahButton title="Masuk" />
-          </Link>
-          <Link href="/register" asChild>
-            <SerumahButton variant="outline" title="Daftar akun baru" />
-          </Link>
+      <View style={styles.stage}>
+        <StepArt art={stepData.art} />
+        <View style={styles.textBlock}>
+          <Text style={styles.kicker}>{stepData.kicker}</Text>
+          <Text style={styles.title}>{stepData.title}</Text>
+          <Text style={styles.body}>{stepData.body}</Text>
         </View>
       </View>
-    </SafeAreaView>
+
+      <View style={styles.controls}>
+        <View style={styles.dots}>
+          {OB_STEPS.map((s) => (
+            <View
+              key={s.key}
+              style={[styles.dot, s.key === step && styles.dotActive]}
+            />
+          ))}
+        </View>
+        <View style={styles.actions}>
+          {!isFirst && (
+            <Pressable
+              onPress={() => setStep((v) => Math.max(0, v - 1))}
+              style={({ pressed }) => [
+                styles.backBtn,
+                pressed && styles.backBtnPressed,
+              ]}>
+              <Text style={styles.backText}>←</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => (isLast ? goLogin() : setStep((v) => v + 1))}
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}>
+            <Text style={styles.primaryText}>
+              {isLast ? 'Mulai · Masuk' : 'Lanjut'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function StepArt({ art }: { art: ObStep['art'] }) {
+  if (art === 'cal') return <CalArt />;
+  if (art === 'stamp') return <StampArt />;
+  return <MoneyArt />;
+}
+
+function CalArt() {
+  return (
+    <View style={styles.artBox}>
+      <View style={styles.calBox}>
+        <View style={styles.calRow}>
+          <Text style={styles.calName}>Sab · Lo</Text>
+          <Text style={styles.calTag}>DI KOS</Text>
+        </View>
+        <View style={[styles.calRow, styles.calRowDim]}>
+          <Text style={styles.calNameDim}>Sen · Dani</Text>
+          <Text style={styles.calTagDim}>AUTO</Text>
+        </View>
+        <View style={[styles.calRow, styles.calRowDim]}>
+          <Text style={styles.calNameDim}>Rab · Fajar</Text>
+          <Text style={styles.calTagDim}>AUTO</Text>
+        </View>
+        <View style={[styles.calRow, styles.calRowDash]}>
+          <Text style={styles.calNameDash}>Sel · Kam</Text>
+          <Text style={styles.calTagDash}>LIBUR</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function StampArt() {
+  return (
+    <View style={styles.artBox}>
+      <View style={styles.stampBox}>
+        <View style={styles.stampBlocks}>
+          <View style={styles.stampBlock} />
+          <View style={styles.stampBlock} />
+        </View>
+        <View style={styles.stampBadge}>
+          <Text style={styles.stampBadgeText}>MENUNGGU</Text>
+        </View>
+        <Text style={styles.stampAmount}>−Rp 13.000</Text>
+      </View>
+    </View>
+  );
+}
+
+function MoneyArt() {
+  return (
+    <View style={styles.artBox}>
+      <View style={styles.moneyBox}>
+        <View style={styles.moneyRow}>
+          <Text style={styles.moneyLabel}>Wifi</Text>
+          <Text style={styles.moneyValue}>110rb</Text>
+        </View>
+        <View style={styles.moneyRow}>
+          <Text style={styles.moneyLabel}>Listrik</Text>
+          <Text style={styles.moneyValue}>158rb</Text>
+        </View>
+        <View style={styles.moneyDivider} />
+        <View style={styles.galonChip}>
+          <View style={styles.galonIcon} />
+          <Text style={styles.galonText}>Galon · giliran lo</Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.splashGreen,
+    paddingTop: 46,
+    paddingHorizontal: 26,
+    paddingBottom: 28,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing['2xl'],
-  },
-  hero: {
-    flex: 1,
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
+    justifyContent: 'space-between',
   },
-  wordmark: {
-    fontFamily: type.display.fontFamily,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  brand: {
+    fontFamily: fonts.display,
     fontWeight: '700',
-    fontSize: 30,
-    lineHeight: 34,
-    letterSpacing: -0.6,
-    color: colors.ink,
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.paper,
+  },
+  skipBtn: {
+    padding: 4,
+  },
+  skipText: {
+    ...type.body,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.paper60,
+  },
+  stage: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 22,
+  },
+  textBlock: {
+    alignItems: 'center',
+    gap: 9,
   },
   kicker: {
     ...type.kicker,
     fontSize: 9.5,
-    letterSpacing: 1.9,
-    color: colors.inkSoft,
+    letterSpacing: 1.5,
+    color: colors.paper50,
   },
-  blurb: {
-    alignItems: 'center',
-    marginBottom: spacing['2xl'],
-  },
-  blurbText: {
-    ...type.body,
-    fontSize: 13.5,
-    lineHeight: 20,
+  title: {
+    fontFamily: fonts.display,
+    fontWeight: '600',
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.48,
     textAlign: 'center',
-    color: colors.inkSoft,
-    maxWidth: 300,
+    color: colors.paper,
+  },
+  body: {
+    ...type.body,
+    fontSize: 12.5,
+    lineHeight: 19,
+    textAlign: 'center',
+    color: colors.paper70,
+    maxWidth: 290,
+  },
+  controls: {
+    gap: 15,
+  },
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 20,
+    backgroundColor: colors.paper30,
+  },
+  dotActive: {
+    width: 18,
+    backgroundColor: colors.paper,
   },
   actions: {
-    gap: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  backBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 17,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.paper30,
+  },
+  backBtnPressed: {
+    backgroundColor: colors.paper16,
+  },
+  backText: {
+    ...type.body,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  primaryBtn: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 13,
+    backgroundColor: colors.paper,
+  },
+  primaryBtnPressed: {
+    backgroundColor: colors.paperDeep,
+  },
+  primaryText: {
+    ...type.body,
+    fontSize: 13.5,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: colors.ink,
+  },
+  artBox: {
+    alignSelf: 'center',
+    width: 200,
+    height: 186,
+    borderRadius: 26,
+    backgroundColor: colors.paper09,
+    borderWidth: 1,
+    borderColor: colors.paper16,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  calBox: {
+    gap: 7,
+  },
+  calRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.paper,
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  calRowDim: {
+    backgroundColor: colors.paper16,
+  },
+  calRowDash: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.paper30,
+  },
+  calName: {
+    ...type.body,
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.ink,
+  },
+  calNameDim: {
+    ...type.body,
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  calNameDash: {
+    ...type.body,
+    fontSize: 10.5,
+    color: colors.paper60,
+  },
+  calTag: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    fontWeight: '600',
+    color: colors.pineDeep,
+    backgroundColor: colors.pineSoft,
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  calTagDim: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    color: colors.paper60,
+  },
+  calTagDash: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    color: colors.paper50,
+  },
+  stampBox: {
+    alignItems: 'center',
+    gap: 13,
+  },
+  stampBlocks: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  stampBlock: {
+    flex: 1,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: colors.paper16,
+  },
+  stampBadge: {
+    transform: [{ rotate: '-6deg' }],
+    borderWidth: 3,
+    borderColor: colors.goldCheck,
+    borderRadius: 9,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  stampBadgeText: {
+    fontFamily: fonts.display,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.44,
+    color: colors.goldCheck,
+  },
+  stampAmount: {
+    fontFamily: fonts.mono,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  moneyBox: {
+    gap: 8,
+  },
+  moneyRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  moneyLabel: {
+    ...type.body,
+    fontSize: 9.5,
+    color: colors.paper60,
+  },
+  moneyValue: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  moneyDivider: {
+    height: 1,
+    backgroundColor: colors.paper16,
+    marginVertical: 2,
+  },
+  galonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.paper,
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  galonIcon: {
+    width: 15,
+    height: 15,
+    borderRadius: 4,
+    borderWidth: 1.9,
+    borderColor: colors.mustard,
+  },
+  galonText: {
+    ...type.body,
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.ink,
   },
 });

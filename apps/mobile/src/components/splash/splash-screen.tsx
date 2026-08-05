@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
@@ -11,6 +12,8 @@ import { fontFamilies } from '@/theme/typography';
  * (JetBrains Mono 500 9.5, .2em, uppercase, paper @ 55%).
  */
 export function SplashScreen() {
+  const version = Constants.expoConfig?.version ?? '';
+
   return (
     <View style={styles.container}>
       <SerumahLogo size={118} />
@@ -18,6 +21,7 @@ export function SplashScreen() {
         <Text style={styles.wordmark}>Serumah</Text>
         <Text style={styles.kicker}>Piket · Iuran · Galon</Text>
       </View>
+      {version !== '' && <Text style={styles.version}>v{version}</Text>}
     </View>
   );
 }
@@ -46,6 +50,16 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     lineHeight: 14,
     letterSpacing: 1.9,
+    textTransform: 'uppercase',
+    color: colors.paperFaint,
+  },
+  version: {
+    position: 'absolute',
+    bottom: 26,
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1.3,
     textTransform: 'uppercase',
     color: colors.paperFaint,
   },

@@ -11,7 +11,8 @@
       "package": "com.serumah.serumah",
       "versionCode": 3,
       "permissions": [
-        "android.permission.REQUEST_INSTALL_PACKAGES"
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#3F6F61",
@@ -47,6 +48,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "ios": {
+      "bundleIdentifier": "com.serumah.serumah"
     }
   }
 }

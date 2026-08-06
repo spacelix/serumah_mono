@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
 import { LogOut, Pencil, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
@@ -99,24 +99,58 @@ export default function ProfileScreen() {
     }
   };
 
-  const onPickAvatar = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Izin kamera', 'Izinkan kamera untuk foto profil.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (result.canceled || !result.assets[0]) return;
+  const [srcOpen, setSrcOpen] = useState(false);
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+
+  const launchPicker = async (source: 'camera' | 'galeri') => {
+    setSrcOpen(false);
+    setPicking(true);
     try {
-      const url = await apiUploadAvatar(result.assets[0].uri);
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Izin kamera', 'Izinkan kamera untuk foto profil.');
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        });
+        if (!result.canceled && result.assets[0]) setPendingAvatar(result.assets[0].uri);
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Izin galeri', 'Izinkan akses galeri untuk foto profil.');
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        });
+        if (!result.canceled && result.assets[0]) setPendingAvatar(result.assets[0].uri);
+      }
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const onConfirmAvatar = async () => {
+    if (pendingAvatar == null) return;
+    setPicking(true);
+    try {
+      const url = await apiUploadAvatar(pendingAvatar);
       await apiUpdateProfile({ fotoProfil: url });
       invalidate();
+      toast.success('Foto profil ganti.');
+      setPendingAvatar(null);
     } catch (e) {
       Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setPicking(false);
     }
   };
 
@@ -211,7 +245,7 @@ export default function ProfileScreen() {
               setClosing(false);
             }}
             onSave={() => void onSaveEdit()}
-            onPickAvatar={() => void onPickAvatar()}
+            onPickAvatar={() => setSrcOpen(true)}
             onDeleteAvatar={() => void onDeleteAvatar()}
           />
         ) : (
@@ -331,6 +365,82 @@ export default function ProfileScreen() {
         }}
         onCancel={() => setConfirm(null)}
       />
+
+      <Modal
+        visible={srcOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setSrcOpen(false)}>
+        <Pressable style={styles.srcBackdrop} onPress={() => setSrcOpen(false)}>
+          <Pressable style={styles.srcSheet}>
+            <Text style={styles.srcTitle}>Foto profil lo</Text>
+            <View style={styles.srcPreviewWrap}>
+              <View style={styles.srcPreviewClip}>
+                <AvatarThumbContent fotoProfil={anggota?.fotoProfil} />
+              </View>
+            </View>
+            <Text style={styles.srcSub}>Foto ini yang sekarang dipakai. Mau ganti apa hapus?</Text>
+            <Pressable
+              onPress={() => void launchPicker('camera')}
+              disabled={picking}
+              style={styles.srcOption}>
+              <Text style={styles.srcOptionText}>
+                {picking ? 'Memproses…' : 'Ambil dari kamera'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void launchPicker('galeri')}
+              disabled={picking}
+              style={styles.srcOption}>
+              <Text style={styles.srcOptionText}>
+                {picking ? 'Memproses…' : 'Pilih dari galeri'}
+              </Text>
+            </Pressable>
+            {anggota?.fotoProfil != null && (
+              <Pressable onPress={() => { setSrcOpen(false); void onDeleteAvatar(); }} style={styles.srcHapus}>
+                <Text style={styles.srcHapusText}>Hapus foto</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setSrcOpen(false)} style={styles.srcCancel}>
+              <Text style={styles.srcCancelText}>Batal</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={pendingAvatar != null}
+        transparent
+        animationType="none"
+        onRequestClose={() => !picking && setPendingAvatar(null)}>
+        <View style={styles.pvBackdrop}>
+          <View style={styles.pvCard}>
+            <Text style={styles.pvTitle}>Cek foto profil</Text>
+            <ExpoImage
+              source={{ uri: pendingAvatar ?? undefined }}
+              style={styles.pvImage}
+              contentFit="cover"
+            />
+            <Text style={styles.pvHint}>Foto ini yang bakal dipakai sebagai profil lo.</Text>
+            <View style={styles.pvButtons}>
+              <Pressable
+                onPress={() => setPendingAvatar(null)}
+                disabled={picking}
+                style={[styles.pvButton, styles.pvCancel]}>
+                <Text style={styles.pvCancelText}>Batal</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void onConfirmAvatar()}
+                disabled={picking}
+                style={[styles.pvButton, styles.pvConfirm, picking && styles.pvBusy]}>
+                <Text style={styles.pvConfirmText}>
+                  {picking ? 'Menyimpan…' : 'Pakai foto ini'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -423,7 +533,7 @@ onSave,
           </View>
         </Pressable>
         <View style={styles.photoCol}>
-          <Text style={styles.photoHint}>Klik avatar untuk ganti foto{'\n'}dari kamera.</Text>
+          <Text style={styles.photoHint}>Klik avatar untuk lihat{'\n'}atau ganti foto profil.</Text>
           {fotoProfil != null && (
             <Pressable onPress={onDeleteAvatar} hitSlop={4} style={styles.deletePhotoBtn}>
               <Text style={styles.deletePhotoText}>Hapus foto</Text>
@@ -913,4 +1023,130 @@ const styles = StyleSheet.create({
   actionText: { fontFamily: fontFamilies.body[600], fontSize: 12.5 },
   logoutText: { color: colors.ink },
   leaveText: { color: colors.brick },
+
+  srcBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  srcSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius['2xl'],
+    borderTopRightRadius: radius['2xl'],
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.line,
+    padding: 18,
+    paddingBottom: 30,
+    gap: 9,
+  },
+  srcTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 17,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  srcPreviewWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    width: 130,
+    height: 130,
+    marginVertical: 14,
+  },
+  srcPreviewClip: {
+    width: 130,
+    height: 130,
+    borderRadius: 38,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  srcSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  srcHapus: {
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.brick,
+    backgroundColor: 'transparent',
+  },
+  srcHapusText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.brick },
+  srcOption: {
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderRadius: radius.lg,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  srcOptionText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  srcCancel: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 2,
+  },
+  srcCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.inkSoft },
+
+  pvBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  pvCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius['2xl'],
+    padding: 18,
+    alignItems: 'center',
+  },
+  pvTitle: {
+    alignSelf: 'flex-start',
+    fontFamily: fontFamilies.display[600],
+    fontSize: 19,
+    lineHeight: 24,
+    color: colors.ink,
+  },
+  pvImage: {
+    width: 190,
+    height: 190,
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.paperDeep,
+    marginTop: 14,
+  },
+  pvHint: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  pvButtons: { flexDirection: 'row', gap: 10, marginTop: 16, width: '100%' },
+  pvButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+  },
+  pvCancel: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line },
+  pvCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  pvConfirm: { backgroundColor: colors.ink },
+  pvConfirmText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  pvBusy: { opacity: 0.6 },
 });

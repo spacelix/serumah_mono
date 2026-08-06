@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import { LogOut, Pencil, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
@@ -19,7 +20,7 @@ import {
   type ProfileStats,
 } from '@/features/profile/api/profile';
 import { formatCurrency, formatLongDate } from '@/lib/format';
-import { resolveMediaUrl } from '@/lib/api-client';
+import { mediaSource } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from '@/stores/toast-store';
 import { colors } from '@/theme/colors';
@@ -607,9 +608,10 @@ function AvatarStripes() {
 }
 
 function AvatarThumbContent({ fotoProfil }: { fotoProfil?: string | null }) {
-  const uri = resolveMediaUrl(fotoProfil);
-  if (uri) {
-    return <Image source={{ uri }} style={styles.avatarImage} />;
+  const token = useAuthStore((s) => s.token);
+  const source = mediaSource(fotoProfil, token);
+  if (source) {
+    return <ExpoImage source={source} style={styles.avatarImage} contentFit="cover" />;
   }
   return (
     <>

@@ -26,6 +26,25 @@ export function resolveMediaUrl(url: string | null | undefined): string | undefi
   return url;
 }
 
+/**
+ * Source object untuk `expo-image` yang mengirim Authorization header ke
+ * endpoint stream (yang sekarang dilindungi JWT). Memakai memo agar objek
+ * source tidak dibuat ulang tiap render (ExpoImage sensitif terhadap
+ * referensi source yang berubah).
+ */
+export function mediaSource(
+  url: string | null | undefined,
+  token?: string | null,
+): { uri: string; headers: Record<string, string> } | null {
+  const uri = resolveMediaUrl(url);
+  if (!uri) return null;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return { uri, headers };
+}
+
 export async function apiCheckHealth(timeoutMs = 4000): Promise<boolean> {
   try {
     const response = await apiClient.get<{ status: string }>('/health', {

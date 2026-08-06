@@ -115,7 +115,6 @@ export class RumahService {
           id: true,
           nama: true,
           fotoProfil: true,
-          kamar: true,
           role: true,
         },
       }),
@@ -216,6 +215,31 @@ export class RumahService {
 
     this.logger.log(
       `[RumahService] Anggota ${anggotaId} dihapus dari kos ${anggota.rumahId}.`,
+    );
+    return { success: true };
+  }
+
+  /** Member self-leave: detach from rumah. Admin cannot leave (would orphan the kos). */
+  async leaveRumah(payload: CurrentUserPayload) {
+    const anggota = await this.prisma.anggota.findUnique({
+      where: { id: payload.userId },
+    });
+    if (!anggota?.rumahId) {
+      throw new BadRequestException('Kamu tidak tergabung di kos mana pun.');
+    }
+    if (anggota.role === 'admin') {
+      throw new ForbiddenException(
+        'PJ Kos tidak bisa keluar dari kos. Pindahkan peran PJ ke anggota lain dulu.',
+      );
+    }
+
+    await this.prisma.anggota.update({
+      where: { id: payload.userId },
+      data: { rumahId: null, role: 'anggota' },
+    });
+
+    this.logger.log(
+      `[RumahService] Anggota ${payload.userId} keluar dari kos ${anggota.rumahId}.`,
     );
     return { success: true };
   }

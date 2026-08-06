@@ -32,7 +32,7 @@ export class DendaService {
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        anggota: { select: { id: true, nama: true, kamar: true } },
+        anggota: { select: { id: true, nama: true } },
       },
     });
 

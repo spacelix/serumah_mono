@@ -76,4 +76,9 @@ export class RumahController {
   join(@CurrentUser() payload: CurrentUserPayload, @Body() dto: JoinRumahDto) {
     return this.rumahService.joinRumah(payload, dto);
   }
+
+  @Post('leave')
+  leave(@CurrentUser() payload: CurrentUserPayload) {
+    return this.rumahService.leaveRumah(payload);
+  }
 }

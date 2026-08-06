@@ -46,7 +46,7 @@ export class ListrikService {
     const [records, allMembers] = await Promise.all([
       this.prisma.pembayaranListrik.findMany({
         where: { rumahId: anggota.rumahId, bulan: month },
-        include: { anggota: { select: { id: true, nama: true, kamar: true } } },
+        include: { anggota: { select: { id: true, nama: true } } },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.anggota.findMany({

@@ -39,7 +39,7 @@ export class PiketService {
     const jadwal = await this.prisma.jadwal.findFirst({
       where: { rumahId: anggota.rumahId, tanggal: today },
       include: {
-        anggota: { select: { id: true, nama: true, kamar: true } },
+        anggota: { select: { id: true, nama: true } },
         submissions: true,
       },
     });
@@ -206,7 +206,7 @@ export class PiketService {
       },
       orderBy: { submittedAt: isPending ? 'asc' : 'desc' },
       include: {
-        anggota: { select: { id: true, nama: true, kamar: true } },
+        anggota: { select: { id: true, nama: true } },
         jadwal: { select: { tanggal: true } },
         proofs: {
           include: {

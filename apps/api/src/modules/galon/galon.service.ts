@@ -25,7 +25,7 @@ export class GalonService {
     const giliran = await this.prisma.giliranGalon.findFirst({
       where: { rumahId: anggota.rumahId, status: 'menunggu' },
       orderBy: { periodeMulai: 'asc' },
-      include: { anggota: { select: { id: true, nama: true, kamar: true } } },
+      include: { anggota: { select: { id: true, nama: true } } },
     });
 
     if (!giliran) {
@@ -36,7 +36,7 @@ export class GalonService {
     const active = await this.prisma.giliranGalon.findFirst({
       where: { rumahId: anggota.rumahId, status: 'menunggu' },
       orderBy: { periodeMulai: 'asc' },
-      include: { anggota: { select: { id: true, nama: true, kamar: true } } },
+      include: { anggota: { select: { id: true, nama: true } } },
     });
 
     return {

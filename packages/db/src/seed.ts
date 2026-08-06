@@ -57,22 +57,21 @@ async function main() {
   });
 
   const anggotaData = [
-    { id: adminId, nama: 'Admin Mawar', role: 'admin', kamar: 'K1' },
-    { id: memberIds[0]!, nama: 'Andi', role: 'anggota', kamar: 'K2' },
-    { id: memberIds[1]!, nama: 'Budi', role: 'anggota', kamar: 'K3' },
-    { id: memberIds[2]!, nama: 'Cici', role: 'anggota', kamar: 'K4' },
+    { id: adminId, nama: 'Admin Mawar', role: 'admin' },
+    { id: memberIds[0]!, nama: 'Andi', role: 'anggota' },
+    { id: memberIds[1]!, nama: 'Budi', role: 'anggota' },
+    { id: memberIds[2]!, nama: 'Cici', role: 'anggota' },
   ];
 
   for (const a of anggotaData) {
     await prisma.anggota.upsert({
       where: { id: a.id },
-      update: { rumahId: rumah.id, role: a.role, kamar: a.kamar },
+      update: { rumahId: rumah.id, role: a.role },
       create: {
         id: a.id,
         rumahId: rumah.id,
         nama: a.nama,
         role: a.role,
-        kamar: a.kamar,
       },
     });
   }

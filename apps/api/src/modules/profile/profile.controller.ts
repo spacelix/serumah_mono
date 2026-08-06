@@ -20,4 +20,9 @@ export class ProfileController {
   ) {
     return this.profileService.updateProfile(payload, dto);
   }
+
+  @Get('me/stats')
+  stats(@CurrentUser() payload: CurrentUserPayload) {
+    return this.profileService.getStats(payload);
+  }
 }

@@ -204,7 +204,7 @@ export class ScheduleService {
       },
       orderBy: { tanggal: 'asc' },
       include: {
-        anggota: { select: { id: true, nama: true, kamar: true } },
+        anggota: { select: { id: true, nama: true } },
         submissions: { select: { id: true, status: true, anggotaId: true } },
       },
     });

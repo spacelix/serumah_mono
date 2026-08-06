@@ -8,7 +8,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+} from './dto/auth.dto';
 
 export interface JwtPayload {
   sub: string;
@@ -78,6 +82,29 @@ export class AuthService {
       user: user ? this.toUser(user) : null,
       anggota: user?.anggota ?? null,
     };
+  }
+
+  async changePassword(payload: CurrentUserPayload, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Pengguna tidak ditemukan.');
+    }
+
+    const valid = await bcrypt.compare(dto.passwordLama, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Password lama salah.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.passwordBaru, BCRYPT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    this.logger.log(`[AuthService] Password diubah: ${user.id}`);
+    return { success: true };
   }
 
   private signToken(userId: string, email: string): string {

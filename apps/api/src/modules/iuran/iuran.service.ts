@@ -88,7 +88,7 @@ export class IuranService {
 
     const iuran = await this.prisma.iuranBulanan.findMany({
       where: { anggota: { rumahId: anggota.rumahId }, bulan: month },
-      include: { anggota: { select: { id: true, nama: true, kamar: true } } },
+      include: { anggota: { select: { id: true, nama: true } } },
       orderBy: { kategori: 'asc' },
     });
 

@@ -17,3 +17,13 @@ export class LoginDto {
   @IsNotEmpty({ message: 'Password wajib diisi.' })
   password: string;
 }
+
+export class ChangePasswordDto {
+  @IsString({ message: 'Password lama harus berupa teks.' })
+  @IsNotEmpty({ message: 'Password lama wajib diisi.' })
+  passwordLama: string;
+
+  @IsString({ message: 'Password baru harus berupa teks.' })
+  @MinLength(8, { message: 'Password baru minimal 8 karakter.' })
+  passwordBaru: string;
+}

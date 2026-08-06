@@ -39,16 +39,16 @@ export class SwapService {
       this.prisma.swapRequest.findMany({
         where: { keAnggotaId: anggota.id, status: 'diajukan' },
         include: {
-          dari: { select: { id: true, nama: true, kamar: true } },
-          ke: { select: { id: true, nama: true, kamar: true } },
+          dari: { select: { id: true, nama: true } },
+          ke: { select: { id: true, nama: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.swapRequest.findMany({
         where: { dariAnggotaId: anggota.id },
         include: {
-          dari: { select: { id: true, nama: true, kamar: true } },
-          ke: { select: { id: true, nama: true, kamar: true } },
+          dari: { select: { id: true, nama: true } },
+          ke: { select: { id: true, nama: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),

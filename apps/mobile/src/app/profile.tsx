@@ -120,6 +120,16 @@ export default function ProfileScreen() {
     }
   };
 
+  const onDeleteAvatar = async () => {
+    try {
+      await apiUpdateProfile({ fotoProfil: null });
+      invalidate();
+      toast.success('Foto profil udah dihapus.');
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    }
+  };
+
   const onSaveEdit = async () => {
     if (!nama.trim()) {
       Alert.alert('Perhatian', 'Nama wajib diisi.');
@@ -202,6 +212,7 @@ export default function ProfileScreen() {
             }}
             onSave={() => void onSaveEdit()}
             onPickAvatar={() => void onPickAvatar()}
+            onDeleteAvatar={() => void onDeleteAvatar()}
           />
         ) : (
           <View style={styles.profileCard}>
@@ -337,8 +348,9 @@ function EditProfileCard({
   closing,
   onClose,
   onClosed,
-  onSave,
+onSave,
   onPickAvatar,
+  onDeleteAvatar,
 }: {
   nama: string;
   setNama: (v: string) => void;
@@ -354,6 +366,7 @@ function EditProfileCard({
   onClosed: () => void;
   onSave: () => void;
   onPickAvatar: () => void;
+  onDeleteAvatar: () => void;
 }) {
   const rise = useRef(new Animated.Value(0)).current;
   const closed = useRef(false);
@@ -409,7 +422,14 @@ function EditProfileCard({
             <AvatarThumbContent fotoProfil={fotoProfil} />
           </View>
         </Pressable>
-        <Text style={styles.photoHint}>Klik avatar untuk ganti foto{'\n'}dari kamera.</Text>
+        <View style={styles.photoCol}>
+          <Text style={styles.photoHint}>Klik avatar untuk ganti foto{'\n'}dari kamera.</Text>
+          {fotoProfil != null && (
+            <Pressable onPress={onDeleteAvatar} hitSlop={4} style={styles.deletePhotoBtn}>
+              <Text style={styles.deletePhotoText}>Hapus foto</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {email != null && (
@@ -789,6 +809,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
     color: colors.inkMuted,
+  },
+  photoCol: {
+    flex: 1,
+    gap: 6,
+  },
+  deletePhotoBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+  },
+  deletePhotoText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11,
+    color: colors.brick,
   },
   editField: { gap: 5 },
   editLabel: {

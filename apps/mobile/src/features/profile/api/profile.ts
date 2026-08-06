@@ -32,7 +32,7 @@ export async function apiGetProfile(): Promise<ProfileResponse> {
 
 export interface UpdateProfileInput {
   nama?: string;
-  fotoProfil?: string;
+  fotoProfil?: string | null;
   kontakDarurat?: string;
   alamat?: string;
 }

@@ -58,7 +58,7 @@ export class ProfileService {
           where: { id: payload.userId },
           data: {
             nama: dto.nama ?? undefined,
-            fotoProfil: dto.fotoProfil ?? undefined,
+            fotoProfil: dto.fotoProfil,
             kontakDarurat: dto.kontakDarurat ?? undefined,
             alamat: dto.alamat ?? undefined,
           },

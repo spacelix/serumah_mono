@@ -8,7 +8,7 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString({ message: 'Foto profil tidak valid.' })
-  fotoProfil?: string;
+  fotoProfil?: string | null;
 
   @IsOptional()
   @IsString({ message: 'Kontak darurat harus berupa teks.' })

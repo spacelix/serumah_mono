@@ -85,17 +85,17 @@ export class ScheduleService {
   }
 
   // ── WEEKDAY GENERATION (MONDAY) ─────────────────────────────────────
-  private async ensureWeekday(rumahId: string, date: Date): Promise<void> {
+  private async ensureWeekday(rumahId: string, date: Date): Promise<boolean> {
     const day = this.toDate(date);
-    if (!this.isPiketDay(day)) return;
+    if (!this.isPiketDay(day)) return false;
 
     const existing = await this.prisma.jadwal.findFirst({
       where: { rumahId, tanggal: day },
     });
-    if (existing) return;
+    if (existing) return false;
 
     const memberList = await this.members(rumahId);
-    if (memberList.length === 0) return;
+    if (memberList.length === 0) return false;
 
     const index = this.weekdayOrdinal(day) % memberList.length;
     const member = memberList[index];
@@ -112,24 +112,29 @@ export class ScheduleService {
     this.logger.log(
       `[ScheduleService] Jadwal ${day.toISOString()} → ${member.id}`,
     );
+    return true;
   }
 
   private async ensureWeekdayWeek(
     rumahId: string,
     monday: Date,
-  ): Promise<void> {
+  ): Promise<number> {
+    let count = 0;
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
-      if (this.isPiketDay(day)) await this.ensureWeekday(rumahId, day);
+      if (this.isPiketDay(day)) {
+        if (await this.ensureWeekday(rumahId, day)) count += 1;
+      }
     }
+    return count;
   }
 
   private async ensureWeekend(
     rumahId: string,
     weekendDay: Date,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const day = this.toDate(weekendDay);
-    if (!this.isWeekendDay(day)) return;
+    if (!this.isWeekendDay(day)) return false;
 
     const monday = this.mondayOf(day);
     const hari = WEEKEND_HARI[day.getDay()];
@@ -137,7 +142,7 @@ export class ScheduleService {
     const existing = await this.prisma.jadwal.findFirst({
       where: { rumahId, tanggal: day },
     });
-    if (existing) return;
+    if (existing) return false;
 
     // This week's di_kos; fall back to last week's status when none recorded.
     let rows = await this.prisma.weekendStatus.findMany({
@@ -159,7 +164,7 @@ export class ScheduleService {
       select: { id: true },
     });
 
-    if (diKosMembers.length === 0) return; // Free day (no fine)
+    if (diKosMembers.length === 0) return false; // Free day (no fine)
 
     const index = this.weekendOrdinal(day) % diKosMembers.length;
     const member = diKosMembers[index];
@@ -176,6 +181,7 @@ export class ScheduleService {
     this.logger.log(
       `[ScheduleService] Weekend ${day.toISOString()} → ${member.id}`,
     );
+    return true;
   }
 
   private async activeRoomNames(rumahId: string): Promise<string[]> {
@@ -221,8 +227,30 @@ export class ScheduleService {
   async generateWeekday(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const monday = this.addDays(this.mondayOf(new Date()), 7);
-    await this.ensureWeekdayWeek(anggota.rumahId!, monday);
-    return { message: 'Jadwal pekan depan telah dibuat.' };
+    const count = await this.ensureWeekdayWeek(anggota.rumahId!, monday);
+    return { message: 'Jadwal pekan depan telah dibuat.', count };
+  }
+
+  /**
+   * First-time generation (admin): backfills the REST of the current week
+   * from today until Sunday — weekday piket days + weekend (from Di kos
+   * status). Next week is handled by the regular cron (`pregenerateWeek`
+   * Saturday + `freezeWeekendCron` Friday), so we never double-write here.
+   */
+  async generateRestOfWeek(payload: CurrentUserPayload) {
+    const anggota = await this.requirePj(payload);
+    const today = this.toDate(new Date());
+    const sunday = this.addDays(this.mondayOf(today), 6);
+
+    let count = 0;
+    for (let cursor = today; cursor <= sunday; cursor = this.addDays(cursor, 1)) {
+      if (this.isPiketDay(cursor)) {
+        if (await this.ensureWeekday(anggota.rumahId!, cursor)) count += 1;
+      } else if (this.isWeekendDay(cursor)) {
+        if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
+      }
+    }
+    return { message: 'Jadwal pekan ini telah dibuat.', count };
   }
 
   async generateWeekend(payload: CurrentUserPayload) {

@@ -42,6 +42,8 @@ export interface Dashboard {
   galon: GalonInfo;
   billing: BillingInfo;
   scheduleWeek: ScheduleRow[];
+  scheduleIncomplete: boolean;
+  isAdmin: boolean;
   memberName: string;
 }
 
@@ -58,6 +60,8 @@ interface ApiDashboard {
   galon: GalonInfo;
   billing: BillingInfo;
   scheduleWeek: ApiScheduleRow[];
+  scheduleIncomplete: boolean;
+  isAdmin: boolean;
   memberName: string;
 }
 
@@ -75,6 +79,13 @@ export async function apiSetWeekendStatus(
 
 export async function apiConfirmGalon(id: string): Promise<void> {
   await apiClient.post(`/galon/${id}/confirm`);
+}
+
+export async function apiGenerateRestOfWeek(): Promise<{ count: number }> {
+  const response = await apiClient.post<{ count: number }>(
+    '/schedule/generate/rest-of-week',
+  );
+  return response.data;
 }
 
 export const dashboardKeys = {
@@ -102,6 +113,15 @@ export function useConfirmGalon() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiConfirmGalon(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+  });
+}
+
+export function useGenerateRestOfWeek() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiGenerateRestOfWeek,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
   });

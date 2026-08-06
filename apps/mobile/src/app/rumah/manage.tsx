@@ -3,11 +3,12 @@ import { Check, Pencil, Plus, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/stores/toast-store';
+import { useGenerateRestOfWeek, useDashboard } from '@/features/dashboard/api/dashboard';
 import {
   apiCreateJenisPiket,
   apiCreateRuangan,
@@ -37,6 +38,16 @@ export default function ManageRumahScreen() {
   });
   const invalidate = useProfileInvalidate();
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const scrollRef = useRef<ScrollView>(null);
+  const shouldScrollToGenerate = params.scrollTo === 'generate';
+  const scrolledRef = useRef(false);
+
+  const scrollToGenerate = () => {
+    if (scrolledRef.current) return;
+    scrollRef.current?.scrollToEnd({ animated: true });
+    scrolledRef.current = true;
+  };
 
   if (isLoading || data == null || data.rumah == null) {
     return (
@@ -51,10 +62,17 @@ export default function ManageRumahScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title="Kelola rumah" onBack={() => router.back()} backLabel="Profil" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        onContentSizeChange={() => {
+          if (shouldScrollToGenerate && !scrolledRef.current) scrollToGenerate();
+        }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
         <RumahCard rumah={data.rumah} isAdmin={data.currentRole === 'admin'} onChange={() => invalidate()} />
         <MembersSection members={data.anggotaList} isAdmin={data.currentRole === 'admin'} />
         <RoomsSection isAdmin={data.currentRole === 'admin'} denda={data.rumah.nominalDenda} />
+        <GenerateJadwalSection isAdmin={data.currentRole === 'admin'} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -274,6 +292,61 @@ function EditRumahCard({
         </Pressable>
       </View>
     </Animated.View>
+  );
+}
+
+/* ================= Generate Jadwal (PJ) ================= */
+
+function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
+  const generate = useGenerateRestOfWeek();
+  const { data: dash } = useDashboard();
+  const incomplete = dash?.scheduleIncomplete ?? false;
+
+  if (!isAdmin) return null;
+
+  const run = () => {
+    generate.mutate(undefined, {
+      onSuccess: (res) => {
+        toast.success(
+          res.count > 0
+            ? `Jadwal pekan ini berhasil dibuat (${res.count} hari).`
+            : 'Jadwal pekan ini sudah lengkap.',
+        );
+      },
+      onError: (e) => toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+    });
+  };
+
+  return (
+    <View style={styles.generateCard}>
+      <View style={styles.generateBody}>
+        <Text style={styles.generateKicker}>JADWAL PIKET</Text>
+        <Text style={styles.generateTitle}>
+          {incomplete ? 'Jadwal pekan ini belum dibuat' : 'Jadwal pekan ini sudah ada'}
+        </Text>
+        <Text style={styles.generateSub}>
+          {incomplete
+            ? 'Generate sekali aja buat ngisi sisa pekan ini — dari hari ini sampe Minggu. Pekan depannya di-generate otomatis tiap pekan.'
+            : 'Sisa pekan ini udah penuh. Pekan depannya bakal di-generate otomatis.'}
+        </Text>
+      </View>
+      <Pressable
+        onPress={run}
+        disabled={generate.isPending || !incomplete}
+        style={({ pressed }) => [
+          styles.generateBtn,
+          (generate.isPending || !incomplete) && styles.generateBtnDisabled,
+          pressed && incomplete && styles.generateBtnPressed,
+        ]}>
+        <Text style={[styles.generateBtnText, (generate.isPending || !incomplete) && styles.generateBtnTextDisabled]}>
+          {generate.isPending
+            ? 'Mengenerate…'
+            : incomplete
+              ? 'Generate Jadwal'
+              : 'Jadwal Selesai'}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -887,7 +960,22 @@ const styles = StyleSheet.create({
   sectionHeadMeta: { fontFamily: fontFamilies.mono[500], fontSize: 10, color: colors.inkSoft },
   sectionDesc: { fontFamily: fontFamilies.body[400], fontSize: 10.5, lineHeight: 16, color: colors.inkSoft, paddingHorizontal: 2, marginTop: 6 },
 
-  /* List card + anggota */
+  generateCard: {
+    backgroundColor: colors.brickSoft,
+    borderRadius: radius.xl,
+    padding: 14,
+    gap: 12,
+  },
+  generateBody: { gap: 4 },
+  generateKicker: { ...type.kicker, fontSize: 9, color: colors.brickDeep },
+  generateTitle: { fontFamily: fontFamilies.display[600], fontSize: 14, color: colors.brickDeep },
+  generateSub: { fontFamily: fontFamilies.body[400], fontSize: 11, lineHeight: 16, color: colors.brickDeep },
+  generateBtn: { backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' },
+  generateBtnDisabled: { backgroundColor: colors.disabledBg },
+  generateBtnPressed: { backgroundColor: colors.pineDeep },
+  generateBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  generateBtnTextDisabled: { color: colors.disabledFg },
+
   listCard: {
     backgroundColor: colors.card,
     borderWidth: 1,

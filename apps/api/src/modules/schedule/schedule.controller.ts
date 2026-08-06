@@ -23,6 +23,12 @@ export class ScheduleController {
     return this.scheduleService.generateWeekday(payload);
   }
 
+  @Post('generate/rest-of-week')
+  @Roles('admin')
+  generateRestOfWeek(@CurrentUser() payload: CurrentUserPayload) {
+    return this.scheduleService.generateRestOfWeek(payload);
+  }
+
   @Post('generate/weekend')
   @Roles('admin')
   generateWeekend(@CurrentUser() payload: CurrentUserPayload) {

@@ -43,18 +43,30 @@ export class DashboardService {
         galon: { giliran: null, namaAnggota: null },
         billing: { totalUnpaid: 0, countUnpaid: 0, bulan: null },
         scheduleWeek: [],
+        scheduleIncomplete: false,
+        isAdmin: anggota.role === 'admin',
         memberName: anggota.nama,
       };
     }
 
-    const [galon, weekend, billing, scheduleWeek] = await Promise.all([
-      this.galonService.current(payload),
-      this.getWeekend(payload.userId),
-      this.getBilling(anggota.id),
-      this.getScheduleWeek(anggota.rumahId),
-    ]);
+    const [galon, weekend, billing, scheduleWeek, scheduleIncomplete] =
+      await Promise.all([
+        this.galonService.current(payload),
+        this.getWeekend(payload.userId),
+        this.getBilling(anggota.id),
+        this.getScheduleWeek(anggota.rumahId),
+        this.isWeekIncomplete(anggota.rumahId),
+      ]);
 
-    return { weekend, galon, billing, scheduleWeek, memberName: anggota.nama };
+    return {
+      weekend,
+      galon,
+      billing,
+      scheduleWeek,
+      scheduleIncomplete,
+      isAdmin: anggota.role === 'admin',
+      memberName: anggota.nama,
+    };
   }
 
   // ── WEEKEND ─────────────────────────────────────────────────────────
@@ -116,6 +128,48 @@ export class DashboardService {
       countUnpaid: unpaidIuran.length + unpaidDenda.length,
       bulan: firstOfMonth,
     };
+  }
+
+  // ── SCHEDULE INCOMPLETE (PJ banner) ─────────────────────────────────
+  /**
+   * True when the current week still has an upcoming piket day (from today
+   * through Sunday) that is not yet scheduled — either a weekday piket day
+   * with no Jadwal, or a weekend day with Di kos members but no Jadwal yet.
+   * Used by the PJ reminder banner on Beranda.
+   */
+  private async isWeekIncomplete(rumahId: string): Promise<boolean> {
+    const today = this.toDay(new Date());
+    const monday = this.mondayOf(today);
+    const sunday = this.addDays(monday, 6);
+
+    const [jadwal, weekendRows] = await Promise.all([
+      this.prisma.jadwal.findMany({
+        where: { rumahId, tanggal: { gte: today, lte: sunday } },
+        select: { tanggal: true },
+      }),
+      this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday },
+        select: { hari: true, status: true },
+      }),
+    ]);
+
+    const scheduledDays = new Set(jadwal.map((j) => this.key(j.tanggal)));
+    const diKosHari = new Set(
+      weekendRows.filter((r) => r.status === 'di_kos').map((r) => r.hari),
+    );
+
+    for (let cursor = today; cursor <= sunday; cursor = this.addDays(cursor, 1)) {
+      const dow = cursor.getDay();
+      if (PIKET_WEEKDAYS.includes(dow)) {
+        if (!scheduledDays.has(this.key(cursor))) return true;
+      } else if (dow === 6 || dow === 0) {
+        const hari = dow === 6 ? 'sabtu' : 'minggu';
+        if (diKosHari.has(hari) && !scheduledDays.has(this.key(cursor))) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   // ── SCHEDULE WEEK ───────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -28,6 +28,7 @@ interface ConfirmDialogProps {
 /**
  * Konfirmasi aksi sesuai Serumah.html: scrim gelap + kartu riseIn
  * (bukan Alert bawaan). Tombol aksi bisa berwarna danger (brick outline).
+ * Animasi terbuka (rise-in) dan tertutup (drop-out + fade).
  */
 export function ConfirmDialog({
   visible,
@@ -42,9 +43,11 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const rise = useMemo(() => new Animated.Value(0), []);
   const fade = useMemo(() => new Animated.Value(0), []);
+  const [mounted, setMounted] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       rise.setValue(0);
       fade.setValue(0);
       Animated.parallel([
@@ -64,8 +67,31 @@ export function ConfirmDialog({
     }
   }, [visible, rise, fade]);
 
+  useEffect(() => {
+    if (!visible && mounted) {
+      Animated.parallel([
+        Animated.timing(rise, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(fade, {
+          toValue: 0,
+          duration: 160,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(() => setMounted(false));
+    }
+  }, [visible, mounted, rise, fade]);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel}>
+    <Modal visible transparent animationType="none" onRequestClose={onCancel}>
       <Animated.View style={[styles.backdrop, { opacity: fade }]}>
         <Animated.View
           style={[

@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
 import { LogOut, Pencil, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
@@ -101,8 +101,10 @@ export default function ProfileScreen() {
 
   const [srcOpen, setSrcOpen] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const uploadAvatar = async (uri: string) => {
+    setUploading(true);
     try {
       const url = await apiUploadAvatar(uri);
       await apiUpdateProfile({ fotoProfil: url });
@@ -110,6 +112,8 @@ export default function ProfileScreen() {
       toast.success('Foto profil ganti.');
     } catch (e) {
       Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -403,6 +407,15 @@ export default function ProfileScreen() {
             </Pressable>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      <Modal visible={uploading} transparent animationType="none">
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadCard}>
+            <ActivityIndicator color={colors.pine} />
+            <Text style={styles.uploadText}>Menyimpan foto…</Text>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1059,4 +1072,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   srcCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.inkSoft },
+
+  uploadOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  uploadText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
 });

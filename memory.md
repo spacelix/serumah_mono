@@ -1,43 +1,49 @@
-# Memory — Serumah M0.2 (Monorepo scaffold complete)
+# Memory — Serumah M5 complete; switching to Windows/Expo Go
 
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 
 ## What was built
 
-- **`packages/db` → `@serumah/db`** now builds to **`dist/`** (`tsconfig.build.json`, exports `.` → `./dist/client.js`, `./prisma` → `./dist/prisma.module.js`). Added `PrismaService` (extends PrismaClient, pg adapter) + `@Global() PrismaModule`. `@nestjs/common` added as dep. `build`/`typecheck` scripts added (`prebuild` runs `prisma generate`).
-- **`apps/api` → `@serumah/api`** (NestJS 11, scaffolded via `@nestjs/cli`): `ConfigModule`, `ScheduleModule`, global `PrismaModule`, global `JwtModule`, `PassportModule`, global `JwtAuthGuard` (uses `@Public()` to bypass), `JwtStrategy` (passport-jwt), decorators (`@CurrentUser`, `@Roles`, `@Public`), `HttpExceptionFilter` (Indonesian messages, no stack traces). `StorageModule` (MinIO: auto-creates `serumah` bucket on init, non-fatal if MinIO down). `main.ts`: global prefix `api`, `ValidationPipe({whitelist, transform})`, CORS. Health endpoint `GET /api`. `.env.example` → `.env` (dev).
-- **`apps/mobile` → `@serumah/mobile`** (Expo 57 default template, `src/` layout, expo-router). Added `@tanstack/react-query`, `zustand`, `axios`; `eslint-config-expo ~57.0.1` + `eslint.config.js`. App name/slug `Serumah`/`serumah`. Added `expo-env.d.ts` (CSS-module types) and a lint-disable on the template's `use-color-scheme.web.ts` hydration hook.
-- **AGENTS.md**: added mandatory **Verification & Per-Item Commits** rule (verify build/lint/typecheck/test before done; commit per item; docs updated in the same commit).
+- **M1 — Release & update pipeline**: GitHub Actions `release.yml` (tag `v*` → expo prebuild, signed keystore, gradle assembleRelease, `version.json` + `apkUrl` manifest) + in-app update check + `UpdateDialog` (release mode only).
+- **M2 — Backend core (NestJS) done**: Auth (register/login/JWT), Anggota/Profile, Rumah (create/join/invite), MinIO storage + avatar, idempotent dev seed, JWT DB-lookup + RolesGuard.
+- **M4 — Mobile auth done**: Expo theme tokens, Zustand `useAuthStore` (SecureStore persistence, stages `checking|anonymous|no-profile|no-rumah|ready`), Splash/Welcome/Login/Register, Onboarding (profile → create/join rumah). All committed.
+- **M5 — Main Tabs COMPLETE** (all committed, monorepo `bunx turbo run build lint typecheck test` green 8/8 at the time):
+  - M5.1 Beranda (`GET /dashboard` → weekend/galon/billing/scheduleWeek/memberName) + `features/dashboard/api` + `lib/format.ts`.
+  - M5.2 Piket — per-room before→checklist→after flow, `features/piket/api/piket.ts`, `stores/piket-draft-store.ts`.
+  - M5.3 Tagihan — 3 segments (Denda|Iuran|Listrik) + shared `MonthPicker`, `components/ui/stamp.tsx`, shared `features/tagihan/api/upload.ts`.
+  - M5.4 Swap — incoming/mine lists + 2-step form; `features/swap/api/swap.ts` + `members.ts`.
+  - M5.5 Profile & Rumah Management — `app/profile.tsx`, new backend `apps/api/src/modules/rumah/{rumah.controller,rumah.service,rumah.dto}.ts` (`GET/PATCH /rumah/me`, `POST /rumah/reset-invite`, `PUT /rumah/qris`, `DELETE /rumah/anggota/:id`, admin via `@Roles('admin')`), `app/rumah/manage.tsx` with inline Kelola Ruangan (rooms + jenis piket CRUD/reorder; `PUT /ruangan/reorder` takes `{urutan: string[]}`).
 
 ## Decisions made
 
-- Repo now lives at **`/home/xavier/House`** (WSL folder, move done). Branch `development`.
-- `@serumah/db` ships compiled JS — **run `turbo build` (or `bun run build` in packages/db) before starting `apps/api`** and after any schema change. Generated client at `packages/db/generated/client` (gitignored, regenerated); imported in `packages/db` sources as `../generated/client/index.js` (NodeNext needs the explicit extension; the generated package's `exports` has no `types` condition for `.`).
-- Verification-first + atomic per-item commits is now a locked agent rule (user request).
-- `.env` lives per-package. `apps/api/.env` from `.env.example`.
+- **Android native build is ABANDONED in WSL** — the `/mnt/c/Android` SDK is Windows-hosted (`.exe` build-tools, `windows-x86_64` NDK prebuilt). Linux Gradle can't execute `.exe`, and Windows `gradlew.bat` fails on the WSL 9P filesystem (`\\wsl.localhost` → Gradle FileHasher "Incorrect function"). **Decision: build/run on Windows directly.**
+- **App runs via Expo Go** (`bun expo start`), not `expo run:android`. Dev server: `http://localhost:8081`.
+- Permissions (camera/gallery) stay lazy-requested on first use via `ImagePicker.launchCameraAsync`/`launchImageLibraryAsync` — Android best practice; user declined an early boot-time permission prompt.
+- Local fonts bundled under `apps/mobile/assets/fonts/` (12 weights, Inter/Space Grotesk/JetBrains Mono) — `@expo-google-fonts/*` removed (Metro bun-symlink issue). Use `fontFamilies.{display,body,mono}[w]`.
+- Stamp (`components/ui/stamp.tsx`) only for status. All UI text Bahasa Indonesia. Money = JetBrains Mono, `id_ID` format.
 
 ## Problems solved
 
-- **Generated client import**: `@prisma/client` dir import fails NodeNext (package.json `exports` lacks `types` for `.`) → import `../generated/client/index.js` explicitly. From `src/` the path is `../generated` (not `./generated`).
-- **JwtModule.registerAsync** `inject` must be the `ConfigService` class token, not `ConfigModule`.
-- **packages/db lint** had no eslint installed → changed to `tsc --noEmit`.
-- **eslint-config-expo version**: `~13.0.0` doesn't exist; SDK 57 needs `~57.0.1`.
-- **Mobile typecheck**: needed `expo-env.d.ts`; template demo hook tripped `react-hooks/set-state-in-effect` → eslint-disable with rationale (hook replaced in M4).
-- **Runtime boot**: `nest start` failed on raw-TS `@serumah/db` until it shipped compiled `dist/`.
+- **NDK 27 missing/corrupt**: Expo/SDK 57 defaults `ndk: 27.1.12297006`; dir was empty. User manually installed NDK 27 r27b → `/mnt/c/Android/ndk/27.1.12297006/source.properties` now present. (Not needed anymore since Expo Go — but fixed.)
+- **`local.properties` missing** → Android build "SDK location not found". Added `apps/mobile/android/local.properties` with `sdk.dir=C:\Android`. (dir is gitignored/regenerated.)
+- **Build-tools 36.0.0 "corrupted" (missing aapt)**: root cause = only Windows `.exe` binaries exist; not fixable under WSL Linux Gradle → abandoned native build.
+- **Windows `gradlew.bat` via `cmd.exe`**: UNC path unsupported → use `pushd \\\\wsl.localhost\\rocky\\...` from `C:\`; still fails on 9P filesystem hashing.
 
 ## Current state
 
-- **M0 complete.** `turbo run build lint typecheck` → 7/7 green. API unit + e2e pass; boots at `http://localhost:3000/api` (health ok, MinIO bucket `serumah` created). Mobile typecheck + lint green; `expo config` validates (name Serumah).
-- Postgres on `localhost:5432` (dev) + MinIO `localhost:9000` (minioadmin/minioadmin dev) running via docker-compose.
-- Changes are being committed **per item** this session (db → api → mobile → docs+memory).
+- **M0–M5 all committed & green.** Phase tracker header: "Phase: M5 — Mobile: Main Tabs", Next: Phase M6 (to be confirmed).
+- `apps/mobile/android/` is **gitignored** (generated). Uncommitted/unrelated: `apps/mobile/package.json` + `bun.lock` (added `expo-dev-client@~57.0.10`) — NOT ours, left unstaged.
+- Expo Go dev server can be started with: `cd apps/mobile && bun expo start` (uses `.env` `EXPO_PUBLIC_API_URL=http://localhost:3000`).
+- Postgres `localhost:5432` + MinIO `localhost:9000` via docker-compose. `@serumah/db` ships compiled JS — run `turbo build`/`bun run build` in `packages/db` before `apps/api` and after schema changes.
 
 ## Next session starts with
 
-1. Finish/verify the per-item commits (if not yet pushed).
-2. **M1 — Release & In-App Update (FIRST, locked)**: `.github/workflows/release.yml` (tag `v*`, expo prebuild, keystore secrets, gradle assembleRelease, `version.json` + `apkUrl` manifest) + in-app update in `apps/mobile` (`lib/update.ts` + `UpdateDialog`). Ask user before starting (phase gating).
+1. **Run the app on Windows (user's choice).** Prepare Windows environment (steps below in conversation / docs). Likely: run Expo Go on a Windows-hosted phone via LAN, or build the APK on Windows using the Windows SDK + Gradle.
+2. If building APK on Windows: clone/copy repo to a real `C:\` path (not the 9P mount), use the Windows Android SDK (`C:\Android`), and run `gradlew.bat assembleRelease` (or `expo run:android`) there.
+3. Phase gating: confirm with user before starting Phase M6.
 
 ## Open questions
 
-- `packages/db` seed is **not idempotent** (ruangan `create` with deterministic IDs fails on re-run) — fix in M2 dev-data seeding.
-- Keystore secrets not set in GitHub yet (M1).
-- Root `package.json` name is `serumah` (was an open question; fine as-is).
+- **Phase M6 scope** — not yet defined/approved (stop & ask before starting).
+- **Keystore signing secrets** for release pipeline — confirm GitHub secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` are set.
+- Whether the `expo-dev-client` dependency (uncommitted) is intentional.

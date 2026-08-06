@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M5 — Mobile: Main Tabs (IN PROGRESS)
-**Last completed:** M5.3 Tagihan — 3-segment tab (Denda | Iuran | Listrik) with shared month picker (`‹ bulan ›`); DendaView (summary, BillCard with QRIS + Upload Bukti, Stamp status, PJ approval section Approve/Reject); IuranView (total card + per-category rows + Upload Bukti Bayar + PJ konfirmasi + rekening); ListrikView (summary + progress bar + split note + record form + record list); new `components/ui/stamp.tsx` (rotated status stamp) and shared `uploadProof` helper; tabs registered in `(tabs)/_layout.tsx` (Beranda/Piket/Tagihan/Swap). Mobile lint + typecheck green.
+**Last completed:** M5.4 Swap — Swap tab with Incoming cards (from→to member boxes + day + Terima/Tolak), Mine history list with status stamps, "Ajukan swap baru" CTA opening 2-step form (pick available day from `/swap/available-days`, pick member from `/iuran` member list); `features/swap/api/swap.ts` + `members.ts`. Mobile lint + typecheck green.
 
-**Next:** M5.4 Swap.
+**Next:** M5.5 Profile & Rumah Management.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 

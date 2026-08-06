@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M3 — Backend Features (IN PROGRESS)
-**Last completed:** M3.6 Swap & Galon — `SwapModule` (`GET /swap`, `GET /swap/available-days`, `POST /swap`, accept → transfers Jadwal.anggotaId in-transaction + rejects already-submitted days, reject) + `GalonModule` (`GET /galon/current` menunggu asc limit 1 + auto-seed, `POST /galon/:id/confirm` → rotate round-robin, no amount). `turbo run build lint typecheck test` green.
+**Last completed:** M3.7+M3.8 Cron & Update manifest — weekly pre-gen cron (Sat 06:00, `ensureWeekdayWeek` idempotent, Decision 5B), daily 22:00 auto-fine cron (skip Sel/Kamis), admin-guarded `run-auto-fine` with deterministic date; `GET /update/manifest` mirrors the GitHub `version.json` shape (`APP_VERSION_CODE/NAME/MIN/APK_URL` env-driven, `@Public`). Full `turbo run build lint typecheck test` green.
 
-**Next:** M3.7 Cron (auto-fine, weekend freeze) + M3.8 Update manifest.
+**Next:** Phase M3 done — stop & confirm before proceeding to next phase per gating rule.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -52,8 +52,8 @@ Update after every completed feature. Any agent reading this should immediately 
 - [x] Verifikasi & Denda (per-submission approval, QRIS payment)
 - [x] Iuran & Listrik (auto-split, total proof, pelunasan, adjust)
 - [x] Swap & Galon
-- [ ] Cron (auto-fine, weekend freeze)
-- [ ] Update manifest
+- [x] Cron (auto-fine, weekend freeze)
+- [x] Update manifest
 
 ### Phase M4 — Mobile: Auth & Onboarding
 

@@ -313,6 +313,22 @@ export class ScheduleService {
     return total;
   }
 
+  /**
+   * Weekly pre-generation (Decision 5B): ensure next week's weekday roster for
+   * every rumah. Runs Saturday 06:00 server time. Idempotent via ensureWeekday.
+   */
+  @Cron('0 6 * * 6')
+  async pregenerateWeek(): Promise<void> {
+    const monday = this.addDays(this.mondayOf(new Date()), 7);
+    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
+    for (const rumah of rumahs) {
+      await this.ensureWeekdayWeek(rumah.id, monday);
+    }
+    this.logger.log(
+      `[ScheduleService] Pra-generasi jadwal pekan ${monday.toISOString()}`,
+    );
+  }
+
   private async autoFineForRumah(rumahId: string, date: Date): Promise<number> {
     const jadwal = await this.prisma.jadwal.findFirst({
       where: { rumahId, tanggal: date },

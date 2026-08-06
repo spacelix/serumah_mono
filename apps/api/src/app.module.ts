@@ -21,6 +21,7 @@ import { IuranModule } from './modules/iuran/iuran.module';
 import { ListrikModule } from './modules/listrik/listrik.module';
 import { SwapModule } from './modules/swap/swap.module';
 import { GalonModule } from './modules/galon/galon.module';
+import { UpdateModule } from './modules/update/update.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -50,6 +51,7 @@ import { AppService } from './app.service';
     ListrikModule,
     SwapModule,
     GalonModule,
+    UpdateModule,
   ],
   controllers: [AppController],
   providers: [

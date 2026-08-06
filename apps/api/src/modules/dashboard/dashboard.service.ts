@@ -1,0 +1,224 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@serumah/db/prisma';
+import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { GalonService } from '../galon/galon.service';
+
+const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
+const FREEZE_HOUR = 20;
+const DOW_FULL = [
+  'Minggu',
+  'Senin',
+  'Selasa',
+  'Rabu',
+  'Kamis',
+  'Jumat',
+  'Sabtu',
+];
+
+type StatusTag =
+  'Hari ini' | 'Selesai' | 'Terjadwal' | 'Bolong' | 'Free' | 'LIBUR';
+
+export interface ScheduleRow {
+  tanggal: Date;
+  dow: string;
+  anggota: { id: string; nama: string } | null;
+  ruangan: string[];
+  statusTag: StatusTag;
+}
+
+@Injectable()
+export class DashboardService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scope: RumahScopeService,
+    private readonly galonService: GalonService,
+  ) {}
+
+  async getDashboard(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      return {
+        weekend: { saturday: null, sunday: null, frozen: false },
+        galon: { giliran: null, namaAnggota: null },
+        billing: { totalUnpaid: 0, countUnpaid: 0, bulan: null },
+        scheduleWeek: [],
+        memberName: anggota.nama,
+      };
+    }
+
+    const [galon, weekend, billing, scheduleWeek] = await Promise.all([
+      this.galonService.current(payload),
+      this.getWeekend(payload.userId),
+      this.getBilling(anggota.id),
+      this.getScheduleWeek(anggota.rumahId),
+    ]);
+
+    return { weekend, galon, billing, scheduleWeek, memberName: anggota.nama };
+  }
+
+  // ── WEEKEND ─────────────────────────────────────────────────────────
+  private async getWeekend(anggotaId: string) {
+    const monday = this.mondayOf(new Date());
+    const rows = await this.prisma.weekendStatus.findMany({
+      where: { anggotaId, mingguMulai: monday },
+    });
+
+    const fetch = (hari: 'sabtu' | 'minggu') =>
+      rows.find((r) => r.hari === hari)?.status ?? null;
+
+    return {
+      saturday: fetch('sabtu'),
+      sunday: fetch('minggu'),
+      frozen: this.isFrozen(monday),
+    };
+  }
+
+  private isFrozen(monday: Date): boolean {
+    const freezeAt = new Date(
+      monday.getFullYear(),
+      monday.getMonth(),
+      monday.getDate() + 4, // Jumat
+      FREEZE_HOUR,
+      0,
+      0,
+    );
+    return new Date() > freezeAt;
+  }
+
+  // ── BILLING (user only) ─────────────────────────────────────────────
+  private async getBilling(anggotaId: string) {
+    const firstOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
+
+    const [iuran, denda] = await Promise.all([
+      this.prisma.iuranBulanan.findMany({
+        where: { anggotaId, bulan: firstOfMonth },
+      }),
+      this.prisma.denda.findMany({
+        where: {
+          anggotaId,
+          status: { in: ['belum_bayar', 'menunggu_konfirmasi'] },
+        },
+      }),
+    ]);
+
+    const unpaidIuran = iuran.filter((i) => i.status !== 'lunas');
+    const unpaidDenda = denda.filter((d) => d.status !== 'lunas');
+
+    return {
+      totalUnpaid:
+        unpaidIuran.reduce((s, i) => s + i.nominal, 0) +
+        unpaidDenda.reduce((s, d) => s + d.nominal, 0),
+      countUnpaid: unpaidIuran.length + unpaidDenda.length,
+      bulan: firstOfMonth,
+    };
+  }
+
+  // ── SCHEDULE WEEK ───────────────────────────────────────────────────
+  private async getScheduleWeek(rumahId: string): Promise<ScheduleRow[]> {
+    const monday = this.mondayOf(new Date());
+    const sunday = this.addDays(monday, 6);
+    const today = this.toDay(new Date());
+
+    const [jadwal, weekendRows] = await Promise.all([
+      this.prisma.jadwal.findMany({
+        where: { rumahId, tanggal: { gte: monday, lte: sunday } },
+        orderBy: { tanggal: 'asc' },
+        select: {
+          tanggal: true,
+          anggota: { select: { id: true, nama: true } },
+          ruangan: true,
+          submissions: { select: { status: true } },
+        },
+      }),
+      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
+    ]);
+
+    const jadwalByDate = new Map(jadwal.map((j) => [this.key(j.tanggal), j]));
+    const diKosByHari = new Map<'sabtu' | 'minggu', boolean>();
+    for (const r of weekendRows) {
+      if (r.status === 'di_kos')
+        diKosByHari.set(r.hari as 'sabtu' | 'minggu', true);
+    }
+
+    const rows: ScheduleRow[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = this.addDays(monday, offset);
+      const dowIndex = day.getDay();
+      const record = jadwalByDate.get(this.key(day));
+      const isWeekend = dowIndex === 0 || dowIndex === 6;
+
+      let statusTag: StatusTag;
+      if (isWeekend) {
+        const hari = dowIndex === 6 ? 'sabtu' : 'minggu';
+        if (diKosByHari.get(hari)) {
+          statusTag = this.submissionTag(record, day, today);
+        } else {
+          statusTag = 'Free'; // everyone Pulang — free day
+        }
+      } else if (!PIKET_WEEKDAYS.includes(dowIndex)) {
+        statusTag = 'LIBUR';
+      } else {
+        statusTag = this.submissionTag(record, day, today);
+      }
+
+      rows.push({
+        tanggal: day,
+        dow: DOW_FULL[dowIndex],
+        anggota: record?.anggota ?? null,
+        ruangan: record?.ruangan ?? [],
+        statusTag,
+      });
+    }
+
+    return rows;
+  }
+
+  private submissionTag(
+    record:
+      | {
+          anggota: { id: string; nama: string };
+          ruangan: string[];
+          submissions: { status: string }[];
+        }
+      | undefined,
+    day: Date,
+    today: Date,
+  ): StatusTag {
+    if (record == null) {
+      return this.isSameDay(day, today) ? 'Hari ini' : 'Terjadwal';
+    }
+    const status = record.submissions[0]?.status;
+    if (status === 'approved') return 'Selesai';
+    if (status === 'bolong' || status === 'rejected') return 'Bolong';
+    return this.isSameDay(day, today) ? 'Hari ini' : 'Terjadwal';
+  }
+
+  // ── HELPERS ─────────────────────────────────────────────────────────
+  private mondayOf(date: Date): Date {
+    const d = this.toDay(date);
+    const offset = d.getDay() === 0 ? -6 : 1 - d.getDay();
+    return this.addDays(d, offset);
+  }
+
+  private addDays(date: Date, days: number): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+  }
+
+  private toDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  private isSameDay(a: Date, b: Date): boolean {
+    return this.key(a) === this.key(b);
+  }
+
+  private key(date: Date): string {
+    const d = this.toDay(date);
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+}

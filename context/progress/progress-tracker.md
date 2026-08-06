@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M4 — Mobile: Auth & Onboarding (IN PROGRESS)
-**Last completed:** M4.3 Onboarding (profile, create rumah, join rumah) — `onboarding/` route group with stage-gated layout; profile screen (100px avatar circle + camera overlay via `expo-image-picker`, required nama, kontak darurat, alamat, "Lanjut"); create-rumah screen (nama + alamat, invite-code reveal card + Share + "Lanjut ke Beranda"); join-rumah screen (6-digit auto-uppercase code input, live `GET /rumah/join/preview` + "Gabung"); onboarding API module (PATCH profile, POST /rumah, POST /rumah/join, GET preview, avatar upload). Routing gate fixed: `(auth)`/`(tabs)`/`onboarding` redirect by stage, not to tabs. `expo-image-picker@57.0.7` installed + config plugin. Mobile lint + typecheck green.
+**Phase:** M5 — Mobile: Main Tabs (IN PROGRESS)
+**Last completed:** M5.1 Beranda — new NestJS `DashboardModule` (`GET /dashboard` → `{ weekend, galon, billing, scheduleWeek, memberName }`, injects Schedule+Galon services, weekend freeze flag); mobile `features/dashboard/api` (React Query hooks), `lib/format.ts` (id-ID currency/date), and the Beranda screen with WeekendCard (Di kos/Pulang toggle), GalonWidget (Sudah Beli), BillingSummary, ScheduleList (7 rows + status tags). Mobile lint + typecheck, API build/lint/typecheck/test green.
 
-**Next:** Phase M5 — Mobile: Main Tabs.
+**Next:** M5.2 Piket (per-room flow).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 

@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { LogOut, Pencil, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
@@ -191,6 +191,7 @@ export default function ProfileScreen() {
             alamat={alamat}
             setAlamat={setAlamat}
             email={anggota?.email}
+            fotoProfil={anggota?.fotoProfil}
             saving={saving}
             closing={closing}
             onClose={() => setClosing(true)}
@@ -205,10 +206,7 @@ export default function ProfileScreen() {
           <View style={styles.profileCard}>
             <Pressable onPress={startEdit} style={styles.avatarThumb} hitSlop={4}>
               <View style={styles.avatarClip}>
-                <AvatarStripes />
-                <Text style={styles.avatarLabel}>
-                  foto{'\n'}profil
-                </Text>
+                <AvatarThumbContent fotoProfil={anggota?.fotoProfil} />
               </View>
               <View style={styles.pencilBadge}>
                 <Pencil color={colors.paper} size={11} strokeWidth={2.2} />
@@ -333,6 +331,7 @@ function EditProfileCard({
   alamat,
   setAlamat,
   email,
+  fotoProfil,
   saving,
   closing,
   onClose,
@@ -347,6 +346,7 @@ function EditProfileCard({
   alamat: string;
   setAlamat: (v: string) => void;
   email?: string | null;
+  fotoProfil?: string | null;
   saving: boolean;
   closing: boolean;
   onClose: () => void;
@@ -405,10 +405,7 @@ function EditProfileCard({
       <View style={styles.photoRow}>
         <Pressable onPress={onPickAvatar} style={styles.avatarThumb} hitSlop={4}>
           <View style={styles.avatarClip}>
-            <AvatarStripes />
-            <Text style={styles.avatarLabel}>
-              foto{'\n'}profil
-            </Text>
+            <AvatarThumbContent fotoProfil={fotoProfil} />
           </View>
         </Pressable>
         <Text style={styles.photoHint}>Klik avatar untuk ganti foto{'\n'}dari kamera.</Text>
@@ -608,6 +605,20 @@ function AvatarStripes() {
   );
 }
 
+function AvatarThumbContent({ fotoProfil }: { fotoProfil?: string | null }) {
+  if (fotoProfil) {
+    return <Image source={{ uri: fotoProfil }} style={styles.avatarImage} />;
+  }
+  return (
+    <>
+      <AvatarStripes />
+      <Text style={styles.avatarLabel}>
+        foto{'\n'}profil
+      </Text>
+    </>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -687,6 +698,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarLabel: {
     textAlign: 'center',

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SerumahLogo } from '@/components/logo/serumah-logo';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Stamp } from '@/components/ui/stamp';
 import { formatShortDate } from '@/lib/format';
 import {
@@ -23,8 +23,8 @@ export default function SwapScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Swap" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Header />
         {isLoading || data == null ? (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Memuat…</Text>
@@ -65,17 +65,6 @@ export default function SwapScreen() {
   );
 }
 
-function Header() {
-  return (
-    <View style={styles.header}>
-      <View style={styles.brand}>
-        <SerumahLogo size={22} variant="mark" roofColor={colors.ink} />
-        <Text style={styles.brandText}>Swap</Text>
-      </View>
-    </View>
-  );
-}
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
@@ -99,11 +88,11 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
   return (
     <View style={styles.swapCard}>
       <View style={styles.swapPair}>
-        <MemberBox nama={swap.dari.nama} kamar={swap.dari.kamar} />
+        <MemberBox nama={swap.dari.nama} />
         <View style={styles.swapArrow}>
           <ArrowLeftRight size={14} color={colors.inkSoft} strokeWidth={2.2} />
         </View>
-        <MemberBox nama={swap.ke.nama} kamar={swap.ke.kamar} />
+        <MemberBox nama={swap.ke.nama} />
       </View>
       <View style={styles.dayRow}>
         <CalendarDays size={13} color={colors.mustardInk} strokeWidth={2} />
@@ -125,11 +114,11 @@ function MineCard({ swap }: { swap: SwapRequest }) {
   return (
     <View style={styles.mineCard}>
       <View style={styles.swapPair}>
-        <MemberBox nama={swap.dari.nama} kamar={swap.dari.kamar} />
+        <MemberBox nama={swap.dari.nama} />
         <View style={styles.swapArrow}>
           <ArrowLeftRight size={12} color={colors.inkSoft} strokeWidth={2.2} />
         </View>
-        <MemberBox nama={swap.ke.nama} kamar={swap.ke.kamar} />
+        <MemberBox nama={swap.ke.nama} />
       </View>
       <View style={styles.mineMeta}>
         <Text style={styles.dayText}>{formatShortDate(swap.tanggal)}</Text>
@@ -139,17 +128,12 @@ function MineCard({ swap }: { swap: SwapRequest }) {
   );
 }
 
-function MemberBox({ nama, kamar }: { nama: string; kamar: string | null }) {
+function MemberBox({ nama }: { nama: string }) {
   return (
     <View style={styles.memberBox}>
       <Text style={styles.memberName} numberOfLines={1}>
         {nama}
       </Text>
-      {kamar != null && (
-        <Text style={styles.memberKamar} numberOfLines={1}>
-          {kamar}
-        </Text>
-      )}
     </View>
   );
 }
@@ -214,7 +198,6 @@ function SwapForm({ onClose }: { onClose: () => void }) {
               style={[styles.memberRowName, member === m.id && styles.memberRowNameActive]}>
               {m.nama}
             </Text>
-            {m.kamar != null && <Text style={styles.memberRowKamar}>{m.kamar}</Text>}
           </Pressable>
         ))}
       </View>
@@ -242,9 +225,6 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 108, gap: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandText: { ...type.section, color: colors.ink },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   section: { gap: 8 },
@@ -300,7 +280,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   memberName: { fontFamily: fontFamilies.body[700], fontSize: 12.5, color: colors.ink },
-  memberKamar: { fontFamily: fontFamilies.body[400], fontSize: 10, color: colors.inkSoft },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dayText: { fontFamily: fontFamilies.mono[600], fontSize: 12, color: colors.ink },
   swapActions: { flexDirection: 'row', gap: 10 },
@@ -371,7 +350,6 @@ const styles = StyleSheet.create({
   memberRowActive: { borderColor: colors.pine, backgroundColor: colors.pineSoft },
   memberRowName: { flex: 1, fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
   memberRowNameActive: { color: colors.pineDeep },
-  memberRowKamar: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: {
     flex: 1,

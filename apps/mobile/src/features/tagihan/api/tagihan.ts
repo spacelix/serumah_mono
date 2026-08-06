@@ -4,7 +4,6 @@ import { apiClient } from '@/lib/api-client';
 export interface ApiMember {
   id: string;
   nama: string;
-  kamar: string | null;
 }
 
 /* ---------- /auth/me (identity + role) ---------- */

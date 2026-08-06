@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 export interface RumahMember {
   id: string;
   nama: string;
-  kamar: string | null;
 }
 
 /**

@@ -9,6 +9,8 @@ Update after every completed feature. Any agent reading this should immediately 
 **Phase:** M5 — Mobile: Main Tabs (IN PROGRESS)
 **Last completed:** M5.5 Profile & Rumah Management — Profile screen (`app/profile.tsx`, avatar edit, role badge, form, rumah info, Kelola Kos link, logout) reached from the Beranda avatar chip; **new rumah management API**: `GET /rumah/me`, `PATCH /rumah/me`, `POST /rumah/reset-invite`, `PUT /rumah/qris`, `DELETE /rumah/anggota/:id` (all admin, server-scoped); `app/rumah/manage.tsx` with InfoCard, Biaya Rumah (edit), Rekening + QRIS, Invite code + reset/copy, member list + remove; `features/profile/api/profile.ts`. API build/lint/typecheck/test + mobile lint/typecheck green.
 
+**Profile revision (uncommitted, in progress):** profile screen rebuilt to match `Serumah.html` (profile card → "Update profil" edit card with rise-in/rise-out animation, fields Email/Nama/Kontak darurat/Alamat, camera avatar, stats `GET /anggota/me/stats`, `PATCH /auth/password`, `POST /rumah/leave`, `GET /anggota/me` now exposes `email`). **`anggota.kamar` removed from schema + API + mobile** (migration `2_remove_kamar`) — rooms to clean are set via `Ruangan`/`JenisPiket`, not a profile field.
+
 **Next:** Phase M6 (deferred).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.

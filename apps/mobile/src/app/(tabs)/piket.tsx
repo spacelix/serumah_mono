@@ -3,7 +3,7 @@ import { Camera, Check, X } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SerumahLogo } from '@/components/logo/serumah-logo';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   useCreateSubmission,
   usePiketToday,
@@ -20,10 +20,10 @@ export default function PiketScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Piket" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Header tanggal={data?.jadwal?.tanggal} />
         {isLoading || data == null ? (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Memuat…</Text>
@@ -47,20 +47,6 @@ export default function PiketScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Header({ tanggal }: { tanggal?: string }) {
-  return (
-    <View style={styles.header}>
-      <View style={styles.brand}>
-        <SerumahLogo size={22} variant="mark" roofColor={colors.ink} />
-        <Text style={styles.brandText}>Piket</Text>
-      </View>
-      {tanggal != null && (
-        <Text style={styles.dayChipText}>{formatShortDate(tanggal)}</Text>
-      )}
-    </View>
   );
 }
 
@@ -300,26 +286,6 @@ function isDraftComplete(draft?: RoomDraft): boolean {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40, gap: 12 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandText: { ...type.section, color: colors.ink },
-  dayChipText: {
-    fontFamily: fontFamilies.mono[700],
-    fontSize: 11,
-    color: colors.ink,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    overflow: 'hidden',
-  },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   empty: {

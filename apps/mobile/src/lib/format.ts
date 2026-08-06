@@ -13,3 +13,12 @@ export function formatShortDate(iso: string): string {
     month: 'short',
   }).format(date);
 }
+
+export function formatLongDate(iso: string): string {
+  const date = new Date(iso);
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}

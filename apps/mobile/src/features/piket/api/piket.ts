@@ -10,7 +10,7 @@ export interface TodayJadwal {
   id: string;
   tanggal: string;
   anggotaId: string;
-  anggota: { id: string; nama: string; kamar: string | null };
+  anggota: { id: string; nama: string };
   ruangan: string[];
   isMine: boolean;
 }

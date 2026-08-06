@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   apiGetRumahMe,
   apiRemoveAnggota,
@@ -104,12 +104,7 @@ export default function ManageRumahScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ArrowLeft color={colors.ink} size={18} strokeWidth={2.2} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Kelola Kos</Text>
-      </View>
+      <ScreenHeader title="Kelola Kos" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <InfoCard rumah={rumah} />
         {isAdmin && <CostsCard rumah={rumah} onChange={() => invalidate()} />}
@@ -311,7 +306,7 @@ function MembersSection({
   isAdmin,
   onRemove,
 }: {
-  members: { id: string; nama: string; fotoProfil: string | null; kamar: string | null; role: string }[];
+  members: { id: string; nama: string; fotoProfil: string | null; role: string }[];
   isAdmin: boolean;
   onRemove: (id: string, nama: string) => void;
 }) {
@@ -327,7 +322,7 @@ function MembersSection({
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>{m.nama}</Text>
               <Text style={styles.memberSub}>
-                {m.kamar ?? '—'} · {m.role === 'admin' ? 'PJ' : 'Anggota'}
+                {m.role === 'admin' ? 'PJ' : 'Anggota'}
               </Text>
             </View>
             {isAdmin && m.role !== 'admin' && (
@@ -568,24 +563,6 @@ function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 6,
-  },
-  backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontFamily: fontFamilies.display[600], fontSize: 16, color: colors.ink },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   content: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 40, gap: 12 },

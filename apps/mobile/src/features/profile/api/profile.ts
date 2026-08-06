@@ -4,12 +4,13 @@ import { apiClient } from '@/lib/api-client';
 export interface AnggotaDetail {
   id: string;
   nama: string;
+  email?: string | null;
   fotoProfil: string | null;
-  kamar: string | null;
   kontakDarurat: string | null;
   alamat: string | null;
   role: string;
   rumahId: string | null;
+  createdAt: string;
 }
 
 export interface RumahInfo {
@@ -59,7 +60,6 @@ export interface RumahManageMember {
   id: string;
   nama: string;
   fotoProfil: string | null;
-  kamar: string | null;
   role: string;
 }
 
@@ -119,13 +119,38 @@ export async function apiRemoveAnggota(anggotaId: string) {
   return response.data as { success: boolean };
 }
 
+export async function apiLeaveRumah() {
+  const response = await apiClient.post('/rumah/leave');
+  return response.data as { success: boolean };
+}
+
+export interface ProfileStats {
+  piketSelesai: number;
+  totalBelumLunas: number;
+}
+
+export async function apiGetStats(): Promise<ProfileStats> {
+  const response = await apiClient.get<ProfileStats>('/anggota/me/stats');
+  return response.data;
+}
+
+export async function apiChangePassword(passwordLama: string, passwordBaru: string) {
+  const response = await apiClient.patch('/auth/password', { passwordLama, passwordBaru });
+  return response.data as { success: boolean };
+}
+
 export const profileKeys = {
   me: ['profile', 'me'] as const,
   rumah: ['profile', 'rumah'] as const,
+  stats: ['profile', 'stats'] as const,
 };
 
 export function useProfile() {
   return useQuery({ queryKey: profileKeys.me, queryFn: apiGetProfile });
+}
+
+export function useStats() {
+  return useQuery({ queryKey: profileKeys.stats, queryFn: apiGetStats });
 }
 
 export function useRumahMe() {

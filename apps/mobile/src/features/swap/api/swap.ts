@@ -4,7 +4,6 @@ import { apiClient } from '@/lib/api-client';
 export interface SwapMember {
   id: string;
   nama: string;
-  kamar: string | null;
 }
 
 export interface SwapRequest {

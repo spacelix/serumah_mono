@@ -60,7 +60,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const session = await apiLogin(email, password);
-      const me = await apiMe();
+      const me = await apiMe(session.token);
       const hasProfile = me.anggota != null;
       const hasRumah = (me.anggota?.rumahId ?? null) != null;
       await useAuthStore.getState().setSession(session.token, session.user, hasProfile, hasRumah);

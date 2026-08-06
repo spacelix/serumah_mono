@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -10,6 +11,12 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useSerumahFonts } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -32,24 +39,26 @@ export default function RootLayout() {
   const manifest = decision.type !== 'uptodate' ? decision.manifest : null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {stage === 'checking' ? (
-        <SerumahSplash />
-      ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      )}
-      {manifest && (
-        <UpdateDialog
-          visible={!checking && !dismissed && updateVisible}
-          force={decision.type === 'force'}
-          manifest={manifest}
-          onDismiss={dismiss}
-        />
-      )}
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        {stage === 'checking' ? (
+          <SerumahSplash />
+        ) : (
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        )}
+        {manifest && (
+          <UpdateDialog
+            visible={!checking && !dismissed && updateVisible}
+            force={decision.type === 'force'}
+            manifest={manifest}
+            onDismiss={dismiss}
+          />
+        )}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

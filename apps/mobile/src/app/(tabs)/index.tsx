@@ -1,9 +1,8 @@
 import { Droplets, ReceiptText } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 
-import { SerumahLogo } from '@/components/logo/serumah-logo';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   useConfirmGalon,
   useDashboard,
@@ -23,10 +22,10 @@ export default function BerandaScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Beranda" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Header nama={isLoading ? undefined : data?.memberName} />
         {isLoading || data == null ? (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Memuat…</Text>
@@ -41,26 +40,6 @@ export default function BerandaScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Header({ nama }: { nama?: string }) {
-  const router = useRouter();
-  return (
-    <View style={styles.header}>
-      <View style={styles.brand}>
-        <SerumahLogo size={22} variant="mark" roofColor={colors.ink} />
-        <Text style={styles.brandText}>Papan Piket</Text>
-      </View>
-      <Pressable onPress={() => router.push('/profile')} style={styles.avatarChip}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>{nama?.charAt(0)?.toUpperCase() ?? '?'}</Text>
-        </View>
-        <Text style={styles.avatarName} numberOfLines={1}>
-          {nama ?? 'Kamu'}
-        </Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -277,36 +256,6 @@ function isToday(iso: string): boolean {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 108, gap: 12 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandText: { ...type.section, color: colors.ink },
-  avatarChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius['2xl'],
-    paddingVertical: 5,
-    paddingRight: 10,
-    paddingLeft: 5,
-  },
-  avatarCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.pine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: { fontFamily: fontFamilies.display[600], fontSize: 11, color: colors.paper },
-  avatarName: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.ink, maxWidth: 110 },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },  weekendCard: {
     backgroundColor: colors.pine,

@@ -1,49 +1,43 @@
-# Memory — Serumah M5 complete; switching to Windows/Expo Go
+# Memory — Serumah: UI Header Revision underway + login fixes (uncommitted)
 
 Last updated: 2026-08-06
 
 ## What was built
 
-- **M1 — Release & update pipeline**: GitHub Actions `release.yml` (tag `v*` → expo prebuild, signed keystore, gradle assembleRelease, `version.json` + `apkUrl` manifest) + in-app update check + `UpdateDialog` (release mode only).
-- **M2 — Backend core (NestJS) done**: Auth (register/login/JWT), Anggota/Profile, Rumah (create/join/invite), MinIO storage + avatar, idempotent dev seed, JWT DB-lookup + RolesGuard.
-- **M4 — Mobile auth done**: Expo theme tokens, Zustand `useAuthStore` (SecureStore persistence, stages `checking|anonymous|no-profile|no-rumah|ready`), Splash/Welcome/Login/Register, Onboarding (profile → create/join rumah). All committed.
-- **M5 — Main Tabs COMPLETE** (all committed, monorepo `bunx turbo run build lint typecheck test` green 8/8 at the time):
-  - M5.1 Beranda (`GET /dashboard` → weekend/galon/billing/scheduleWeek/memberName) + `features/dashboard/api` + `lib/format.ts`.
-  - M5.2 Piket — per-room before→checklist→after flow, `features/piket/api/piket.ts`, `stores/piket-draft-store.ts`.
-  - M5.3 Tagihan — 3 segments (Denda|Iuran|Listrik) + shared `MonthPicker`, `components/ui/stamp.tsx`, shared `features/tagihan/api/upload.ts`.
-  - M5.4 Swap — incoming/mine lists + 2-step form; `features/swap/api/swap.ts` + `members.ts`.
-  - M5.5 Profile & Rumah Management — `app/profile.tsx`, new backend `apps/api/src/modules/rumah/{rumah.controller,rumah.service,rumah.dto}.ts` (`GET/PATCH /rumah/me`, `POST /rumah/reset-invite`, `PUT /rumah/qris`, `DELETE /rumah/anggota/:id`, admin via `@Roles('admin')`), `app/rumah/manage.tsx` with inline Kelola Ruangan (rooms + jenis piket CRUD/reorder; `PUT /ruangan/reorder` takes `{urutan: string[]}`).
+- **Debug rute API**: setting emulator pakai `10.0.2.2` (bukan `localhost`) sudah benar di `apps/mobile/.env` (`EXPO_PUBLIC_API_URL=http://10.0.2.2:3000/api`) — sudah wajib.
+- **Fix bug login (401 "Sesi berakhir"):** `apiMe()` dipanggil sebelum token disimpan ke Zustand store, jadi request `/auth/me` keluar tanpa header `Authorization`. Diusulkan imbalance di `stores/auth-store.ts` → `apiMe(session.token)`; `features/auth/api/auth.ts` → `apiMe(token?)` menyisipkan header `Bearer` eksplisit.
+- **Fix "No QueryClient set":** root `_layout.tsx` selamanya membungkus `QueryClientProvider` (sebelumnya tidak ada sama sekali) dengan `new QueryClient` + `defaultOptions`.
+- **Diagnostic log JWT:** `apps/api/src/common/guards/jwt-auth.guard.ts` kini log `reason` + `hasAuthHeader` saat 401.
+- **Revisi UI Header (berjalan):** komponen reusable baru `apps/mobile/src/components/ui/screen-header.tsx` (`ScreenHeader` + `AvatarChip`), mengikuti desain: kicker mono `PAPAN PIKET · <nama kos>` + judul Space Grotesk 25px kiri + avatar chip kanan; sub-screen pakai prop `onBack`. Diterapkan ke 6 screen: Beranda, Piket, Tagihan, Swap, Profil, Kelola Kos (`app/profile.tsx`, `app/rumah/manage.tsx`, `app/(tabs)/{index,piket,tagihan,swap}.tsx`). Header dijadikan sibling (di luar ScrollView) dengan padding sendiri `12/20/10` agar tidak mepet ujung layar — sejak sebelumnya Tagihan & Profil tak punya inset sisi.
 
 ## Decisions made
 
-- **Android native build is ABANDONED in WSL** — the `/mnt/c/Android` SDK is Windows-hosted (`.exe` build-tools, `windows-x86_64` NDK prebuilt). Linux Gradle can't execute `.exe`, and Windows `gradlew.bat` fails on the WSL 9P filesystem (`\\wsl.localhost` → Gradle FileHasher "Incorrect function"). **Decision: build/run on Windows directly.**
-- **App runs via Expo Go** (`bun expo start`), not `expo run:android`. Dev server: `http://localhost:8081`.
-- Permissions (camera/gallery) stay lazy-requested on first use via `ImagePicker.launchCameraAsync`/`launchImageLibraryAsync` — Android best practice; user declined an early boot-time permission prompt.
-- Local fonts bundled under `apps/mobile/assets/fonts/` (12 weights, Inter/Space Grotesk/JetBrains Mono) — `@expo-google-fonts/*` removed (Metro bun-symlink issue). Use `fontFamilies.{display,body,mono}[w]`.
-- Stamp (`components/ui/stamp.tsx`) only for status. All UI text Bahasa Indonesia. Money = JetBrains Mono, `id_ID` format.
+- **Emulator Android** memakai `10.0.2.2` → host. `EXPO_PUBLIC_*` di-inline saat build; restart `bun expo start` stih ganti `.env`.
+- Screen header tim core: `paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10`, di orang kanan chip avatar. Kicker pakai `useProfile()` (query-cache `profile/me`) — jadi tidak perlu prop rumahName dari tiap layar.
+- Native Android build masih dibawa ke Windows (dari sesi lalu) — tidak px beberapa di WSL.
+- Janam Header (logo+mark) lama dihapus dari tab screen; `SerumahLogo` masih dipakai di `(auth)`.
 
-## Problems solved
+## Problems solved (this session)
 
-- **NDK 27 missing/corrupt**: Expo/SDK 57 defaults `ndk: 27.1.12297006`; dir was empty. User manually installed NDK 27 r27b → `/mnt/c/Android/ndk/27.1.12297006/source.properties` now present. (Not needed anymore since Expo Go — but fixed.)
-- **`local.properties` missing** → Android build "SDK location not found". Added `apps/mobile/android/local.properties` with `sdk.dir=C:\Android`. (dir is gitignored/regenerated.)
-- **Build-tools 36.0.0 "corrupted" (missing aapt)**: root cause = only Windows `.exe` binaries exist; not fixable under WSL Linux Gradle → abandoned native build.
-- **Windows `gradlew.bat` via `cmd.exe`**: UNC path unsupported → use `pushd \\\\wsl.localhost\\rocky\\...` from `C:\`; still fails on 9P filesystem hashing.
+- 401 bukan karena expired token: dengan log baru terbukti `hasAuthHeader=false` — request tanpa token karena `apiMe` dipanggil sebelum `setSession`.
+- Root app crash "No QueryClient set" karena `QueryClientProvider` tidak dibungkus di `_layout.tsx`.
+- Header tab mepet sebelah screen karena header diposisikan di level `SafeAreaView` tanpa padding; solusi: beri padding 20 pada komponen & jadikan header sibling konsisten.
 
 ## Current state
 
-- **M0–M5 all committed & green.** Phase tracker header: "Phase: M5 — Mobile: Main Tabs", Next: Phase M6 (to be confirmed).
-- `apps/mobile/android/` is **gitignored** (generated). Uncommitted/unrelated: `apps/mobile/package.json` + `bun.lock` (added `expo-dev-client@~57.0.10`) — NOT ours, left unstaged.
-- Expo Go dev server can be started with: `cd apps/mobile && bun expo start` (uses `.env` `EXPO_PUBLIC_API_URL=http://localhost:3000`).
-- Postgres `localhost:5432` + MinIO `localhost:9000` via docker-compose. `@serumah/db` ships compiled JS — run `turbo build`/`bun run build` in `packages/db` before `apps/api` and after schema changes.
+- **M0–M5 sudah commit & green. Phase tracker: M5; Next Phase M6 (belum diapprove).**
+- Semua perubahan proyek ini **BELUM di-commit** (`git status`): api guard, login fix (auth-store/auth.ts), `_layout.tsx`, revisi header 5 file + screen-header.tsx (untracked). sql; bun.lock sengaja tidak ikut.
+- `bunx tsc --noEmit` di apps/mobile **hijau**. `eslint` tidak terinstal lokal (env belum install devDeps) — lint tidak bisa jalan di WSL.
+- Expo Go dev server: `cd apps/mobile && bun expo start`. Backend: `bun run start:dev` di apps/api (pastikan `@serumah/db` dibuild dulu).
 
 ## Next session starts with
 
-1. **Run the app on Windows (user's choice).** Prepare Windows environment (steps below in conversation / docs). Likely: run Expo Go on a Windows-hosted phone via LAN, or build the APK on Windows using the Windows SDK + Gradle.
-2. If building APK on Windows: clone/copy repo to a real `C:\` path (not the 9P mount), use the Windows Android SDK (`C:\Android`), and run `gradlew.bat assembleRelease` (or `expo run:android`) there.
-3. Phase gating: confirm with user before starting Phase M6.
+1. **Commit perubahan yang sedang berjalan** — paling logis split jadi 2 item: (a) fix bug koneksi/login (auth.ts, auth-store.ts) + QueryClientProvider layout + debug jWT guard; (b) revisi header. Menunggu keputusan user bagaimana pemecahan commit.
+2. **Lanjutkan revisi UI Header** — validasi tampilan di emulator (inset 20px, rasa nyaman). Konfirmasi kalau ada layar lain yang perlu header (mis. kursus/booking?).
+3. Phase gating: konfirmasi dengan user sebelum lanjut Phase M6.
 
 ## Open questions
 
-- **Phase M6 scope** — not yet defined/approved (stop & ask before starting).
-- **Keystore signing secrets** for release pipeline — confirm GitHub secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` are set.
-- Whether the `expo-dev-client` dependency (uncommitted) is intentional.
+- Bagaimana user ingin memecah commit (bug fix vs header rev).
+- `eslint` belum terpasang lokal — perlu `bun install` di workspace mobile atau lewat turbo.
+- Phase M6 scope masih belum disetujui (stop & ask dahulu).

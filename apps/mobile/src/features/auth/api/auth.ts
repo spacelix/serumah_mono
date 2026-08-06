@@ -26,7 +26,9 @@ interface ApiMeResponse {
   anggota: { rumahId: string | null } | null;
 }
 
-export async function apiMe(): Promise<ApiMeResponse> {
-  const response = await apiClient.get<ApiMeResponse>('/auth/me');
+export async function apiMe(token?: string): Promise<ApiMeResponse> {
+  const response = await apiClient.get<ApiMeResponse>('/auth/me', {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   return response.data;
 }

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SerumahLogo } from '@/components/logo/serumah-logo';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { MonthPicker } from '@/components/tagihan/month-picker';
 import { Stamp } from '@/components/ui/stamp';
 import { formatCurrency, formatShortDate } from '@/lib/format';
@@ -43,7 +43,7 @@ export default function TagihanScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header />
+      <ScreenHeader title="Tagihan" />
       <MonthPicker value={bulan} onChange={setBulan} />
       <View style={styles.segments}>
         {SEGMENTS.map((s) => (
@@ -63,17 +63,6 @@ export default function TagihanScreen() {
         {segment === 'listrik' && <ListrikView bulan={bulan} />}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Header() {
-  return (
-    <View style={styles.header}>
-      <View style={styles.brand}>
-        <SerumahLogo size={22} variant="mark" roofColor={colors.ink} />
-        <Text style={styles.brandText}>Tagihan</Text>
-      </View>
-    </View>
   );
 }
 
@@ -581,14 +570,6 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 6,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandText: { ...type.section, color: colors.ink },
   segments: {
     flexDirection: 'row',
     marginHorizontal: 20,

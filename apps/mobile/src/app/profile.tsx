@@ -100,8 +100,18 @@ export default function ProfileScreen() {
   };
 
   const [srcOpen, setSrcOpen] = useState(false);
-  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+
+  const uploadAvatar = async (uri: string) => {
+    try {
+      const url = await apiUploadAvatar(uri);
+      await apiUpdateProfile({ fotoProfil: url });
+      invalidate();
+      toast.success('Foto profil ganti.');
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    }
+  };
 
   const launchPicker = async (source: 'camera' | 'galeri') => {
     setSrcOpen(false);
@@ -118,7 +128,7 @@ export default function ProfileScreen() {
           aspect: [1, 1],
           quality: 0.7,
         });
-        if (!result.canceled && result.assets[0]) setPendingAvatar(result.assets[0].uri);
+        if (!result.canceled && result.assets[0]) await uploadAvatar(result.assets[0].uri);
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
@@ -131,24 +141,8 @@ export default function ProfileScreen() {
           aspect: [1, 1],
           quality: 0.7,
         });
-        if (!result.canceled && result.assets[0]) setPendingAvatar(result.assets[0].uri);
+        if (!result.canceled && result.assets[0]) await uploadAvatar(result.assets[0].uri);
       }
-    } finally {
-      setPicking(false);
-    }
-  };
-
-  const onConfirmAvatar = async () => {
-    if (pendingAvatar == null) return;
-    setPicking(true);
-    try {
-      const url = await apiUploadAvatar(pendingAvatar);
-      await apiUpdateProfile({ fotoProfil: url });
-      invalidate();
-      toast.success('Foto profil ganti.');
-      setPendingAvatar(null);
-    } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
     } finally {
       setPicking(false);
     }
@@ -406,40 +400,6 @@ export default function ProfileScreen() {
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
-
-      <Modal
-        visible={pendingAvatar != null}
-        transparent
-        animationType="none"
-        onRequestClose={() => !picking && setPendingAvatar(null)}>
-        <View style={styles.pvBackdrop}>
-          <View style={styles.pvCard}>
-            <Text style={styles.pvTitle}>Cek foto profil</Text>
-            <ExpoImage
-              source={{ uri: pendingAvatar ?? undefined }}
-              style={styles.pvImage}
-              contentFit="cover"
-            />
-            <Text style={styles.pvHint}>Foto ini yang bakal dipakai sebagai profil lo.</Text>
-            <View style={styles.pvButtons}>
-              <Pressable
-                onPress={() => setPendingAvatar(null)}
-                disabled={picking}
-                style={[styles.pvButton, styles.pvCancel]}>
-                <Text style={styles.pvCancelText}>Batal</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void onConfirmAvatar()}
-                disabled={picking}
-                style={[styles.pvButton, styles.pvConfirm, picking && styles.pvBusy]}>
-                <Text style={styles.pvConfirmText}>
-                  {picking ? 'Menyimpan…' : 'Pakai foto ini'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1096,57 +1056,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   srcCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.inkSoft },
-
-  pvBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(20, 26, 23, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  pvCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius['2xl'],
-    padding: 18,
-    alignItems: 'center',
-  },
-  pvTitle: {
-    alignSelf: 'flex-start',
-    fontFamily: fontFamilies.display[600],
-    fontSize: 19,
-    lineHeight: 24,
-    color: colors.ink,
-  },
-  pvImage: {
-    width: 190,
-    height: 190,
-    borderRadius: radius['2xl'],
-    backgroundColor: colors.paperDeep,
-    marginTop: 14,
-  },
-  pvHint: {
-    fontFamily: fontFamilies.body[400],
-    fontSize: 12,
-    lineHeight: 17,
-    color: colors.inkSoft,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  pvButtons: { flexDirection: 'row', gap: 10, marginTop: 16, width: '100%' },
-  pvButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: radius.lg,
-  },
-  pvCancel: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line },
-  pvCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
-  pvConfirm: { backgroundColor: colors.ink },
-  pvConfirmText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
-  pvBusy: { opacity: 0.6 },
 });

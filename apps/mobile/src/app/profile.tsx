@@ -178,7 +178,6 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader
         title="Profil lo"
-        kicker={rumah?.nama ?? undefined}
         onBack={() => router.back()}
         backLabel="Beranda"
       />

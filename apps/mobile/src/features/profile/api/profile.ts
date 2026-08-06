@@ -61,6 +61,7 @@ export interface RumahManageMember {
   nama: string;
   fotoProfil: string | null;
   role: string;
+  createdAt: string;
 }
 
 export interface RumahDetail {
@@ -90,6 +91,8 @@ export async function apiGetRumahMe(): Promise<RumahMeResponse> {
 }
 
 export interface UpdateRumahInput {
+  nama?: string;
+  alamat?: string;
   biayaKos?: number;
   biayaWifi?: number;
   biayaListrikWajib?: number;

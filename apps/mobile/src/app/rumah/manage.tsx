@@ -1,30 +1,31 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Check, Pencil, Plus, X } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { toast } from '@/stores/toast-store';
 import {
+  apiCreateJenisPiket,
+  apiCreateRuangan,
+  apiDeleteJenisPiket,
+  apiDeleteRuangan,
   apiGetRumahMe,
   apiRemoveAnggota,
-  apiResetInvite,
-  apiSetQris,
+  apiReorderRuangan,
   apiUpdateRumah,
+  apiUpdateRuangan,
   ruanganKeys,
   useProfileInvalidate,
   useRuangan,
-  apiCreateRuangan,
-  apiDeleteRuangan,
-  apiReorderRuangan,
-  apiCreateJenisPiket,
-  apiDeleteJenisPiket,
-  apiUpdateJenisPiket,
+  type JenisPiket,
   type RumahDetail,
+  type RumahManageMember,
 } from '@/features/profile/api/profile';
-import { uploadProof } from '@/features/tagihan/api/upload';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatLongDate } from '@/lib/format';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -36,7 +37,6 @@ export default function ManageRumahScreen() {
   });
   const invalidate = useProfileInvalidate();
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
 
   if (isLoading || data == null || data.rumah == null) {
     return (
@@ -48,351 +48,334 @@ export default function ManageRumahScreen() {
     );
   }
 
-  const rumah = data.rumah;
-  const isAdmin = data.currentRole === 'admin';
-
-  const onResetInvite = async () => {
-    setBusy(true);
-    try {
-      await apiResetInvite();
-      invalidate();
-      Alert.alert('Berhasil', 'Kode undangan baru sudah dibuat.');
-    } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onRemoveMember = (id: string, nama: string) => {
-    Alert.alert('Hapus anggota', `Yakin menghapus ${nama} dari kos?`, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus',
-        style: 'destructive',
-        onPress: () => {
-          void apiRemoveAnggota(id)
-            .then(() => invalidate())
-            .catch((e) =>
-              Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
-            );
-        },
-      },
-    ]);
-  };
-
-  const onUploadQris = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Izin kamera', 'Izinkan kamera untuk memotret QRIS.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    setBusy(true);
-    try {
-      const url = await uploadProof('qris', result.assets[0].uri, rumah.id);
-      await apiSetQris(url);
-      invalidate();
-      Alert.alert('Berhasil', 'QRIS pembayaran diperbarui.');
-    } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Kelola Kos" onBack={() => router.back()} />
+      <ScreenHeader title="Kelola rumah" onBack={() => router.back()} backLabel="Profil" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <InfoCard rumah={rumah} />
-        {isAdmin && <CostsCard rumah={rumah} onChange={() => invalidate()} />}
-        <RekeningCard rumah={rumah} isAdmin={isAdmin} onUploadQris={() => void onUploadQris()} />
-        <InviteCard
-          code={rumah.inviteCode}
-          isAdmin={isAdmin}
-          busy={busy}
-          onReset={() => void onResetInvite()}
-        />
-        <MembersSection members={data.anggotaList} isAdmin={isAdmin} onRemove={onRemoveMember} />
-        <RoomsSection isAdmin={isAdmin} />
+        <RumahCard rumah={data.rumah} isAdmin={data.currentRole === 'admin'} onChange={() => invalidate()} />
+        <MembersSection members={data.anggotaList} isAdmin={data.currentRole === 'admin'} />
+        <RoomsSection isAdmin={data.currentRole === 'admin'} denda={data.rumah.nominalDenda} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function InfoCard({ rumah }: { rumah: { nama: string; alamat: string } }) {
-  return (
-    <View style={styles.infoCard}>
-      <Text style={styles.infoName}>{rumah.nama}</Text>
-      <Text style={styles.infoAlamat}>{rumah.alamat}</Text>
-    </View>
-  );
-}
+/* ================= Kartu Detail Rumah (toggle edit, seperti profil) ================= */
 
-function CostsCard({ rumah, onChange }: { rumah: RumahDetail; onChange: () => void }) {
+function RumahCard({
+  rumah,
+  isAdmin,
+  onChange,
+}: {
+  rumah: RumahDetail;
+  isAdmin: boolean;
+  onChange: () => void;
+}) {
   const [editing, setEditing] = useState(false);
-  const [kos, setKos] = useState(String(rumah.biayaKos));
-  const [wifi, setWifi] = useState(String(rumah.biayaWifi));
-  const [listrik, setListrik] = useState(String(rumah.biayaListrikWajib));
-  const [denda, setDenda] = useState(String(rumah.nominalDenda));
-  const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
 
-  const onSave = async () => {
-    setSaving(true);
-    try {
-      await apiUpdateRumah({
-        biayaKos: parseInt(kos.replace(/\D/g, '') || '0', 10),
-        biayaWifi: parseInt(wifi.replace(/\D/g, '') || '0', 10),
-        biayaListrikWajib: parseInt(listrik.replace(/\D/g, '') || '0', 10),
-        nominalDenda: parseInt(denda.replace(/\D/g, '') || '0', 10),
-      });
-      setEditing(false);
-      onChange();
-      Alert.alert('Tersimpan', 'Biaya kos diperbarui.');
-    } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
-    } finally {
-      setSaving(false);
-    }
+  const startEdit = () => {
+    setClosing(false);
+    setEditing(true);
   };
 
   if (editing) {
     return (
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Biaya Rumah</Text>
-        <CostInput label="Biaya Kos" value={kos} onChange={setKos} />
-        <CostInput label="WiFi" value={wifi} onChange={setWifi} />
-        <CostInput label="Listrik Wajib" value={listrik} onChange={setListrik} />
-        <CostInput label="Denda Piket" value={denda} onChange={setDenda} />
-        <View style={styles.rowActions}>
-          <Pressable onPress={() => setEditing(false)} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Batal</Text>
-          </Pressable>
-          <Pressable onPress={() => void onSave()} disabled={saving} style={styles.pineBtn}>
-            <Text style={styles.pineBtnText}>{saving ? 'Menyimpan…' : 'Simpan'}</Text>
-          </Pressable>
-        </View>
-      </View>
+      <EditRumahCard
+        rumah={rumah}
+        closing={closing}
+        onClose={() => setClosing(true)}
+        onClosed={() => {
+          setEditing(false);
+          setClosing(false);
+        }}
+        onChange={() => {
+          setEditing(false);
+          onChange();
+        }}
+      />
     );
   }
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardTitleRow}>
-        <Text style={styles.cardTitle}>Biaya Rumah</Text>
-        <Pressable onPress={() => setEditing(true)}>
-          <Text style={styles.editText}>Edit</Text>
-        </Pressable>
-      </View>
-      <CostRow label="Biaya Kos" value={formatCurrency(rumah.biayaKos)} />
-      <CostRow label="WiFi" value={formatCurrency(rumah.biayaWifi)} />
-      <CostRow label="Listrik Wajib" value={formatCurrency(rumah.biayaListrikWajib)} />
-      <CostRow label="Denda Piket" value={`${formatCurrency(rumah.nominalDenda)} / submission`} danger />
-    </View>
-  );
-}
-
-function RekeningCard({
-  rumah,
-  isAdmin,
-  onUploadQris,
-}: {
-  rumah: RumahDetail;
-  isAdmin: boolean;
-  onUploadQris: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [bank, setBank] = useState(rumah.rekeningBank ?? '');
-  const [nomor, setNomor] = useState(rumah.rekeningNomor ?? '');
-  const [nama, setNama] = useState(rumah.rekeningNama ?? '');
-  const [saving, setSaving] = useState(false);
-
-  const onSave = async () => {
-    setSaving(true);
-    try {
-      await apiUpdateRumah({
-        rekeningBank: bank || undefined,
-        rekeningNomor: nomor || undefined,
-        rekeningNama: nama || undefined,
-      });
-      setEditing(false);
-      Alert.alert('Tersimpan', 'Rekening kos diperbarui.');
-    } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardTitleRow}>
-        <Text style={styles.cardTitle}>Rekening Kos</Text>
+      <View style={styles.cardHead}>
+        <View style={styles.cardHeadText}>
+          <Text style={styles.rumahNama}>{rumah.nama}</Text>
+          <Text style={styles.rumahAlamat}>{rumah.alamat}</Text>
+        </View>
         {isAdmin && (
-          <Pressable onPress={() => setEditing((v) => !v)}>
-            <Text style={styles.editText}>{editing ? 'Tutup' : 'Edit'}</Text>
+          <Pressable onPress={startEdit} style={styles.editBtn}>
+            <Text style={styles.editBtnText}>Edit</Text>
           </Pressable>
         )}
       </View>
-      {editing ? (
-        <>
-          <CostInput label="Bank" value={bank} onChange={setBank} />
-          <CostInput label="Nomor" value={nomor} onChange={setNomor} />
-          <CostInput label="a.n." value={nama} onChange={setNama} />
-          <View style={styles.rowActions}>
-            <Pressable onPress={() => setEditing(false)} style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Batal</Text>
-            </Pressable>
-            <Pressable onPress={() => void onSave()} disabled={saving} style={styles.pineBtn}>
-              <Text style={styles.pineBtnText}>{saving ? 'Menyimpan…' : 'Simpan'}</Text>
-            </Pressable>
-          </View>
-        </>
-      ) : (
+
+      <View style={styles.inviteRow}>
+        <View style={styles.inviteCol}>
+          <Text style={styles.inviteLabel}>Kode invite</Text>
+          <Text style={styles.inviteCode}>{rumah.inviteCode}</Text>
+        </View>
+        <Pressable onPress={() => copyInvite(rumah.inviteCode)} style={styles.copyBtn}>
+          <Text style={styles.copyBtnText}>Copy kode</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Biaya Rumah</Text>
+        <Text style={styles.sectionSub}>Total per bulan, system bagi rata ke anggota</Text>
+        <CostRow label="Biaya Kos (total)" value={`${formatCurrency(rumah.biayaKos)} / bulan`} />
+        <CostRow label="WiFi (total)" value={`${formatCurrency(rumah.biayaWifi)} / bulan`} />
+        <CostRow label="Listrik Wajib (total)" value={`${formatCurrency(rumah.biayaListrikWajib)} / bulan`} />
+        <CostRow label="Denda Piket" value={`${formatCurrency(rumah.nominalDenda)} / submission`} danger />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Rekening Kos</Text>
+        <Text style={styles.sectionSub}>Anggota lihat info ini di halaman Iuran</Text>
         <View style={styles.rekeningBox}>
           <Text style={styles.rekeningMain}>
             {rumah.rekeningBank ?? '—'} · {rumah.rekeningNomor ?? '—'}
           </Text>
           <Text style={styles.rekeningName}>a.n. {rumah.rekeningNama ?? '—'}</Text>
         </View>
-      )}
-      {isAdmin && (
-        <Pressable onPress={onUploadQris} style={styles.qrisBtn}>
-          <Text style={styles.qrisBtnText}>
-            {rumah.qrisUrl ? 'Ganti QRIS' : 'Unggah QRIS pembayaran'}
-          </Text>
-        </Pressable>
-      )}
+      </View>
     </View>
   );
 }
 
-function InviteCard({
-  code,
-  isAdmin,
-  busy,
-  onReset,
+function EditRumahCard({
+  rumah,
+  closing,
+  onClose,
+  onClosed,
+  onChange,
 }: {
-  code: string;
-  isAdmin: boolean;
-  busy: boolean;
-  onReset: () => void;
+  rumah: RumahDetail;
+  closing: boolean;
+  onClose: () => void;
+  onClosed: () => void;
+  onChange: () => void;
 }) {
-  const copy = () => Alert.alert('Disalin', `Kode ${code} disalin.`);
+  const rise = useRef(new Animated.Value(0)).current;
+  const closed = useRef(false);
+  const [nama, setNama] = useState(rumah.nama);
+  const [alamat, setAlamat] = useState(rumah.alamat);
+  const [kos, setKos] = useState(String(rumah.biayaKos));
+  const [wifi, setWifi] = useState(String(rumah.biayaWifi));
+  const [listrik, setListrik] = useState(String(rumah.biayaListrikWajib));
+  const [denda, setDenda] = useState(String(rumah.nominalDenda));
+  const [bank, setBank] = useState(rumah.rekeningBank ?? '');
+  const [nomor, setNomor] = useState(rumah.rekeningNomor ?? '');
+  const [aN, setAN] = useState(rumah.rekeningNama ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Animated.timing(rise, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [rise]);
+
+  if (closing) {
+    Animated.timing(rise, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      if (!closed.current) {
+        closed.current = true;
+        onClosed();
+      }
+    });
+  }
+
+  const save = async () => {
+    if (!nama.trim()) {
+      toast.error('Nama kos wajib diisi.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiUpdateRumah({
+        nama: nama.trim(),
+        alamat: alamat.trim() || undefined,
+        biayaKos: parseMoney(kos),
+        biayaWifi: parseMoney(wifi),
+        biayaListrikWajib: parseMoney(listrik),
+        nominalDenda: parseMoney(denda),
+        rekeningBank: bank.trim() || undefined,
+        rekeningNomor: nomor.trim() || undefined,
+        rekeningNama: aN.trim() || undefined,
+      });
+      onChange();
+      toast.success('Rumah berhasil diperbarui.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Kode Undangan</Text>
-      <View style={styles.inviteRow}>
-        <View style={styles.inviteBox}>
-          <Text style={styles.inviteCode}>{code}</Text>
-        </View>
-        <Pressable onPress={copy} style={styles.copyBtn}>
-          <Text style={styles.copyText}>Copy kode</Text>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: rise,
+          transform: [
+            { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) },
+          ],
+        },
+      ]}>
+      <Text style={styles.editTitle}>Edit data rumah</Text>
+
+      <EditField label="Nama kos">
+        <TextInput value={nama} onChangeText={setNama} placeholder="Nama kos" placeholderTextColor={colors.inkMuted} style={styles.input} />
+      </EditField>
+      <EditField>
+        <TextInput value={alamat} onChangeText={setAlamat} placeholder="Alamat kos" placeholderTextColor={colors.inkMuted} style={styles.input} />
+      </EditField>
+
+      <Text style={styles.editSectionLabel}>
+        Biaya Rumah <Text style={styles.editSectionSub}>— total per bulan, dibagi rata</Text>
+      </Text>
+      <View style={styles.editRow}>
+        <EditMoneyField label="Biaya kos (total)" value={kos} onChange={setKos} />
+        <EditMoneyField label="WiFi (total)" value={wifi} onChange={setWifi} />
+      </View>
+      <View style={styles.editRow}>
+        <EditMoneyField label="Listrik wajib (total)" value={listrik} onChange={setListrik} />
+        <EditMoneyField label="Denda piket" value={denda} onChange={setDenda} />
+      </View>
+
+      <Text style={styles.editSectionLabel}>
+        Rekening Kos <Text style={styles.editSectionSub}>— tampil di halaman Iuran</Text>
+      </Text>
+      <View style={styles.editRow}>
+        <EditField label="Bank" flex>
+          <TextInput value={bank} onChangeText={setBank} placeholder="BCA" placeholderTextColor={colors.inkMuted} style={[styles.input, styles.inputBank]} />
+        </EditField>
+        <EditField label="Nomor rekening" flex>
+          <TextInput value={nomor} onChangeText={setNomor} placeholder="1234567890" placeholderTextColor={colors.inkMuted} style={[styles.input, styles.inputNumber]} keyboardType="number-pad" />
+        </EditField>
+      </View>
+      <EditField label="Atas nama">
+        <TextInput value={aN} onChangeText={setAN} placeholder="Ibu Sari" placeholderTextColor={colors.inkMuted} style={styles.input} />
+      </EditField>
+
+      <View style={styles.editActions}>
+        <Pressable onPress={() => void save()} disabled={saving} style={[styles.saveBtn, styles.saveBtnFlex]}>
+          <Text style={styles.saveBtnText}>{saving ? 'Menyimpan…' : 'Simpan'}</Text>
+        </Pressable>
+        <Pressable onPress={onClose} disabled={saving} style={styles.cancelBtn}>
+          <Text style={styles.cancelBtnText}>Batal</Text>
         </Pressable>
       </View>
-      {isAdmin && (
-        <Pressable onPress={onReset} disabled={busy} style={styles.resetBtn}>
-          <Text style={styles.resetText}>{busy ? 'Membuat…' : 'Reset kode'}</Text>
-        </Pressable>
-      )}
-    </View>
+    </Animated.View>
   );
 }
+
+/* ================= List Anggota ================= */
 
 function MembersSection({
   members,
   isAdmin,
-  onRemove,
 }: {
-  members: { id: string; nama: string; fotoProfil: string | null; role: string }[];
+  members: RumahManageMember[];
   isAdmin: boolean;
-  onRemove: (id: string, nama: string) => void;
 }) {
+  const invalidate = useProfileInvalidate();
+  const [removeTarget, setRemoveTarget] = useState<RumahManageMember | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const remove = async () => {
+    if (!removeTarget) return;
+    setBusy(true);
+    try {
+      await apiRemoveAnggota(removeTarget.id);
+      invalidate();
+      setRemoveTarget(null);
+      toast.success('Anggota berhasil dihapus.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Anggota</Text>
-      <View style={styles.memberList}>
-        {members.map((m) => (
-          <View key={m.id} style={styles.memberRow}>
-            <View style={styles.memberAvatar}>
-              <Text style={styles.memberInitial}>{m.nama.charAt(0).toUpperCase()}</Text>
+    <View>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionHeadTitle}>Anggota</Text>
+        <Text style={styles.sectionHeadMeta}>{members.length} anggota</Text>
+      </View>
+      <View style={styles.listCard}>
+        {members.map((m, index) => (
+          <View key={m.id}>
+            {index > 0 && <View style={styles.memberDivider} />}
+            <View style={styles.memberRow}>
+              <View style={styles.memberAvatar}>
+                <Text style={styles.memberInitial}>{m.nama.charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberName}>{m.nama}</Text>
+                <Text style={styles.memberSub}>Join {formatLongDate(m.createdAt)}</Text>
+              </View>
+              {m.role === 'admin' && (
+                <View style={styles.pjBadge}>
+                  <Text style={styles.pjBadgeText}>PJ Kos</Text>
+                </View>
+              )}
+              {isAdmin && m.role !== 'admin' && (
+                <Pressable onPress={() => setRemoveTarget(m)} style={styles.moreBtn} hitSlop={6}>
+                  <Text style={styles.moreText}>⋯</Text>
+                </Pressable>
+              )}
             </View>
-            <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>{m.nama}</Text>
-              <Text style={styles.memberSub}>
-                {m.role === 'admin' ? 'PJ' : 'Anggota'}
-              </Text>
-            </View>
-            {isAdmin && m.role !== 'admin' && (
-              <Pressable onPress={() => onRemove(m.id, m.nama)} style={styles.removeBtn}>
-                <Text style={styles.removeText}>Hapus</Text>
-              </Pressable>
-            )}
           </View>
         ))}
       </View>
-    </View>
-  );
-}
 
-function CostInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <View style={styles.costField}>
-      <Text style={styles.costLabel}>{label}</Text>
-      <TextInput
-        style={styles.costInput}
-        value={value}
-        onChangeText={onChange}
-        placeholder="0"
-        placeholderTextColor={colors.inkMuted}
-        keyboardType="number-pad"
+      <ConfirmDialog
+        visible={removeTarget != null}
+        title="Hapus anggota"
+        message={removeTarget ? `Yakin hapus ${removeTarget.nama} dari kos ini?` : ''}
+        confirmText="Hapus"
+        danger
+        busy={busy}
+        onConfirm={() => void remove()}
+        onCancel={() => setRemoveTarget(null)}
       />
     </View>
   );
 }
 
-function CostRow({
-  label,
-  value,
-  danger,
-}: {
-  label: string;
-  value: string;
-  danger?: boolean;
-}) {
-  return (
-    <View style={styles.costRow}>
-      <Text style={styles.costLabel}>{label}</Text>
-      <Text style={[styles.costValue, danger && styles.costValueDanger]}>{value}</Text>
-    </View>
-  );
-}
+/* ================= Kelola Ruangan & Jenis Piket ================= */
 
-function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
+function RoomsSection({ isAdmin, denda }: { isAdmin: boolean; denda: number }) {
   const { data: ruangan, isLoading } = useRuangan();
   const queryClient = useQueryClient();
   const [newRoom, setNewRoom] = useState('');
+  const [addingRoom, setAddingRoom] = useState(false);
   const [newJenis, setNewJenis] = useState<Record<string, string>>({});
+  const [addingJenis, setAddingJenis] = useState<Record<string, boolean>>({});
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState('');
   const [busy, setBusy] = useState(false);
+  const [removeRoomTarget, setRemoveRoomTarget] = useState<string | null>(null);
 
   const revalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ruanganKeys.list });
   };
 
-  const move = async (index: number, dir: 'up' | 'down') => {
+  const totalJenis = ruangan?.reduce((acc, r) => acc + r.jenisPiket.length, 0) ?? 0;
+
+  const move = async (index: number, dir: 'down') => {
     if (!ruangan) return;
-    const target = index + (dir === 'up' ? -1 : 1);
-    if (target < 0 || target >= ruangan.length) return;
+    const target = index + 1;
+    if (target >= ruangan.length) return;
     const next = [...ruangan];
     [next[index], next[target]] = [next[target], next[index]];
     setBusy(true);
@@ -400,7 +383,27 @@ function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
       await apiReorderRuangan(next.map((r) => r.id));
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startRename = (id: string, nama: string) => {
+    setRenaming(id);
+    setRenameVal(nama);
+  };
+
+  const confirmRename = async (id: string) => {
+    if (!renameVal.trim()) return;
+    setBusy(true);
+    try {
+      await apiUpdateRuangan(id, renameVal.trim());
+      setRenaming(null);
+      revalidate();
+      toast.success('Ruangan berhasil diubah.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
     } finally {
       setBusy(false);
     }
@@ -412,27 +415,14 @@ function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
     try {
       await apiCreateRuangan(newRoom.trim());
       setNewRoom('');
+      setAddingRoom(false);
       revalidate();
+      toast.success('Ruangan baru berhasil dibuat.');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
     } finally {
       setBusy(false);
     }
-  };
-
-  const removeRoom = (id: string) => {
-    Alert.alert('Hapus ruangan', 'Yakin hapus ruangan ini beserta jenis piketnya?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus',
-        style: 'destructive',
-        onPress: () => {
-          void apiDeleteRuangan(id)
-            .then(revalidate)
-            .catch((e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'));
-        },
-      },
-    ]);
   };
 
   const addJenis = async (ruanganId: string) => {
@@ -442,121 +432,320 @@ function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
     try {
       await apiCreateJenisPiket(ruanganId, nama);
       setNewJenis((p) => ({ ...p, [ruanganId]: '' }));
+      setAddingJenis((p) => ({ ...p, [ruanganId]: false }));
       revalidate();
+      toast.success('Jenis piket berhasil ditambahkan.');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
     } finally {
       setBusy(false);
     }
   };
 
-  const removeJenis = (id: string) => {
-    void apiDeleteJenisPiket(id)
-      .then(revalidate)
-      .catch((e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'));
+  const removeJenis = async (jenis: JenisPiket) => {
+    try {
+      await apiDeleteJenisPiket(jenis.id);
+      revalidate();
+      toast.success('Jenis piket dihapus.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    }
+  };
+
+  const removeRoom = async (id: string) => {
+    setBusy(true);
+    try {
+      await apiDeleteRuangan(id);
+      setRemoveRoomTarget(null);
+      revalidate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (isLoading || ruangan == null) {
     return (
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Kelola Ruangan</Text>
-        <Text style={styles.loadingText}>Memuat…</Text>
+      <View>
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionHeadTitle}>Kelola ruangan</Text>
+        </View>
+        <View style={styles.listCard}>
+          <Text style={styles.loadingText}>Memuat…</Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Kelola Ruangan</Text>
+    <>
+      <View>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionHeadTitle}>Kelola ruangan</Text>
+        <Text style={styles.sectionHeadMeta}>{ruangan.length} ruangan · {totalJenis} jenis piket</Text>
+      </View>
+      <Text style={styles.sectionDesc}>
+        Tiap ruangan punya jenis piketnya sendiri. Yang piket wajib ngerjain semua ruangan — foto before,
+        checklist, foto after. Denda flat {formatCurrency(denda)} per submission, bukan per jenis.
+      </Text>
+
       <View style={styles.roomList}>
         {ruangan.map((room, index) => (
           <View key={room.id} style={styles.roomCard}>
-            <View style={styles.roomHeader}>
-              <Text style={styles.roomName}>{room.nama}</Text>
-              <View style={styles.roomActions}>
-                <Pressable onPress={() => void move(index, 'up')} disabled={busy || index === 0}>
-                  <Text style={styles.roomNav}>↑</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => void move(index, 'down')}
-                  disabled={busy || index === ruangan.length - 1}>
-                  <Text style={styles.roomNav}>↓</Text>
-                </Pressable>
-                {isAdmin && (
-                  <Pressable onPress={() => removeRoom(room.id)}>
-                    <Text style={styles.roomRemove}>✕</Text>
-                  </Pressable>
-                )}
+            <View style={styles.roomHead}>
+              <View style={styles.grip}>
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
+                <View style={styles.gripLine} />
               </View>
-            </View>
-
-            <View style={styles.jenisWrap}>
-              {room.jenisPiket.map((j) => (
-                <View key={j.id} style={[styles.jenisChip, !j.isActive && styles.jenisChipOff]}>
-                  <Text style={[styles.jenisText, !j.isActive && styles.jenisTextOff]}>
-                    {j.nama}
-                  </Text>
-                  {isAdmin && (
-                    <Pressable
-                      onPress={() => {
-                        void apiUpdateJenisPiket(j.id, { isActive: !j.isActive })
-                          .then(revalidate)
-                          .catch((e) =>
-                            Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
-                          );
-                      }}>
-                      <Text style={styles.jenisToggle}>{j.isActive ? 'on' : 'off'}</Text>
+              <Text style={styles.roomIndex}>{String(index + 1).padStart(2, '0')}</Text>
+              {renaming === room.id ? (
+                <View style={styles.renameRow}>
+                  <TextInput
+                    style={styles.renameInput}
+                    value={renameVal}
+                    onChangeText={setRenameVal}
+                    autoFocus
+                    placeholder="Nama ruangan"
+                    placeholderTextColor={colors.inkMuted}
+                  />
+                  <Pressable onPress={() => void confirmRename(room.id)} disabled={busy} style={styles.renameDone}>
+                    <Check color={colors.paper} size={13} strokeWidth={2.6} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={styles.roomName} numberOfLines={1}>{room.nama}</Text>
+              )}
+              <Text style={styles.roomMeta}>{room.jenisPiket.length} jenis</Text>
+              {isAdmin && (
+                <View style={styles.roomActions}>
+                  {!renaming && (
+                    <Pressable onPress={() => startRename(room.id, room.nama)} style={styles.iconBtn} hitSlop={4}>
+                      <Pencil color={colors.inkSoft} size={11} strokeWidth={2.1} />
                     </Pressable>
                   )}
                   {isAdmin && (
-                    <Pressable onPress={() => removeJenis(j.id)}>
-                      <Text style={styles.jenisRemove}>✕</Text>
+                    <Pressable
+                      onPress={() => void move(index, 'down')}
+                      disabled={busy || index === ruangan.length - 1}
+                      style={styles.iconBtn}
+                      hitSlop={4}>
+                      <Text style={[styles.moveDown, index === ruangan.length - 1 && styles.moveDownDisabled]}>↓</Text>
+                    </Pressable>
+                  )}
+                  {isAdmin && (
+                    <Pressable onPress={() => setRemoveRoomTarget(room.id)} style={styles.iconBtn} hitSlop={4}>
+                      <Text style={styles.roomRemove}>×</Text>
                     </Pressable>
                   )}
                 </View>
-              ))}
+              )}
             </View>
 
-            {isAdmin && (
-              <View style={styles.jenisInputRow}>
-                <TextInput
-                  style={styles.jenisInput}
-                  value={newJenis[room.id] ?? ''}
-                  onChangeText={(text) =>
-                    setNewJenis((p) => ({ ...p, [room.id]: text }))
-                  }
-                  placeholder="Tambah jenis piket"
-                  placeholderTextColor={colors.inkMuted}
-                />
-                <Pressable
-                  onPress={() => void addJenis(room.id)}
-                  disabled={busy || !(newJenis[room.id] ?? '').trim()}
-                  style={styles.addJenisBtn}>
-                  <Text style={styles.addJenisText}>+</Text>
-                </Pressable>
+            {room.jenisPiket.length > 0 && (
+              <View style={styles.chipWrap}>
+                {room.jenisPiket.map((j) => (
+                  <View key={j.id} style={[styles.chip, !j.isActive && styles.chipOff]}>
+                    <Check color={j.isActive ? colors.pine : colors.inkMuted} size={10} strokeWidth={2.4} />
+                    <Text style={[styles.chipText, !j.isActive && styles.chipTextOff]}>{j.nama}</Text>
+                    {isAdmin && (
+                      <Pressable onPress={() => void removeJenis(j)} hitSlop={4}>
+                        <Text style={styles.chipRemove}>×</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
               </View>
+            )}
+
+            {isAdmin && (
+              <>
+                {addingJenis[room.id] ? (
+                  <View style={styles.jenisInputRow}>
+                    <TextInput
+                      style={styles.jenisInput}
+                      value={newJenis[room.id] ?? ''}
+                      onChangeText={(text) => setNewJenis((p) => ({ ...p, [room.id]: text }))}
+                      placeholder="mis. Rapihin Kursi"
+                      placeholderTextColor={colors.inkMuted}
+                      autoFocus
+                    />
+                    <Pressable
+                      onPress={() => void addJenis(room.id)}
+                      disabled={busy || !(newJenis[room.id] ?? '').trim()}
+                      style={[styles.jenisAddBtn, (newJenis[room.id] ?? '').trim() && !busy && styles.jenisAddBtnOn]}>
+                      <Text style={[styles.jenisAddBtnText, (newJenis[room.id] ?? '').trim() && !busy && styles.jenisAddBtnTextOn]}>
+                        Tambah
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setAddingJenis((p) => ({ ...p, [room.id]: false }));
+                        setNewJenis((p) => ({ ...p, [room.id]: '' }));
+                      }}
+                      disabled={busy}
+                      style={styles.jenisCancelBtn}>
+                      <X color={colors.inkSoft} size={14} strokeWidth={2.2} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => setAddingJenis((p) => ({ ...p, [room.id]: true }))}
+                    style={styles.dashedBtn}>
+                    <Plus color={colors.pine} size={11} strokeWidth={2.6} />
+                    <Text style={styles.dashedBtnText}>Tambah jenis piket</Text>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         ))}
       </View>
 
       {isAdmin && (
-        <View style={styles.jenisInputRow}>
-          <TextInput
-            style={styles.jenisInput}
-            value={newRoom}
-            onChangeText={setNewRoom}
-            placeholder="Tambah Ruangan"
-            placeholderTextColor={colors.inkMuted}
-          />
-          <Pressable
-            onPress={() => void addRoom()}
-            disabled={busy || !newRoom.trim()}
-            style={styles.addJenisBtn}>
-            <Text style={styles.addJenisText}>+</Text>
-          </Pressable>
+        <View style={styles.addRoomWrap}>
+          {addingRoom ? (
+            <AddRoomForm
+              value={newRoom}
+              onChange={setNewRoom}
+              onClose={() => {
+                setAddingRoom(false);
+                setNewRoom('');
+              }}
+              onSave={() => void addRoom()}
+              busy={busy}
+            />
+          ) : (
+            <Pressable onPress={() => setAddingRoom(true)} style={styles.addRoomBtn}>
+              <Plus color={colors.paper} size={15} strokeWidth={2.4} />
+              <Text style={styles.addRoomBtnText}>Tambah Ruangan</Text>
+            </Pressable>
+          )}
         </View>
       )}
+      </View>
+
+      <ConfirmDialog
+      visible={removeRoomTarget != null}
+      title="Hapus ruangan"
+      message="Yakin hapus ruangan ini beserta semua jenis piketnya?"
+      confirmText="Hapus"
+      danger
+      busy={busy}
+      onConfirm={() => {
+        if (removeRoomTarget) {
+          void removeRoom(removeRoomTarget);
+        }
+      }}
+      onCancel={() => setRemoveRoomTarget(null)}
+    />
+    </>
+  );
+}
+
+/* ================= AddRoomForm ================= */
+
+function AddRoomForm({
+  value,
+  onChange,
+  onClose,
+  onSave,
+  busy,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+  busy: boolean;
+}) {
+  const rise = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(rise, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+  }, [rise]);
+
+  const canSave = !busy && value.trim().length > 0;
+
+  return (
+    <Animated.View
+      style={[
+        styles.addRoomCard,
+        {
+          opacity: rise,
+          transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
+        },
+      ]}>
+      <View style={styles.addRoomCardHead}>
+        <Text style={styles.addRoomCardTitle}>Ruangan baru</Text>
+        <Pressable onPress={onClose} disabled={busy} style={styles.addRoomCardClose} hitSlop={4}>
+          <X color={colors.inkSoft} size={14} strokeWidth={2} />
+        </Pressable>
+      </View>
+
+      <TextInput
+        style={styles.addRoomFormInput}
+        value={value}
+        onChangeText={onChange}
+        placeholder="mis. Teras Depan"
+        placeholderTextColor={colors.inkMuted}
+        autoFocus
+      />
+
+      <Text style={styles.addRoomCardHint}>Habis dibuat, tambahin jenis piketnya di kartu ruangan.</Text>
+
+      <Pressable
+        onPress={onSave}
+        disabled={!canSave}
+        style={[styles.addRoomSaveBtn, canSave && styles.addRoomSaveBtnOn]}>
+        <Text style={[styles.addRoomSaveBtnText, canSave && styles.addRoomSaveBtnTextOn]}>
+          Simpan ruangan
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/* ================= Helpers ================= */
+
+function copyInvite(code: string) {
+  toast.success(`Kode ${code} disalin.`);
+}
+
+function parseMoney(raw: string): number {
+  return parseInt(raw.replace(/\D/g, '') || '0', 10);
+}
+
+function EditField({ label, children, flex }: { label?: string; children: React.ReactNode; flex?: boolean }) {
+  return (
+    <View style={[styles.field, flex && styles.fieldFlex]}>
+      {label && <Text style={styles.fieldLabel}>{label}</Text>}
+      {children}
+    </View>
+  );
+}
+
+function EditMoneyField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={[styles.field, styles.fieldFlex]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="0"
+        placeholderTextColor={colors.inkMuted}
+        keyboardType="number-pad"
+        style={[styles.input, styles.moneyInput, { width: '100%' }]}
+      />
+    </View>
+  );
+}
+
+function CostRow({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <View style={styles.costRow}>
+      <Text style={styles.costLabel}>{label}</Text>
+      <Text style={[styles.costValue, danger && styles.costValueDanger]}>{value}</Text>
     </View>
   );
 }
@@ -565,191 +754,346 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
-  content: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 40, gap: 12 },
+  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40, gap: 18 },
 
-  infoCard: {
-    backgroundColor: colors.pine,
-    borderRadius: radius['2xl'],
-    padding: 16,
-    gap: 2,
-  },
-  infoName: { fontFamily: fontFamilies.display[600], fontSize: 16, color: colors.paper },
-  infoAlamat: { fontFamily: fontFamilies.body[400], fontSize: 11.5, color: colors.paper60 },
-
+  /* Kartu dasar */
   card: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius['2xl'],
-    padding: 16,
+    padding: 15,
     gap: 12,
   },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontFamily: fontFamilies.display[600], fontSize: 14, color: colors.ink },
-  editText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.pine },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  cardHeadText: { flex: 1, flexDirection: 'column', gap: 3 },
+  rumahNama: { fontFamily: fontFamilies.display[600], fontSize: 15, color: colors.ink, letterSpacing: -0.15 },
+  rumahAlamat: { fontFamily: fontFamilies.body[400], fontSize: 11, lineHeight: 15, color: colors.inkSoft },
+  editBtn: {
+    flex: 0,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+  },
+  editBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.ink },
 
+  /* Kode invite */
+  inviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: colors.paper,
+    borderRadius: radius.lg,
+    padding: 11,
+    paddingHorizontal: 12,
+  },
+  inviteCol: { flex: 1, flexDirection: 'column', gap: 2 },
+  inviteLabel: { fontFamily: fontFamilies.mono[500], fontSize: 9.5, letterSpacing: 1.1, textTransform: 'uppercase', color: colors.inkSoft },
+  inviteCode: { fontFamily: fontFamilies.mono[700], fontSize: 17, letterSpacing: 2.4, color: colors.ink },
+  copyBtn: {
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+  copyBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.paper },
+
+  /* Section biaya/rekening */
+  section: { flexDirection: 'column', gap: 8, borderTopWidth: 1, borderTopColor: colors.paper, paddingTop: 11 },
+  sectionTitle: { fontFamily: fontFamilies.display[600], fontSize: 12, color: colors.ink },
+  sectionSub: { fontFamily: fontFamilies.body[400], fontSize: 10, color: colors.inkMuted },
   costRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.paper,
     borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 11,
+  },
+  costLabel: { fontFamily: fontFamilies.body[500], fontSize: 11, color: colors.inkSoft },
+  costValue: { fontFamily: fontFamilies.mono[700], fontSize: 12, color: colors.ink },
+  costValueDanger: { color: colors.brick },
+  rekeningBox: {
+    backgroundColor: colors.mustardSoft,
+    borderRadius: radius.md,
     paddingVertical: 11,
     paddingHorizontal: 12,
+    gap: 2,
   },
-  costLabel: { fontFamily: fontFamilies.body[400], fontSize: 12, color: colors.inkSoft },
-  costValue: { fontFamily: fontFamilies.mono[700], fontSize: 13, color: colors.ink },
-  costValueDanger: { color: colors.brick },
-  costField: { gap: 6 },
-  costInput: {
-    fontFamily: fontFamilies.mono[600],
+  rekeningMain: { fontFamily: fontFamilies.mono[700], fontSize: 13, letterSpacing: 0.26, color: colors.ink },
+  rekeningName: { fontFamily: fontFamilies.body[500], fontSize: 11, color: colors.mustardText },
+
+  /* Edit mode */
+  editTitle: { fontFamily: fontFamilies.display[600], fontSize: 14, color: colors.ink },
+  editSectionLabel: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 11.5,
+    color: colors.ink,
+    borderTopWidth: 1,
+    borderTopColor: colors.paper,
+    paddingTop: 10,
+  },
+  editSectionSub: { fontFamily: fontFamilies.body[400], fontSize: 10, color: colors.inkMuted },
+  field: { gap: 5 },
+  fieldFlex: { flex: 1 },
+  fieldLabel: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: colors.inkSoft,
+  },
+  input: {
+    fontFamily: fontFamilies.body[500],
     fontSize: 13,
     color: colors.ink,
     backgroundColor: colors.paper,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
   },
-  rowActions: { flexDirection: 'row', gap: 10 },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  cancelText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.ink },
-  pineBtn: {
-    flex: 2,
+  moneyInput: { fontFamily: fontFamilies.mono[700], fontSize: 13 },
+  inputBank: { fontFamily: fontFamilies.body[600], fontSize: 12.5 },
+  inputNumber: { fontFamily: fontFamilies.mono[700], fontSize: 12.5 },
+  editRow: { flexDirection: 'row', gap: 9 },
+  editActions: { flexDirection: 'row', gap: 8 },
+  saveBtn: {
     backgroundColor: colors.pine,
-    borderRadius: radius.md,
-    paddingVertical: 11,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  pineBtnText: { fontFamily: fontFamilies.body[700], fontSize: 12, color: colors.paper },
-
-  rekeningBox: {
-    backgroundColor: colors.mustardSoft,
-    borderRadius: radius.md,
-    padding: 12,
-    gap: 2,
-  },
-  rekeningMain: { fontFamily: fontFamilies.mono[700], fontSize: 13, color: colors.mustardInkStrong },
-  rekeningName: { fontFamily: fontFamilies.body[400], fontSize: 11.5, color: colors.mustardInk },
-  qrisBtn: {
+  saveBtnFlex: { flex: 1 },
+  saveBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  cancelBtn: {
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  qrisBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.ink },
-
-  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  inviteBox: {
-    flex: 1,
-    backgroundColor: colors.paper,
-    borderRadius: radius.md,
+    borderRadius: 12,
     paddingVertical: 12,
+    paddingHorizontal: 15,
     alignItems: 'center',
   },
-  inviteCode: { fontFamily: fontFamilies.mono[700], fontSize: 20, letterSpacing: 4, color: colors.ink },
-  copyBtn: {
-    borderWidth: 1,
-    borderColor: colors.pine,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  copyText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.pine },
-  resetBtn: {
-    borderWidth: 1,
-    borderColor: colors.brick,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  resetText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.brick },
+  cancelBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
 
-  memberList: { gap: 10 },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  /* Section head */
+  sectionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2, paddingTop: 4 },
+  sectionHeadTitle: { fontFamily: fontFamilies.display[600], fontSize: 13, color: colors.ink },
+  sectionHeadMeta: { fontFamily: fontFamilies.mono[500], fontSize: 10, color: colors.inkSoft },
+  sectionDesc: { fontFamily: fontFamilies.body[400], fontSize: 10.5, lineHeight: 16, color: colors.inkSoft, paddingHorizontal: 2, marginTop: 6 },
+
+  /* List card + anggota */
+  listCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xl,
+    paddingVertical: 4,
+    paddingHorizontal: 13,
+    marginTop: 8,
   },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
+  memberDivider: { height: 1, backgroundColor: colors.paper },
   memberAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.pine,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  memberInitial: { fontFamily: fontFamilies.display[700], fontSize: 14, color: colors.paper },
-  memberInfo: { flex: 1, gap: 1 },
+  memberInitial: { fontFamily: fontFamilies.display[600], fontSize: 13, color: colors.paper },
+  memberInfo: { flex: 1, minWidth: 0, gap: 2 },
   memberName: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.ink },
-  memberSub: { fontFamily: fontFamilies.body[400], fontSize: 10.5, color: colors.inkSoft },
-  removeBtn: {
-    borderWidth: 1,
-    borderColor: colors.brick,
+  memberSub: { fontFamily: fontFamilies.mono[400], fontSize: 10.5, color: colors.inkSoft },
+  pjBadge: {
+    backgroundColor: colors.pine,
     borderRadius: radius.pill,
     paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
   },
-  removeText: { fontFamily: fontFamilies.body[600], fontSize: 10.5, color: colors.brick },
+  pjBadgeText: { fontFamily: fontFamilies.body[600], fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.paper },
+  moreBtn: { padding: 4 },
+  moreText: { fontFamily: fontFamilies.body[600], fontSize: 15, lineHeight: 15, color: colors.inkSoft },
 
-  roomList: { gap: 10 },
+  /* Ruangan */
+  roomList: { gap: 10, marginTop: 8 },
   roomCard: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    backgroundColor: colors.paper,
-    padding: 12,
-    gap: 8,
+    padding: 13,
+    gap: 10,
   },
-  roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  roomName: { fontFamily: fontFamilies.body[600], fontSize: 13.5, color: colors.ink },
-  roomActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  roomNav: { fontFamily: fontFamilies.mono[700], fontSize: 15, color: colors.ink },
-  roomRemove: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.brick },
-  jenisWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  jenisChip: {
+  roomHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  grip: { gap: 3, paddingVertical: 2 },
+  gripLine: { width: 13, height: 1.5, backgroundColor: colors.lineDash },
+  roomIndex: { fontFamily: fontFamilies.mono[500], fontSize: 10, color: colors.inkMuted },
+  roomName: { flex: 1, minWidth: 0, fontFamily: fontFamilies.body[600], fontSize: 14, letterSpacing: -0.14, color: colors.ink },
+  roomMeta: { fontFamily: fontFamilies.mono[500], fontSize: 10, color: colors.inkSoft },
+  roomActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  iconBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moveDown: { fontFamily: fontFamilies.body[600], fontSize: 11, lineHeight: 11, color: colors.inkSoft },
+  moveDownDisabled: { opacity: 0.35 },
+  roomRemove: { fontFamily: fontFamilies.body[500], fontSize: 15, lineHeight: 15, color: colors.inkMuted },
+  renameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  renameInput: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fontFamilies.body[600],
+    fontSize: 14,
+    color: colors.ink,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.pine,
+    borderRadius: radius.sm,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  renameDone: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: colors.pine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.pineSoft,
+    backgroundColor: colors.paper,
     borderRadius: radius.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingLeft: 8,
+    paddingRight: 9,
   },
-  jenisChipOff: { backgroundColor: colors.paperDeep, opacity: 0.7 },
-  jenisText: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.pineDeep },
-  jenisTextOff: { color: colors.inkMuted },
-  jenisToggle: { fontFamily: fontFamilies.mono[700], fontSize: 9, color: colors.mustardInk },
-  jenisRemove: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.brick },
-  jenisInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  chipOff: { opacity: 0.55 },
+  chipText: { fontFamily: fontFamilies.body[500], fontSize: 11.5, color: colors.ink },
+  chipTextOff: { color: colors.inkMuted },
+  chipRemove: { fontFamily: fontFamilies.body[500], fontSize: 12, lineHeight: 12, color: colors.inkMuted },
+  dashedBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.lineDash,
+    backgroundColor: colors.paper,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  dashedBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.pine },
+  jenisInputRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   jenisInput: {
     flex: 1,
-    fontFamily: fontFamilies.body[400],
-    fontSize: 12.5,
+    minWidth: 0,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 12,
     color: colors.ink,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 11,
+  },
+  jenisAddBtn: {
+    flexShrink: 0,
+    backgroundColor: colors.disabledBg,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+  },
+  jenisAddBtnOn: { backgroundColor: colors.pine },
+  jenisAddBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.disabledFg },
+  jenisAddBtnTextOn: { color: colors.paper },
+  jenisCancelBtn: {
+    flexShrink: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addRoomWrap: { marginTop: 12 },
+  addRoomCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    padding: 13,
+    gap: 10,
   },
-  addJenisBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    backgroundColor: colors.pine,
+  addRoomCardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  addRoomCardTitle: { fontFamily: fontFamilies.display[600], fontSize: 13, color: colors.ink },
+  addRoomCardClose: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.paper,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addJenisText: { fontFamily: fontFamilies.body[700], fontSize: 18, color: colors.paper },
+  addRoomFormInput: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paper,
+    borderRadius: radius.md,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  addRoomCardHint: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: colors.inkSoft,
+    maxWidth: 260,
+  },
+  addRoomSaveBtn: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.disabledBg,
+    alignItems: 'center',
+  },
+  addRoomSaveBtnOn: { backgroundColor: colors.pine },
+  addRoomSaveBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.disabledFg },
+  addRoomSaveBtnTextOn: { color: colors.paper },
+  addRoomBtn: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.ink,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+  },
+  addRoomBtnText: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.paper },
 });

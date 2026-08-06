@@ -33,7 +33,12 @@ export function ScreenHeader({
   const nama = data?.anggota?.nama ?? null;
 
   const resolvedKicker =
-    kicker ?? (rumahNama ? `Papan piket · ${rumahNama}` : 'Papan piket');
+    kicker ??
+    (onBack
+      ? 'Serumah'
+      : rumahNama
+        ? `Papan piket · ${rumahNama}`
+        : 'Papan piket');
 
   return (
     <View>

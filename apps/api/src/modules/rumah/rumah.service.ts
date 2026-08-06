@@ -116,6 +116,7 @@ export class RumahService {
           nama: true,
           fotoProfil: true,
           role: true,
+          createdAt: true,
         },
       }),
     ]);
@@ -138,6 +139,8 @@ export class RumahService {
     const rumah = await this.prisma.rumah.update({
       where: { id: anggota.rumahId },
       data: {
+        nama: dto.nama,
+        alamat: dto.alamat,
         biayaKos: dto.biayaKos,
         biayaWifi: dto.biayaWifi,
         biayaListrikWajib: dto.biayaListrikWajib,

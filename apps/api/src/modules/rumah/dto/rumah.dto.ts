@@ -27,6 +27,16 @@ export class JoinRumahDto {
 }
 
 export class UpdateRumahDto {
+  @IsString({ message: 'Nama kos harus berupa teks.' })
+  @IsOptional()
+  @MaxLength(100, { message: 'Nama kos maksimal 100 karakter.' })
+  nama?: string;
+
+  @IsString({ message: 'Alamat harus berupa teks.' })
+  @IsOptional()
+  @MaxLength(255, { message: 'Alamat maksimal 255 karakter.' })
+  alamat?: string;
+
   @IsInt({ message: 'Biaya kos harus berupa angka.' })
   @IsOptional()
   @Min(0, { message: 'Biaya kos tidak boleh negatif.' })

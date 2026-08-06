@@ -1,9 +1,12 @@
 import { ArrowLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { Image as ExpoImage } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useProfile } from '@/features/profile/api/profile';
+import { mediaSource } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -51,7 +54,7 @@ export function ScreenHeader({
             {title}
           </Text>
         </View>
-        {right ?? (showAvatar ? <AvatarChip nama={nama} /> : null)}
+        {right ?? (showAvatar ? <AvatarChip nama={nama} fotoProfil={data?.anggota?.fotoProfil ?? null} /> : null)}
       </View>
       {onBack != null && (
         <Pressable onPress={onBack} style={styles.backRow} hitSlop={6}>
@@ -63,12 +66,24 @@ export function ScreenHeader({
   );
 }
 
-export function AvatarChip({ nama }: { nama?: string | null }) {
+export function AvatarChip({
+  nama,
+  fotoProfil,
+}: {
+  nama?: string | null;
+  fotoProfil?: string | null;
+}) {
   const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const source = mediaSource(fotoProfil, token);
   return (
     <Pressable onPress={() => router.push('/profile')} style={styles.avatarChip}>
       <View style={styles.avatarCircle}>
-        <Text style={styles.avatarInitial}>{nama?.charAt(0)?.toUpperCase() ?? '?'}</Text>
+        {source ? (
+          <ExpoImage source={source} style={styles.avatarImage} contentFit="cover" />
+        ) : (
+          <Text style={styles.avatarInitial}>{nama?.charAt(0)?.toUpperCase() ?? '?'}</Text>
+        )}
       </View>
       <Text style={styles.avatarName} numberOfLines={1}>
         {nama ?? 'Kamu'}
@@ -119,6 +134,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pine,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarInitial: { fontFamily: fontFamilies.display[600], fontSize: 11, color: colors.paper },
   avatarName: {

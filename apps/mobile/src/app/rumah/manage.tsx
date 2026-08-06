@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, X } from 'lucide-react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +9,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/stores/toast-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { mediaSource } from '@/lib/api-client';
 import { useGenerateRestOfWeek, useDashboard } from '@/features/dashboard/api/dashboard';
 import {
   apiCreateJenisPiket,
@@ -360,6 +363,7 @@ function MembersSection({
   isAdmin: boolean;
 }) {
   const invalidate = useProfileInvalidate();
+  const token = useAuthStore((s) => s.token);
   const [removeTarget, setRemoveTarget] = useState<RumahManageMember | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -390,7 +394,15 @@ function MembersSection({
             {index > 0 && <View style={styles.memberDivider} />}
             <View style={styles.memberRow}>
               <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>{m.nama.charAt(0).toUpperCase()}</Text>
+                {m.fotoProfil ? (
+                  <ExpoImage
+                    source={mediaSource(m.fotoProfil, token)}
+                    style={styles.memberAvatarImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Text style={styles.memberInitial}>{m.nama.charAt(0).toUpperCase()}</Text>
+                )}
               </View>
               <View style={styles.memberInfo}>
                 <Text style={styles.memberName}>{m.nama}</Text>
@@ -994,6 +1006,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pine,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  memberAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   memberInitial: { fontFamily: fontFamilies.display[600], fontSize: 13, color: colors.paper },
   memberInfo: { flex: 1, minWidth: 0, gap: 2 },

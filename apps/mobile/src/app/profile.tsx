@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   apiChangePassword,
   apiLeaveRumah,
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const [alamat, setAlamat] = useState('');
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<'logout' | 'leave' | null>(null);
 
   const anggota = data?.anggota ?? null;
   const rumah = data?.rumah ?? null;
@@ -138,21 +140,11 @@ export default function ProfileScreen() {
   };
 
   const onLogout = () => {
-    Alert.alert('Keluar', 'Yakin mau keluar?', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Keluar', style: 'destructive', onPress: () => void logout() },
-    ]);
+    setConfirm('logout');
   };
 
   const onLeaveRumah = () => {
-    Alert.alert('Keluar dari rumah', 'Yakin mau keluar dari kos ini?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Keluar',
-        style: 'destructive',
-        onPress: () => void leaveRumah(),
-      },
-    ]);
+    setConfirm('leave');
   };
 
   const leaveRumah = async () => {
@@ -306,6 +298,28 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={confirm != null}
+        title={confirm === 'leave' ? 'Keluar dari rumah' : 'Keluar aplikasi'}
+        message={
+          confirm === 'leave'
+            ? 'Lo bakal keluar dari kos ini dan kehilangan akses ke datanya. Yakin?'
+            : 'Sesi lo bakal ditutup. Lo bisa masuk lagi kapan aja.'
+        }
+        confirmText={confirm === 'leave' ? 'Keluar' : 'Logout'}
+        danger
+        busy={busy}
+        onConfirm={() => {
+          if (confirm === 'leave') {
+            void leaveRumah();
+          } else {
+            void logout();
+          }
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      />
     </SafeAreaView>
   );
 }

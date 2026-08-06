@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
 import { LogOut, Pencil, X } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
   const statsQuery = useStats();
   const invalidate = useProfileInvalidate();
   const logout = useAuthStore((s) => s.clear);
+  const queryClient = useQueryClient();
   const setOnboarding = useAuthStore((s) => s.setOnboarding);
   const router = useRouter();
 
@@ -358,6 +360,7 @@ export default function ProfileScreen() {
             void leaveRumah();
           } else {
             void (async () => {
+              queryClient.clear();
               await logout();
               router.replace('/(auth)/welcome');
             })();

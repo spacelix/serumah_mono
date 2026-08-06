@@ -39,7 +39,7 @@ export class DashboardService {
     const anggota = await this.scope.requireAnggota(payload.userId);
     if (!anggota.rumahId) {
       return {
-        weekend: { saturday: null, sunday: null, frozen: false },
+        weekend: { saturday: null, sunday: null, frozen: false, anggotaLain: [] },
         galon: { giliran: null, namaAnggota: null },
         billing: { totalUnpaid: 0, countUnpaid: 0, bulan: null },
         scheduleWeek: [],
@@ -49,17 +49,18 @@ export class DashboardService {
       };
     }
 
-    const [galon, weekend, billing, scheduleWeek, scheduleIncomplete] =
+    const [galon, weekend, anggotaLain, billing, scheduleWeek, scheduleIncomplete] =
       await Promise.all([
         this.galonService.current(payload),
         this.getWeekend(payload.userId),
+        this.getAnggotaLain(anggota.rumahId, anggota.id),
         this.getBilling(anggota.id),
         this.getScheduleWeek(anggota.rumahId),
         this.isWeekIncomplete(anggota.rumahId),
       ]);
 
     return {
-      weekend,
+      weekend: { ...weekend, anggotaLain },
       galon,
       billing,
       scheduleWeek,
@@ -84,6 +85,38 @@ export class DashboardService {
       sunday: fetch('minggu'),
       frozen: this.isFrozen(monday),
     };
+  }
+
+  /**
+   * Status weekend semua anggota lain di rumah (untuk card weekend Beranda).
+   * Label per anggota: "Di kos weekend" bila ada satu hari di kos, "Pulang"
+   * bila dua-duanya pulang, "Belum pilih" bila belum ada status.
+   */
+  private async getAnggotaLain(
+    rumahId: string,
+    excludeAnggotaId: string,
+  ): Promise<{ id: string; nama: string; status: string }[]> {
+    const monday = this.mondayOf(new Date());
+    const [members, rows] = await Promise.all([
+      this.prisma.anggota.findMany({
+        where: { rumahId },
+        orderBy: { nama: 'asc' },
+        select: { id: true, nama: true },
+      }),
+      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
+    ]);
+
+    return members
+      .filter((m) => m.id !== excludeAnggotaId)
+      .map((m) => {
+        const mine = rows.filter((r) => r.anggotaId === m.id);
+        const sabtu = mine.find((r) => r.hari === 'sabtu')?.status;
+        const minggu = mine.find((r) => r.hari === 'minggu')?.status;
+        let status = 'Belum pilih';
+        if (sabtu === 'di_kos' || minggu === 'di_kos') status = 'Di kos weekend';
+        else if (sabtu === 'pulang' && minggu === 'pulang') status = 'Pulang';
+        return { id: m.id, nama: m.nama, status };
+      });
   }
 
   private isFrozen(monday: Date): boolean {
@@ -191,6 +224,12 @@ export class DashboardService {
       }),
       this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
     ]);
+
+    // Pekan belum punya jadwal sama sekali → kosong; Beranda menampilkan
+    // empty state (anggota) / banner pengingat (admin) alih-alih baris palsu.
+    if (jadwal.length === 0) {
+      return [];
+    }
 
     const jadwalByDate = new Map(jadwal.map((j) => [this.key(j.tanggal), j]));
     const diKosByHari = new Map<'sabtu' | 'minggu', boolean>();

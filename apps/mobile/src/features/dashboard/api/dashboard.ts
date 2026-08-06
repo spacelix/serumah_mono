@@ -8,6 +8,7 @@ export interface WeekendInfo {
   saturday: WeekendChoice | null;
   sunday: WeekendChoice | null;
   frozen: boolean;
+  anggotaLain: { id: string; nama: string; status: string }[];
 }
 
 export interface GalonInfo {

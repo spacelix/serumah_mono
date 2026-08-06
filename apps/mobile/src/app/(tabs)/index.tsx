@@ -13,7 +13,7 @@ import {
   type WeekendChoice,
   type WeekDayKey,
 } from '@/features/dashboard/api/dashboard';
-import { formatCurrency, formatShortDate } from '@/lib/format';
+import { formatCurrency, formatShortDate, formatWeekdayDate } from '@/lib/format';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -84,59 +84,112 @@ function WeekendCard({ data }: { data: DashboardData }) {
     set(day, current === 'di_kos' ? 'pulang' : 'di_kos');
   };
 
+  const sabtuDate = weekendDate(5);
+  const mingguDate = weekendDate(6);
+
   return (
     <View style={styles.weekendCard}>
-      <Text style={styles.weekendKicker}>MINGGU INI</Text>
-      <Text style={styles.weekendTitle}>Lo di kos atau pulang?</Text>
+      <View style={styles.weekendHead}>
+        <Text style={styles.weekendTitle}>Weekend ini lo di kos?</Text>
+        <View style={styles.weekendDeadline}>
+          <Text style={styles.weekendDeadlineText}>Deadline Jum 20:00</Text>
+        </View>
+      </View>
+      <Text style={styles.weekendSub}>
+        Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.
+      </Text>
       <View style={styles.weekendDays}>
-        <DayToggle
-          label="Sabtu"
+        <WeekendDayRow
+          label={formatWeekdayDate(sabtuDate)}
           value={data.weekend.saturday}
           frozen={data.weekend.frozen}
-          onPress={() => toggle('sabtu')}
+          onPick={(status) => set('sabtu', status)}
         />
-        <DayToggle
-          label="Minggu"
+        <WeekendDayRow
+          label={formatWeekdayDate(mingguDate)}
           value={data.weekend.sunday}
           frozen={data.weekend.frozen}
-          onPress={() => toggle('minggu')}
+          onPick={(status) => set('minggu', status)}
         />
       </View>
+      {data.weekend.anggotaLain.length > 0 && (
+        <View style={styles.weekendOthers}>
+          <Text style={styles.weekendOthersLabel}>ANGGOTA LAIN</Text>
+          <View style={styles.weekendOthersList}>
+            {data.weekend.anggotaLain.map((m) => (
+              <Text
+                key={m.id}
+                style={[
+                  styles.weekendOtherItem,
+                  m.status === 'Pulang' && styles.weekendOtherItemMuted,
+                ]}>
+                {m.nama} · {m.status}
+              </Text>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
-function DayToggle({
+function weekendDate(dowOffset: number): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = (day + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  const target = new Date(monday);
+  target.setDate(monday.getDate() + dowOffset);
+  return target.toISOString();
+}
+
+function WeekendDayRow({
   label,
   value,
   frozen,
-  onPress,
+  onPick,
 }: {
   label: string;
   value: WeekendChoice | null;
   frozen: boolean;
-  onPress: () => void;
+  onPick: (status: WeekendChoice) => void;
 }) {
+  const pick = (status: WeekendChoice) => {
+    if (frozen) {
+      Alert.alert('Status dibekukan', 'Status akhir pekan sudah dibekukan (Jumat 20:00).');
+      return;
+    }
+    onPick(status);
+  };
+
   return (
-    <View style={styles.dayCol}>
-      <Text style={styles.dayLabel}>{label}</Text>
-      <View style={styles.toggleTrack}>
+    <View style={styles.weekendDayRow}>
+      <Text style={styles.weekendDayLabel}>{label}</Text>
+      <View style={styles.weekendDayBtns}>
         <Pressable
-          onPress={onPress}
-          style={[styles.seg, value === 'di_kos' && styles.segActive]}>
-          <Text style={[styles.segText, value === 'di_kos' && styles.segActiveText]}>
+          onPress={() => pick('di_kos')}
+          style={[styles.weekendDayBtn, value === 'di_kos' && styles.weekendDayBtnActive]}>
+          <Text
+            style={[
+              styles.weekendDayBtnText,
+              value === 'di_kos' && styles.weekendDayBtnTextActive,
+            ]}>
             Di kos
           </Text>
         </Pressable>
         <Pressable
-          onPress={onPress}
-          style={[styles.seg, value === 'pulang' && styles.segActive]}>
-          <Text style={[styles.segText, value === 'pulang' && styles.segActiveText]}>
+          onPress={() => pick('pulang')}
+          style={[styles.weekendDayBtn, value === 'pulang' && styles.weekendDayBtnActive]}>
+          <Text
+            style={[
+              styles.weekendDayBtnText,
+              value === 'pulang' && styles.weekendDayBtnTextActive,
+            ]}>
             Pulang
           </Text>
         </Pressable>
       </View>
-      {frozen && <Text style={styles.frozenNote}>terkunci</Text>}
     </View>
   );
 }
@@ -200,11 +253,22 @@ function ScheduleList({ data }: { data: DashboardData }) {
   return (
     <View style={styles.scheduleBlock}>
       <Text style={styles.sectionKicker}>JADWAL PIKET · PEKAN INI</Text>
-      <View style={styles.scheduleList}>
-        {data.scheduleWeek.map((row) => (
-          <ScheduleRowItem key={row.tanggal} row={row} />
-        ))}
-      </View>
+      {data.scheduleWeek.length === 0 ? (
+        <View style={styles.scheduleEmpty}>
+          <Text style={styles.scheduleEmptyTitle}>Belum ada jadwal pekan ini</Text>
+          <Text style={styles.scheduleEmptySub}>
+            {data.isAdmin
+              ? 'Klik banner di atas buat generate jadwal.'
+              : 'Tunggu PJ Kos membuat jadwal piket pekan ini.'}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.scheduleList}>
+          {data.scheduleWeek.map((row) => (
+            <ScheduleRowItem key={row.tanggal} row={row} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -311,30 +375,77 @@ const styles = StyleSheet.create({
     borderRadius: radius['3xl'],
     padding: 16,
     paddingBottom: 14,
-    gap: 4,
+    gap: 6,
   },
-  weekendKicker: { ...type.kicker, color: colors.paper },
-  weekendTitle: { fontFamily: fontFamilies.display[600], fontSize: 17, lineHeight: 22, color: colors.paper },
-  weekendDays: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  dayCol: { flex: 1, gap: 6 },
-  dayLabel: { ...type.kicker, fontSize: 9.5, color: colors.paper },
-  toggleTrack: {
+  weekendHead: {
     flexDirection: 'row',
-    backgroundColor: colors.paperDeep,
-    borderRadius: 13,
-    padding: 3,
-    gap: 4,
-  },
-  seg: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 9,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  segActive: { backgroundColor: colors.ink },
-  segText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.inkSoft },
-  segActiveText: { color: colors.paper },
-  frozenNote: { ...type.body, fontSize: 9.5, color: colors.paper, textAlign: 'center' },
+  weekendTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 14.5,
+    letterSpacing: -0.01,
+    color: colors.paper,
+    flexShrink: 1,
+  },
+  weekendDeadline: {
+    borderWidth: 1,
+    borderColor: 'rgba(239, 234, 224, 0.4)',
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  weekendDeadlineText: {
+    ...type.kicker,
+    fontSize: 9.5,
+    color: colors.paper,
+  },
+  weekendSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: 'rgba(239, 234, 224, 0.72)',
+    marginBottom: 6,
+  },
+  weekendDays: { flexDirection: 'column', gap: 8 },
+  weekendDayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    backgroundColor: 'rgba(239, 234, 224, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 8,
+  },
+  weekendDayLabel: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  weekendDayBtns: { flexDirection: 'row', gap: 5 },
+  weekendDayBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 9,
+    backgroundColor: 'rgba(239, 234, 224, 0.14)',
+  },
+  weekendDayBtnActive: { backgroundColor: colors.paper },
+  weekendDayBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: 'rgba(239, 234, 224, 0.8)' },
+  weekendDayBtnTextActive: { color: colors.pineDeep },
+  weekendOthers: { marginTop: 11, gap: 7 },
+  weekendOthersLabel: {
+    ...type.kicker,
+    fontSize: 9.5,
+    color: 'rgba(239, 234, 224, 0.5)',
+  },
+  weekendOthersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  weekendOtherItem: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 10.5,
+    color: colors.paper,
+    marginRight: 5,
+  },
+  weekendOtherItemMuted: { color: 'rgba(239, 234, 224, 0.55)' },
   galonCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
@@ -373,6 +484,18 @@ const styles = StyleSheet.create({
   billingPaid: { color: colors.inkSoft },
   scheduleBlock: { gap: 8 },
   sectionKicker: { ...type.kicker, fontSize: 9.5, color: colors.inkMuted },
+  scheduleEmpty: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+    borderRadius: radius.xl,
+    padding: 18,
+    alignItems: 'center',
+    gap: 5,
+  },
+  scheduleEmptyTitle: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.ink },
+  scheduleEmptySub: { fontFamily: fontFamilies.body[400], fontSize: 11, lineHeight: 16, color: colors.inkSoft, textAlign: 'center' },
   scheduleList: { gap: 8 },
   scheduleRow: {
     backgroundColor: colors.card,

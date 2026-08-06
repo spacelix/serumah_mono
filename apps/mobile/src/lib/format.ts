@@ -22,3 +22,15 @@ export function formatLongDate(iso: string): string {
     year: 'numeric',
   }).format(date);
 }
+
+/** "Sabtu, 1 Agu" — for weekend day rows */
+export function formatWeekdayDate(iso: string): string {
+  const date = new Date(iso);
+  return new Intl.DateTimeFormat('id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+    .format(date)
+    .replace('.', '');
+}

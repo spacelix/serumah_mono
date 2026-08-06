@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { queryClient } from '@/lib/query-client';
 
 const TOKEN_KEY = 'serumah_token';
 const USER_KEY = 'serumah_user';
@@ -63,6 +64,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const me = await apiMe(session.token);
       const hasProfile = me.anggota != null;
       const hasRumah = (me.anggota?.rumahId ?? null) != null;
+      queryClient.clear();
       await useAuthStore.getState().setSession(session.token, session.user, hasProfile, hasRumah);
     } finally {
       set({ loading: false });
@@ -74,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const session = await apiRegister(email, password);
+      queryClient.clear();
       await useAuthStore.getState().setSession(session.token, session.user, false, false);
     } finally {
       set({ loading: false });

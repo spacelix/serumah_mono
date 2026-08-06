@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -9,16 +9,11 @@ import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
+import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSerumahFonts } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
-  },
-});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

@@ -13,7 +13,7 @@ Module: `denda`.
 
 | Method | Path | Request | Response | Notes |
 |---|---|---|---|---|
-| GET | `/denda?bulan=YYYY-MM` | — | `Denda[]` + member names | Month filter. |
+| GET | `/denda?bulan=YYYY-MM` | — | `{ qrisUrl, denda: Denda[] }` + member names | Month filter. `qrisUrl` from `rumah.qrisUrl` for the "Show QRIS" button. |
 | POST | `/denda/:id/upload-bukti` | `{ buktiUrl }` | `{ status, receiverId }` | Validate owner + status `belum_bayar`. **PJ/Admin → status directly `lunas`** (receiverId = self). Member → `menunggu_konfirmasi` + `bayarKeAnggotaId` = active PJ of the rumah. |
 | POST | `/denda/:id/approve` | — (admin) | `{ denda }` | Insert `PembayaranApproval` approved + `lunas`. |
 | POST | `/denda/:id/reject` | — (admin) | `{ denda }` | Insert approval rejected + reset `belum_bayar`, `bayarKeAnggotaId` null, `buktiBayar` null. |

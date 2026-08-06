@@ -28,13 +28,22 @@ export class ListrikService {
 
   async list(payload: CurrentUserPayload, bulan?: string) {
     const anggota = await this.scope.requireAnggota(payload.userId);
-    if (!anggota.rumahId) return { records: [], anggotaCount: 0, myTotal: 0 };
+    if (!anggota.rumahId) {
+      return {
+        records: [],
+        nameMap: {},
+        total: 0,
+        myBought: 0,
+        nAnggota: 0,
+        myCredit: 0,
+      };
+    }
 
     const month = bulan
       ? this.monthFromString(bulan)
       : this.firstOfMonth(new Date());
 
-    const [records, membersOfThisMonth] = await Promise.all([
+    const [records, allMembers] = await Promise.all([
       this.prisma.pembayaranListrik.findMany({
         where: { rumahId: anggota.rumahId, bulan: month },
         include: { anggota: { select: { id: true, nama: true, kamar: true } } },
@@ -42,18 +51,19 @@ export class ListrikService {
       }),
       this.prisma.anggota.findMany({
         where: { rumahId: anggota.rumahId },
-        select: { id: true },
+        select: { id: true, nama: true },
       }),
     ]);
 
-    const n = membersOfThisMonth.length;
-    const myTotal = records
+    const n = allMembers.length;
+    const nameMap = Object.fromEntries(allMembers.map((m) => [m.id, m.nama]));
+
+    const total = records.reduce((sum, r) => sum + r.nominal, 0);
+    const myBought = records
       .filter((r) => r.anggotaId === anggota.id)
       .reduce((sum, r) => sum + r.nominal, 0);
 
-    const totalBelanja = records.reduce((sum, r) => sum + r.nominal, 0);
-
-    // Buyer credit applied to next month = sum(nominal − share) per own record.
+    // Buyer's own credit toward next month = sum(nominal − share) per record.
     const myCredit = records
       .filter((r) => r.anggotaId === anggota.id)
       .reduce(
@@ -73,9 +83,10 @@ export class ListrikService {
         createdAt: r.createdAt,
         share: n > 0 ? Math.floor(r.nominal / n) : 0,
       })),
-      anggotaCount: n,
-      totalBelanja,
-      myTotal,
+      nameMap,
+      total,
+      myBought,
+      nAnggota: n,
       myCredit,
     };
   }

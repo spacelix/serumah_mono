@@ -55,6 +55,8 @@ Update after every completed feature. Any agent reading this should immediately 
 - [x] Cron (auto-fine, weekend freeze)
 - [x] Update manifest
 
+**Post-build review fixes (2026-08-06):** weekend/daily auto-fine cron no longer gated by `isPiketDay` (any scheduled day is fined; off days have no `Jadwal` so naturally skipped); added admin-guarded `POST /schedule/run-weekend-freeze` + auto `freezeWeekendCron` (Fri 20:00) to generate the weekend roster; aligned `GET /listrik` → `{ records, nameMap, total, myBought, nAnggota }` and `GET /iuran` → `{ iuranList, pelunasan, rumah }` with docs; extracted pure `computeListrikAdjustment` (`src/modules/iuran/iuran.math.ts` + specs) to cover split-credit arithmetic. Full `turbo run build lint typecheck test` green.
+
 ### Phase M4 — Mobile: Auth & Onboarding
 
 - [x] Expo theme + router + authStore guard

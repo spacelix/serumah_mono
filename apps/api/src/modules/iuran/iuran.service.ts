@@ -13,6 +13,7 @@ import {
   PelunasanDto,
   UploadBuktiTotalDto,
 } from './dto/iuran.dto';
+import { computeListrikAdjustment } from './iuran.math';
 
 type Kategori = 'kos' | 'wifi' | 'listrik_wajib';
 
@@ -36,8 +37,8 @@ const KATEGORI: {
 
 interface ListrikAdjustment {
   total: number;
-  buyerMap: Map<string, number>; // buyer → credit (nominal − share)
-  nonBuyerMap: Map<string, number>; // non-buyer → +share per record
+  buyerMap: Map<string, number>;
+  nonBuyerMap: Map<string, number>;
 }
 
 @Injectable()
@@ -76,7 +77,9 @@ export class IuranService {
 
   async list(payload: CurrentUserPayload, bulan?: string) {
     const anggota = await this.scope.requireAnggota(payload.userId);
-    if (!anggota.rumahId) return { iuran: [], pelunasan: [], rumah: null };
+    if (!anggota.rumahId) {
+      return { iuranList: [], pelunasan: [], rumah: null };
+    }
 
     const month = bulan
       ? this.monthFromString(bulan)
@@ -106,7 +109,7 @@ export class IuranService {
     });
 
     return {
-      iuran,
+      iuranList: iuran,
       pelunasan,
       rumah: {
         totalPerBulan:
@@ -146,10 +149,7 @@ export class IuranService {
     if (members.length === 0) return { created: 0, updated: 0 };
 
     // Extra electricity bought last month adjusts this month's listrik_wajib.
-    const adjustment = await this.computeListrikAdjustment(
-      rumahId,
-      this.prevMonth(month),
-    );
+    const adjustment = await this.computeAdjustment(rumahId, month);
 
     let created = 0;
     let updated = 0;
@@ -307,45 +307,29 @@ export class IuranService {
     return { pelunasan };
   }
 
-  /** Next-month effects of extra electricity bought in `month`. */
-  private async computeListrikAdjustment(
+  /** Loads last month's electricity records and delegates to pure math. */
+  private async computeAdjustment(
     rumahId: string,
     month: Date,
   ): Promise<ListrikAdjustment> {
-    const records = await this.prisma.pembayaranListrik.findMany({
-      where: { rumahId, bulan: month },
-    });
-    const members = await this.prisma.anggota.findMany({
-      where: { rumahId },
-      select: { id: true },
-    });
-    const n = members.length;
+    const prev = this.prevMonth(month);
+    const [records, members] = await Promise.all([
+      this.prisma.pembayaranListrik.findMany({
+        where: { rumahId, bulan: prev },
+        select: { anggotaId: true, nominal: true },
+      }),
+      this.prisma.anggota.findMany({
+        where: { rumahId },
+        select: { id: true },
+      }),
+    ]);
 
-    const buyerMap = new Map<string, number>();
-    const nonBuyerMap = new Map<string, number>();
-    let total = 0;
-
-    for (const rec of records) {
-      total += rec.nominal;
-      if (n === 0) continue;
-      const share = Math.floor(rec.nominal / n);
-      buyerMap.set(
-        rec.anggotaId,
-        (buyerMap.get(rec.anggotaId) ?? 0) + (rec.nominal - share),
-      );
-    }
-
-    const buyerSet = new Set(records.map((r) => r.anggotaId));
-    for (const member of members) {
-      if (buyerSet.has(member.id)) continue;
-      let shareSum = 0;
-      for (const rec of records) {
-        shareSum += Math.floor(rec.nominal / n);
-      }
-      if (shareSum > 0) nonBuyerMap.set(member.id, shareSum);
-    }
-
-    return { total, buyerMap, nonBuyerMap };
+    const result = computeListrikAdjustment({ records, members });
+    return {
+      total: result.baseDelta,
+      buyerMap: result.buyerMap,
+      nonBuyerMap: result.nonBuyerMap,
+    };
   }
 
   private async requireReviewer(payload: CurrentUserPayload) {

@@ -286,22 +286,34 @@ export class ScheduleService {
   }
 
   // ── AUTO-FINE ───────────────────────────────────────────────────────
+  /**
+   * Daily 22:00. Fines ANY scheduled day (weekday or weekend) that has no
+   * submission — off days (Sel/Kamis) have no Jadwal so they are naturally
+   * skipped by autoFineForRumah.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_10PM)
   async runAutoFineCron(): Promise<void> {
     const today = new Date();
-    if (!this.isPiketDay(today)) return;
     await this.autoFineProcess(today);
   }
 
-  /** Manual guarded endpoint: runs the fine pass for a specific piket date. */
+  /** Manual guarded endpoint: runs the fine pass for a specific date. */
   async runAutoFine(payload: CurrentUserPayload, rawDate?: string) {
     const anggota = await this.requirePj(payload);
     const target = rawDate ? this.toDate(rawDate) : this.toDate(new Date());
-    if (!this.isPiketDay(target)) {
-      throw new BadRequestException('Tanggal bukan hari piket.');
-    }
     const fined = await this.autoFineForRumah(anggota.rumahId!, target);
     return { fined };
+  }
+
+  /** Manual guarded endpoint: freezes this week's weekend roster in place. */
+  async runWeekendFreeze(payload: CurrentUserPayload) {
+    const anggota = await this.requirePj(payload);
+    const monday = this.mondayOf(new Date());
+    for (const offset of [5, 6]) {
+      const day = this.addDays(monday, offset);
+      await this.ensureWeekend(anggota.rumahId!, day);
+    }
+    return { message: 'Jadwal akhir pekan telah dibekukan.' };
   }
 
   private async autoFineProcess(date: Date): Promise<number> {
@@ -326,6 +338,24 @@ export class ScheduleService {
     }
     this.logger.log(
       `[ScheduleService] Pra-generasi jadwal pekan ${monday.toISOString()}`,
+    );
+  }
+
+  /**
+   * Freeze weekend roster Friday 20:00 (per spec). After statuses are frozen
+   * the weekend Jadwal for Sat+Sun is generated for every rumah.
+   */
+  @Cron('0 20 * * 5')
+  async freezeWeekendCron(): Promise<void> {
+    const monday = this.mondayOf(new Date());
+    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
+    for (const rumah of rumahs) {
+      for (const offset of [5, 6]) {
+        await this.ensureWeekend(rumah.id, this.addDays(monday, offset));
+      }
+    }
+    this.logger.log(
+      `[ScheduleService] Jadwal akhir pekan dibekukan ${monday.toISOString()}`,
     );
   }
 

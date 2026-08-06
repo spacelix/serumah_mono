@@ -45,4 +45,10 @@ export class ScheduleController {
   ) {
     return this.scheduleService.runAutoFine(payload, tanggal);
   }
+
+  @Post('run-weekend-freeze')
+  @Roles('admin')
+  runWeekendFreeze(@CurrentUser() payload: CurrentUserPayload) {
+    return this.scheduleService.runWeekendFreeze(payload);
+  }
 }

@@ -6,6 +6,17 @@ const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export const apiClient = axios.create({ baseURL });
 
+export async function apiCheckHealth(timeoutMs = 4000): Promise<boolean> {
+  try {
+    const response = await apiClient.get<{ status: string }>('/health', {
+      timeout: timeoutMs,
+    });
+    return response.data.status === 'ok';
+  } catch {
+    return false;
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {

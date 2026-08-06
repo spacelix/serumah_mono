@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { SplashScreen as SerumahSplash } from '@/components/splash/splash-screen';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
+import { apiCheckHealth } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSerumahFonts } from '@/theme/typography';
 
@@ -24,14 +25,23 @@ export default function RootLayout() {
   const { decision, checking, dismissed, dismiss } = useUpdateCheck();
   const stage = useAuthStore((s) => s.stage);
   const hydrate = useAuthStore((s) => s.hydrate);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    void hydrate().finally(() => {
-      void SplashScreen.hideAsync();
+    let cancelled = false;
+    const minimum = new Promise<void>((resolve) => setTimeout(resolve, 1400));
+    void Promise.all([hydrate(), minimum, apiCheckHealth()]).then(() => {
+      if (!cancelled) {
+        setReady(true);
+        void SplashScreen.hideAsync();
+      }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [hydrate]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !ready) {
     return <SerumahSplash />;
   }
 

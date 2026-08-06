@@ -93,7 +93,12 @@ export class StorageController {
       file.mimetype,
     );
 
-    return { url, key };
+    /**
+     * The avatar object key is deterministic, so its URL is identical on every
+     * upload. Append a version so the mobile client (expo-image) doesn't serve
+     * the old photo from its cache after a re-upload.
+     */
+    return { url: `${url}?v=${Date.now()}`, key };
   }
 
   private extensionOf(filename: string): string {

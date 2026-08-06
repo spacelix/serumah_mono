@@ -51,6 +51,7 @@ export async function apiUploadAvatar(uri: string): Promise<string> {
   } as unknown as Blob);
   const response = await apiClient.post('/storage/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 45_000,
   });
   return response.data.url as string;
 }

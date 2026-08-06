@@ -4,7 +4,16 @@ import { useAuthStore } from '@/stores/auth-store';
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-export const apiClient = axios.create({ baseURL });
+export const apiClient = axios.create({
+  baseURL,
+  timeout: 15_000,
+});
+
+/**
+ * Timeout for upload requests (multipart) — longer than the default since
+ * image uploads can be slow; prevents indefinite hangs on a stalled MinIO/API.
+ */
+export const UPLOAD_TIMEOUT_MS = 45_000;
 
 /**
  * Resolve a storage path (e.g. `/storage/stream/...`) to a full URL against

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { SplashScreen as SerumahSplash } from '@/components/splash/splash-screen';
+import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
@@ -60,15 +61,16 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
           </Stack>
         )}
-        {manifest && (
-          <UpdateDialog
-            visible={!checking && !dismissed && updateVisible}
-            force={decision.type === 'force'}
-            manifest={manifest}
-            onDismiss={dismiss}
-          />
-        )}
-      </ThemeProvider>
-    </QueryClientProvider>
+          {manifest && (
+            <UpdateDialog
+              visible={!checking && !dismissed && updateVisible}
+              force={decision.type === 'force'}
+              manifest={manifest}
+              onDismiss={dismiss}
+            />
+          )}
+        </ThemeProvider>
+        <Toaster />
+      </QueryClientProvider>
   );
 }

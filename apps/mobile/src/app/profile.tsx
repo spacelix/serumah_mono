@@ -20,6 +20,7 @@ import {
 } from '@/features/profile/api/profile';
 import { formatCurrency, formatLongDate } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/stores/toast-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -84,7 +85,7 @@ export default function ProfileScreen() {
     setPwSaving(true);
     try {
       await apiChangePassword(pwLama, pwBaru);
-      Alert.alert('Berhasil', 'Password lo udah diganti.');
+      toast.success('Password lo udah diganti.');
       setPwLama('');
       setPwBaru('');
       setPwKonfirmasi('');
@@ -131,9 +132,9 @@ export default function ProfileScreen() {
       });
       invalidate();
       setEditing(false);
-      Alert.alert('Tersimpan', 'Profil berhasil diperbarui.');
+      toast.success('Profil berhasil diperbarui.');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan.');
     } finally {
       setSaving(false);
     }

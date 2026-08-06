@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.splashGreen,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 18,
+    gap: 6,
   },
   riseWrap: {
     alignItems: 'center',

@@ -353,7 +353,10 @@ export default function ProfileScreen() {
           if (confirm === 'leave') {
             void leaveRumah();
           } else {
-            void logout();
+            void (async () => {
+              await logout();
+              router.replace('/(auth)/welcome');
+            })();
           }
           setConfirm(null);
         }}

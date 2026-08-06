@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Redirect, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
@@ -54,6 +54,8 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         {stage === 'checking' ? (
           <SerumahSplash />
+        ) : stage === 'anonymous' ? (
+          <Redirect href="/(auth)/welcome" />
         ) : (
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(auth)" />

@@ -16,6 +16,7 @@ Module: `schedule`.
 |---|---|---|---|---|
 | GET | `/schedule/week?monday=YYYY-MM-DD` | — | `Jadwal[]` for that week | Defaults to current week. |
 | POST | `/schedule/generate/weekday` | — (admin) | `{ count }` | Generate next week round-robin (manual on-demand). |
+| POST | `/schedule/generate/rest-of-week` | — (admin) | `{ count }` | **First-time**: backfill the rest of the current week (today→Sunday, weekday + weekend from Di kos). Next week is handled by cron. |
 | POST | `/schedule/generate/weekend` | — (admin) | `{ count }` | Generate weekend from Di kos status. |
 | PUT | `/schedule/weekend-status` | `{ hari, status }` | `{ weekendStatus }` | Set Di kos/Pulang. Validates not yet frozen. |
 | POST | `/schedule/run-auto-fine` | — (internal) | `{ fined }` | Cron. Do not expose publicly without a service guard. |
@@ -40,7 +41,8 @@ Locked decisions (from the old phase, preserved):
 
 ## 5. UI Spec (React Native)
 - **ScheduleList** (Beranda): 7 rows, status tags (see dashboard).
-- **Rumah Management**: **"Generate Jadwal"** button (admin only) → calls `/schedule/generate/weekday` + `/weekend`.
+- **Rumah Management**: **"Generate Jadwal"** button (admin only) → calls `/schedule/generate/rest-of-week`. Card sits at the **bottom** of Kelola Rumah, **disabled** when the current week is already fully scheduled (`scheduleIncomplete` = false). Pekan depan is generated automatically by cron — the button only backfills today→Sunday.
+- **Beranda banner (PJ only, not in design):** brick-soft reminder shown when `isAdmin && scheduleIncomplete`. Tapping it opens `/rumah/manage?scrollTo=generate` which auto-scrolls to the Generate Jadwal card.
 
 ## 6. Constraints / Prohibited
 - Client CANNOT assign schedules — server only (prevents manipulation).

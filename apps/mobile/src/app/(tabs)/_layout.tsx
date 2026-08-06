@@ -25,6 +25,9 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: colors.card },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Beranda' }} />
+      <Tabs.Screen name="piket" options={{ title: 'Piket' }} />
+      <Tabs.Screen name="tagihan" options={{ title: 'Tagihan' }} />
+      <Tabs.Screen name="swap" options={{ title: 'Swap' }} />
     </Tabs>
   );
 }

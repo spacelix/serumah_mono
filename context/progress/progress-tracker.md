@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M5 — Mobile: Main Tabs (IN PROGRESS)
-**Last completed:** M5.1 Beranda — new NestJS `DashboardModule` (`GET /dashboard` → `{ weekend, galon, billing, scheduleWeek, memberName }`, injects Schedule+Galon services, weekend freeze flag); mobile `features/dashboard/api` (React Query hooks), `lib/format.ts` (id-ID currency/date), and the Beranda screen with WeekendCard (Di kos/Pulang toggle), GalonWidget (Sudah Beli), BillingSummary, ScheduleList (7 rows + status tags). Mobile lint + typecheck, API build/lint/typecheck/test green.
+**Last completed:** M5.3 Tagihan — 3-segment tab (Denda | Iuran | Listrik) with shared month picker (`‹ bulan ›`); DendaView (summary, BillCard with QRIS + Upload Bukti, Stamp status, PJ approval section Approve/Reject); IuranView (total card + per-category rows + Upload Bukti Bayar + PJ konfirmasi + rekening); ListrikView (summary + progress bar + split note + record form + record list); new `components/ui/stamp.tsx` (rotated status stamp) and shared `uploadProof` helper; tabs registered in `(tabs)/_layout.tsx` (Beranda/Piket/Tagihan/Swap). Mobile lint + typecheck green.
 
-**Next:** M5.2 Piket (per-room flow).
+**Next:** M5.4 Swap.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 

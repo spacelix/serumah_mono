@@ -10,7 +10,13 @@ export default function AuthLayout() {
   }
 
   if (stage !== 'anonymous') {
-    return <Redirect href="/(tabs)" />;
+    const href =
+      stage === 'ready'
+        ? '/(tabs)'
+        : stage === 'no-profile'
+          ? '/onboarding/profile'
+          : '/onboarding/create-rumah';
+    return <Redirect href={href} />;
   }
 
   return (

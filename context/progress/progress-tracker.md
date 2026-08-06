@@ -6,10 +6,10 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Current Status
 
-**Phase:** M3 — Backend Features (IN PROGRESS)
-**Last completed:** M3.7+M3.8 Cron & Update manifest — weekly pre-gen cron (Sat 06:00, `ensureWeekdayWeek` idempotent, Decision 5B), daily 22:00 auto-fine cron (skip Sel/Kamis), admin-guarded `run-auto-fine` with deterministic date; `GET /update/manifest` mirrors the GitHub `version.json` shape (`APP_VERSION_CODE/NAME/MIN/APK_URL` env-driven, `@Public`). Full `turbo run build lint typecheck test` green.
+**Phase:** M4 — Mobile: Auth & Onboarding (IN PROGRESS)
+**Last completed:** M4.3 Onboarding (profile, create rumah, join rumah) — `onboarding/` route group with stage-gated layout; profile screen (100px avatar circle + camera overlay via `expo-image-picker`, required nama, kontak darurat, alamat, "Lanjut"); create-rumah screen (nama + alamat, invite-code reveal card + Share + "Lanjut ke Beranda"); join-rumah screen (6-digit auto-uppercase code input, live `GET /rumah/join/preview` + "Gabung"); onboarding API module (PATCH profile, POST /rumah, POST /rumah/join, GET preview, avatar upload). Routing gate fixed: `(auth)`/`(tabs)`/`onboarding` redirect by stage, not to tabs. `expo-image-picker@57.0.7` installed + config plugin. Mobile lint + typecheck green.
 
-**Next:** Phase M3 done — stop & confirm before proceeding to next phase per gating rule.
+**Next:** Phase M5 — Mobile: Main Tabs.
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -61,7 +61,7 @@ Update after every completed feature. Any agent reading this should immediately 
 
 - [x] Expo theme + router + authStore guard
 - [x] Splash, Login, Register
-- [ ] Onboarding (profile, create rumah, join rumah)
+- [x] Onboarding (profile, create rumah, join rumah)
 
 ### Phase M5 — Mobile: Main Tabs
 

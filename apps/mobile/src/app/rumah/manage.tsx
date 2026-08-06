@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { ArrowLeft } from 'lucide-react-native';
 import { useState } from 'react';
@@ -12,8 +12,16 @@ import {
   apiResetInvite,
   apiSetQris,
   apiUpdateRumah,
-  type RumahDetail,
+  ruanganKeys,
   useProfileInvalidate,
+  useRuangan,
+  apiCreateRuangan,
+  apiDeleteRuangan,
+  apiReorderRuangan,
+  apiCreateJenisPiket,
+  apiDeleteJenisPiket,
+  apiUpdateJenisPiket,
+  type RumahDetail,
 } from '@/features/profile/api/profile';
 import { uploadProof } from '@/features/tagihan/api/upload';
 import { formatCurrency } from '@/lib/format';
@@ -113,6 +121,7 @@ export default function ManageRumahScreen() {
           onReset={() => void onResetInvite()}
         />
         <MembersSection members={data.anggotaList} isAdmin={isAdmin} onRemove={onRemoveMember} />
+        <RoomsSection isAdmin={isAdmin} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -374,6 +383,189 @@ function CostRow({
   );
 }
 
+function RoomsSection({ isAdmin }: { isAdmin: boolean }) {
+  const { data: ruangan, isLoading } = useRuangan();
+  const queryClient = useQueryClient();
+  const [newRoom, setNewRoom] = useState('');
+  const [newJenis, setNewJenis] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const revalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ruanganKeys.list });
+  };
+
+  const move = async (index: number, dir: 'up' | 'down') => {
+    if (!ruangan) return;
+    const target = index + (dir === 'up' ? -1 : 1);
+    if (target < 0 || target >= ruangan.length) return;
+    const next = [...ruangan];
+    [next[index], next[target]] = [next[target], next[index]];
+    setBusy(true);
+    try {
+      await apiReorderRuangan(next.map((r) => r.id));
+      revalidate();
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addRoom = async () => {
+    if (!newRoom.trim()) return;
+    setBusy(true);
+    try {
+      await apiCreateRuangan(newRoom.trim());
+      setNewRoom('');
+      revalidate();
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeRoom = (id: string) => {
+    Alert.alert('Hapus ruangan', 'Yakin hapus ruangan ini beserta jenis piketnya?', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: () => {
+          void apiDeleteRuangan(id)
+            .then(revalidate)
+            .catch((e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'));
+        },
+      },
+    ]);
+  };
+
+  const addJenis = async (ruanganId: string) => {
+    const nama = (newJenis[ruanganId] ?? '').trim();
+    if (!nama) return;
+    setBusy(true);
+    try {
+      await apiCreateJenisPiket(ruanganId, nama);
+      setNewJenis((p) => ({ ...p, [ruanganId]: '' }));
+      revalidate();
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeJenis = (id: string) => {
+    void apiDeleteJenisPiket(id)
+      .then(revalidate)
+      .catch((e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'));
+  };
+
+  if (isLoading || ruangan == null) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Kelola Ruangan</Text>
+        <Text style={styles.loadingText}>Memuat…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Kelola Ruangan</Text>
+      <View style={styles.roomList}>
+        {ruangan.map((room, index) => (
+          <View key={room.id} style={styles.roomCard}>
+            <View style={styles.roomHeader}>
+              <Text style={styles.roomName}>{room.nama}</Text>
+              <View style={styles.roomActions}>
+                <Pressable onPress={() => void move(index, 'up')} disabled={busy || index === 0}>
+                  <Text style={styles.roomNav}>↑</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void move(index, 'down')}
+                  disabled={busy || index === ruangan.length - 1}>
+                  <Text style={styles.roomNav}>↓</Text>
+                </Pressable>
+                {isAdmin && (
+                  <Pressable onPress={() => removeRoom(room.id)}>
+                    <Text style={styles.roomRemove}>✕</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.jenisWrap}>
+              {room.jenisPiket.map((j) => (
+                <View key={j.id} style={[styles.jenisChip, !j.isActive && styles.jenisChipOff]}>
+                  <Text style={[styles.jenisText, !j.isActive && styles.jenisTextOff]}>
+                    {j.nama}
+                  </Text>
+                  {isAdmin && (
+                    <Pressable
+                      onPress={() => {
+                        void apiUpdateJenisPiket(j.id, { isActive: !j.isActive })
+                          .then(revalidate)
+                          .catch((e) =>
+                            Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+                          );
+                      }}>
+                      <Text style={styles.jenisToggle}>{j.isActive ? 'on' : 'off'}</Text>
+                    </Pressable>
+                  )}
+                  {isAdmin && (
+                    <Pressable onPress={() => removeJenis(j.id)}>
+                      <Text style={styles.jenisRemove}>✕</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </View>
+
+            {isAdmin && (
+              <View style={styles.jenisInputRow}>
+                <TextInput
+                  style={styles.jenisInput}
+                  value={newJenis[room.id] ?? ''}
+                  onChangeText={(text) =>
+                    setNewJenis((p) => ({ ...p, [room.id]: text }))
+                  }
+                  placeholder="Tambah jenis piket"
+                  placeholderTextColor={colors.inkMuted}
+                />
+                <Pressable
+                  onPress={() => void addJenis(room.id)}
+                  disabled={busy || !(newJenis[room.id] ?? '').trim()}
+                  style={styles.addJenisBtn}>
+                  <Text style={styles.addJenisText}>+</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ))}
+      </View>
+
+      {isAdmin && (
+        <View style={styles.jenisInputRow}>
+          <TextInput
+            style={styles.jenisInput}
+            value={newRoom}
+            onChangeText={setNewRoom}
+            placeholder="Tambah Ruangan"
+            placeholderTextColor={colors.inkMuted}
+          />
+          <Pressable
+            onPress={() => void addRoom()}
+            disabled={busy || !newRoom.trim()}
+            style={styles.addJenisBtn}>
+            <Text style={styles.addJenisText}>+</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   header: {
@@ -531,4 +723,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   removeText: { fontFamily: fontFamilies.body[600], fontSize: 10.5, color: colors.brick },
+
+  roomList: { gap: 10 },
+  roomCard: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.paper,
+    padding: 12,
+    gap: 8,
+  },
+  roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  roomName: { fontFamily: fontFamilies.body[600], fontSize: 13.5, color: colors.ink },
+  roomActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  roomNav: { fontFamily: fontFamilies.mono[700], fontSize: 15, color: colors.ink },
+  roomRemove: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.brick },
+  jenisWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  jenisChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.pineSoft,
+    borderRadius: radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  jenisChipOff: { backgroundColor: colors.paperDeep, opacity: 0.7 },
+  jenisText: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.pineDeep },
+  jenisTextOff: { color: colors.inkMuted },
+  jenisToggle: { fontFamily: fontFamilies.mono[700], fontSize: 9, color: colors.mustardInk },
+  jenisRemove: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.brick },
+  jenisInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  jenisInput: {
+    flex: 1,
+    fontFamily: fontFamilies.body[400],
+    fontSize: 12.5,
+    color: colors.ink,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  addJenisBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: colors.pine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addJenisText: { fontFamily: fontFamilies.body[700], fontSize: 18, color: colors.paper },
 });

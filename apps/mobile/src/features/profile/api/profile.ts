@@ -139,3 +139,70 @@ export function useProfileInvalidate() {
     void queryClient.invalidateQueries({ queryKey: profileKeys.rumah });
   };
 }
+
+/* ---------- Ruangan & Jenis Piket (inline in Kelola Kos) ---------- */
+export interface JenisPiket {
+  id: string;
+  ruanganId: string;
+  nama: string;
+  isActive: boolean;
+}
+
+export interface Ruangan {
+  id: string;
+  rumahId: string;
+  nama: string;
+  urutan: number;
+  jenisPiket: JenisPiket[];
+}
+
+export async function apiGetRuangan(): Promise<Ruangan[]> {
+  const response = await apiClient.get<Ruangan[]>('/ruangan');
+  return response.data;
+}
+
+export async function apiCreateRuangan(nama: string): Promise<Ruangan> {
+  const response = await apiClient.post<Ruangan>('/ruangan', { nama });
+  return response.data;
+}
+
+export async function apiUpdateRuangan(id: string, nama: string): Promise<Ruangan> {
+  const response = await apiClient.patch<Ruangan>(`/ruangan/${id}`, { nama });
+  return response.data;
+}
+
+export async function apiDeleteRuangan(id: string) {
+  const response = await apiClient.delete(`/ruangan/${id}`);
+  return response.data as { ok: boolean };
+}
+
+export async function apiReorderRuangan(urutan: string[]) {
+  const response = await apiClient.put('/ruangan/reorder', { urutan });
+  return response.data as { ok: boolean };
+}
+
+export async function apiCreateJenisPiket(
+  ruanganId: string,
+  nama: string,
+): Promise<JenisPiket> {
+  const response = await apiClient.post<JenisPiket>(`/ruangan/${ruanganId}/jenis`, { nama });
+  return response.data;
+}
+
+export async function apiUpdateJenisPiket(id: string, input: { nama?: string; isActive?: boolean }) {
+  const response = await apiClient.patch(`/ruangan/jenis/${id}`, input);
+  return response.data as JenisPiket;
+}
+
+export async function apiDeleteJenisPiket(id: string) {
+  const response = await apiClient.delete(`/ruangan/jenis/${id}`);
+  return response.data as { ok: boolean };
+}
+
+export const ruanganKeys = {
+  list: ['ruangan', 'list'] as const,
+};
+
+export function useRuangan() {
+  return useQuery({ queryKey: ruanganKeys.list, queryFn: apiGetRuangan });
+}

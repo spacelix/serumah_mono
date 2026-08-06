@@ -1,6 +1,7 @@
 import { Droplets, ReceiptText } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import {
@@ -44,20 +45,21 @@ export default function BerandaScreen() {
 }
 
 function Header({ nama }: { nama?: string }) {
+  const router = useRouter();
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
         <SerumahLogo size={22} variant="mark" roofColor={colors.ink} />
         <Text style={styles.brandText}>Papan Piket</Text>
       </View>
-      <View style={styles.avatarChip}>
+      <Pressable onPress={() => router.push('/profile')} style={styles.avatarChip}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarInitial}>{nama?.charAt(0)?.toUpperCase() ?? '?'}</Text>
         </View>
         <Text style={styles.avatarName} numberOfLines={1}>
           {nama ?? 'Kamu'}
         </Text>
-      </View>
+      </Pressable>
     </View>
   );
 }

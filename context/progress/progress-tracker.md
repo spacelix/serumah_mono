@@ -7,9 +7,9 @@ Update after every completed feature. Any agent reading this should immediately 
 ## Current Status
 
 **Phase:** M5 — Mobile: Main Tabs (IN PROGRESS)
-**Last completed:** M5.4 Swap — Swap tab with Incoming cards (from→to member boxes + day + Terima/Tolak), Mine history list with status stamps, "Ajukan swap baru" CTA opening 2-step form (pick available day from `/swap/available-days`, pick member from `/iuran` member list); `features/swap/api/swap.ts` + `members.ts`. Mobile lint + typecheck green.
+**Last completed:** M5.5 Profile & Rumah Management — Profile screen (`app/profile.tsx`, avatar edit, role badge, form, rumah info, Kelola Kos link, logout) reached from the Beranda avatar chip; **new rumah management API**: `GET /rumah/me`, `PATCH /rumah/me`, `POST /rumah/reset-invite`, `PUT /rumah/qris`, `DELETE /rumah/anggota/:id` (all admin, server-scoped); `app/rumah/manage.tsx` with InfoCard, Biaya Rumah (edit), Rekening + QRIS, Invite code + reset/copy, member list + remove; `features/profile/api/profile.ts`. API build/lint/typecheck/test + mobile lint/typecheck green.
 
-**Next:** M5.5 Profile & Rumah Management.
+**Next:** Phase M6 (deferred).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,13 +8,17 @@ import {
 import { randomInt } from 'node:crypto';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
-import { CreateRumahDto, JoinRumahDto } from './dto/rumah.dto';
+import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { CreateRumahDto, JoinRumahDto, UpdateRumahDto } from './dto/rumah.dto';
 
 @Injectable()
 export class RumahService {
   private readonly logger = new Logger(RumahService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scope: RumahScopeService,
+  ) {}
 
   async createRumah(payload: CurrentUserPayload, dto: CreateRumahDto) {
     const anggota = await this.prisma.anggota.findUnique({
@@ -90,6 +95,129 @@ export class RumahService {
       `[RumahService] ${payload.userId} bergabung ke ${rumah.id}`,
     );
     return { rumah };
+  }
+
+  /** Rumah detail + member list for the current user. Admin flag computed here. */
+  async getMe(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      return { rumah: null, anggotaList: [], currentRole: null };
+    }
+
+    const [rumah, anggotaList] = await Promise.all([
+      this.prisma.rumah.findUnique({
+        where: { id: anggota.rumahId },
+      }),
+      this.prisma.anggota.findMany({
+        where: { rumahId: anggota.rumahId },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          nama: true,
+          fotoProfil: true,
+          kamar: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    return {
+      rumah,
+      anggotaList,
+      currentRole: anggota.role,
+    };
+  }
+
+  /** Admin-only: update rumah costs / rekening. */
+  async updateMe(payload: CurrentUserPayload, dto: UpdateRumahDto) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    await this.scope.requirePj(payload.userId, anggota.rumahId);
+
+    const rumah = await this.prisma.rumah.update({
+      where: { id: anggota.rumahId },
+      data: {
+        biayaKos: dto.biayaKos,
+        biayaWifi: dto.biayaWifi,
+        biayaListrikWajib: dto.biayaListrikWajib,
+        nominalDenda: dto.nominalDenda,
+        rekeningBank: dto.rekeningBank,
+        rekeningNomor: dto.rekeningNomor,
+        rekeningNama: dto.rekeningNama,
+      },
+    });
+
+    this.logger.log(`[RumahService] Kos ${rumah.id} diperbarui oleh PJ.`);
+    return { rumah };
+  }
+
+  /** Admin-only: generate a fresh 6-digit invite code. */
+  async resetInvite(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    await this.scope.requirePj(payload.userId, anggota.rumahId);
+
+    const inviteCode = await this.generateUniqueInviteCode();
+    await this.prisma.rumah.update({
+      where: { id: anggota.rumahId },
+      data: { inviteCode },
+    });
+
+    this.logger.log(
+      `[RumahService] Kode undangan direset untuk kos ${anggota.rumahId}.`,
+    );
+    return { inviteCode };
+  }
+
+  /** Admin-only: set/replace the QRIS image URL for fine payment. */
+  async setQris(payload: CurrentUserPayload, qrisUrl: string) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    await this.scope.requirePj(payload.userId, anggota.rumahId);
+
+    const rumah = await this.prisma.rumah.update({
+      where: { id: anggota.rumahId },
+      data: { qrisUrl },
+    });
+
+    this.logger.log(`[RumahService] QRIS diperbarui untuk kos ${rumah.id}.`);
+    return { rumah };
+  }
+
+  /** Admin-only: remove a member (set rumahId = null, not account deletion). */
+  async removeAnggota(payload: CurrentUserPayload, anggotaId: string) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    await this.scope.requirePj(payload.userId, anggota.rumahId);
+
+    if (anggotaId === payload.userId) {
+      throw new ForbiddenException('PJ tidak dapat menghapus diri sendiri.');
+    }
+
+    const target = await this.prisma.anggota.findUnique({
+      where: { id: anggotaId },
+    });
+    if (!target || target.rumahId !== anggota.rumahId) {
+      throw new NotFoundException('Anggota tidak ditemukan.');
+    }
+
+    await this.prisma.anggota.update({
+      where: { id: anggotaId },
+      data: { rumahId: null, role: 'anggota' },
+    });
+
+    this.logger.log(
+      `[RumahService] Anggota ${anggotaId} dihapus dari kos ${anggota.rumahId}.`,
+    );
+    return { success: true };
   }
 
   private async generateUniqueInviteCode(): Promise<string> {

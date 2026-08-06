@@ -19,6 +19,7 @@ import {
   type ProfileStats,
 } from '@/features/profile/api/profile';
 import { formatCurrency, formatLongDate } from '@/lib/format';
+import { resolveMediaUrl } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from '@/stores/toast-store';
 import { colors } from '@/theme/colors';
@@ -606,8 +607,9 @@ function AvatarStripes() {
 }
 
 function AvatarThumbContent({ fotoProfil }: { fotoProfil?: string | null }) {
-  if (fotoProfil) {
-    return <Image source={{ uri: fotoProfil }} style={styles.avatarImage} />;
+  const uri = resolveMediaUrl(fotoProfil);
+  if (uri) {
+    return <Image source={{ uri }} style={styles.avatarImage} />;
   }
   return (
     <>

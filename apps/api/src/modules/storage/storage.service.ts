@@ -1,19 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
+import type { Response } from 'express';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly client: Minio.Client;
   private readonly bucket: string;
-  private readonly publicBaseUrl: string;
 
   constructor(config: ConfigService) {
     this.bucket = config.get<string>('MINIO_BUCKET') ?? 'serumah';
-    this.publicBaseUrl = (
-      config.get<string>('MINIO_PUBLIC_URL') ?? 'http://localhost:9000'
-    ).replace(/\/$/, '');
 
     this.client = new Minio.Client({
       endPoint: config.get<string>('MINIO_ENDPOINT') ?? 'localhost',
@@ -53,7 +50,30 @@ export class StorageService implements OnModuleInit {
     return this.publicUrl(key);
   }
 
+  /**
+   * Public (relative) URL served by this API via `GET /storage/stream/:key`.
+   * The mobile client resolves it against its own API origin so it never
+   * talks to MinIO/S3 directly.
+   */
   publicUrl(key: string): string {
-    return `${this.publicBaseUrl}/${this.bucket}/${key}`;
+    return `/storage/stream/${encodeURIComponent(key)}`;
+  }
+
+  async stream(key: string, res: Response): Promise<void> {
+    let stat: Minio.BucketItemStat;
+    try {
+      stat = await this.client.statObject(this.bucket, key);
+    } catch {
+      throw new NotFoundException('File tidak ditemukan');
+    }
+    const contentType =
+      (stat.metaData?.['content-type'] as string | undefined) ??
+      'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    const object = await this.client.getObject(this.bucket, key);
+    object.on('error', () => {
+      res.destroy();
+    });
+    object.pipe(res);
   }
 }

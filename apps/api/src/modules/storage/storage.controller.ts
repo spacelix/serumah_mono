@@ -2,12 +2,17 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
+  Param,
   Post,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
+import type { Response } from 'express';
+import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { StorageService } from './storage.service';
@@ -29,6 +34,12 @@ export type AllowedFolder = (typeof ALLOWED_FOLDERS)[number];
 @Controller('storage')
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}
+
+  @Public()
+  @Get('stream/:key')
+  async stream(@Param('key') key: string, @Res() res: Response): Promise<void> {
+    return this.storageService.stream(decodeURIComponent(key), res);
+  }
 
   @Post('upload')
   @UseInterceptors(

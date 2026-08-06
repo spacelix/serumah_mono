@@ -22,10 +22,12 @@ interface SerumahLogoProps {
  */
 export function SerumahLogo({ size = 118, variant = 'full', roofColor = colors.logoRoof }: SerumahLogoProps) {
   const viewBox = variant === 'full' ? '0 102 512 211' : '0 115 512 160';
+  const [, , vbW, vbH] = viewBox.split(' ').map(Number);
+  const height = (size * vbH) / vbW;
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      <Svg width={size} height={size} viewBox={viewBox} fill="none">
+    <View style={[styles.container, { width: size, height }]}>
+      <Svg width={size} height={height} viewBox={viewBox} fill="none">
         {variant === 'full' && (
           <Path
             d="M150 270L256 170L362 270"

@@ -52,7 +52,7 @@ export function SplashScreen() {
             transform: [{ translateY: riseTranslate }],
           },
         ]}>
-        <SerumahLogo size={130} />
+        <SerumahLogo size={112} />
       </Animated.View>
       <Animated.View
         style={[

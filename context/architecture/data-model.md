@@ -328,6 +328,27 @@ model GiliranGalon {
   @@map("giliran_galon")
 }
 
+// ── OBSERVABILITY / LOG VIEWER ───────────────────────────────────────────
+// Infra/audit table for the log viewer — NOT rumah-scoped (exception to the
+// "every query filters rumah_id" invariant). One row per HTTP request, written
+// by the global LoggerInterceptor in apps/api.
+model LogEntry {
+  id           BigInt   @id @default(autoincrement())
+  timestamp    DateTime @default(now()) @db.Timestamptz
+  method       String
+  path         String
+  statusCode   Int
+  durationMs   Int
+  userId       String?  @db.Uuid   // JWT user id when the route was authenticated
+  ip           String?
+  isError      Boolean             // derived: statusCode >= 400
+  errorMessage String?  @map("error_message") // snippet, captured only when statusCode >= 400
+
+  @@index([timestamp])
+  @@index([isError])
+  @@map("log_entries")
+}
+
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────
 model FcmToken {
   id        String   @id @default(uuid()) @db.Uuid
@@ -368,7 +389,15 @@ model FcmToken {
 5. **`giliran_galon` without `nominal`** — reimbursement column removed (locked decision item 25).
 6. **`iuran_bulanan` without `bayar_ke_anggota_id`** — paid to the kos rekening; `bukti_bayar` per user (1 total proof per month). Categories only `sewa`/`wifi`/`listrik_wajib`.
 7. **All sensitive mutations via NestJS services** (replaces SECURITY DEFINER RPC) — role + status validation in service, not client.
-8. **`anggota.kamar` removed** — no room number on the member profile. A person can be responsible for more than one room; which rooms to clean is set via `Ruangan`/`JenisPiket` (schedule), not a profile field.
+8. **`anggota.kamar` removed** — no room number on the member profile. A person can be responsible for more than one room; which rooms to clean is decided via `Ruangan`/`JenisPiket` (schedule), not a profile field.
+9. **`log_entries` is NOT rumah-scoped** — it's an infra/audit table for the log viewer (`features/logviewer`). Exception to the "every query filters `rumah_id`" invariant; no `rumah_id` column by design.
+
+---
+
+## Log Viewer Access (Locked 2026-08-07)
+
+- Served by `apps/api` at `GET /admin` (+ `/admin/stats`, `/admin/logs`), **fully public — no login** (`@Public()`). User-accepted risk: anyone knowing the URL can view log/stats data.
+- **Pipeline:** global `LoggerInterceptor` buffers each request (`RPUSH log:buffer`, Redis list, microseconds) → **BullMQ repeatable job** flushes every 5 min (`LRANGE` + `DEL`, `createMany` bulk) → `log_entries`. Excludes `/api/health`, `/api/update/manifest`, `/admin`. The same Redis also serves the referential Beranda/Profile **read-cache** (`cache:{scope}:{resource}`, TTL ~60s, invalidated on related mutations). No retention/cleanup in MVP.
 
 ---
 

@@ -85,6 +85,7 @@ Dependency: needs a buildable `apps/mobile` (M0.2 scaffold) — even before feat
 - Full end-to-end testing across all features.
 - Final release through the (already working) update pipeline.
 - Production hardening (logs, monitoring, backup).
+  - **Log Viewer & Stats** — self-hosted `GET /admin` page in `apps/api` (NestJS `AdminModule` + global `LoggerInterceptor` → `LogEntry` table), fully public (`@Public`), no mobile involvement. (`features/logviewer`) — added 2026-08-07 (requires user approval to enter the active build queue; Phase M5 is still in progress).
 
 ---
 
@@ -93,7 +94,7 @@ Dependency: needs a buildable `apps/mobile` (M0.2 scaffold) — even before feat
 | Area | Features |
 |---|---|
 | Docs | 1 (per-feature context split) |
-| Backend | 13 (auth, profile, rumah, ruangan, schedule, piket, verifikasi, denda, iuran, listrik, swap, galon, update) |
+| Backend | 14 (auth, profile, rumah, ruangan, schedule, piket, verifikasi, denda, iuran, listrik, swap, galon, update, logviewer) |
 | Mobile | 14 screen-groups (auth, onboarding, dashboard, piket, tagihan×3, swap, profile, rumah, update) |
 
 Every feature has `context/features/<feature>/context.md` — read before coding (see `core/AGENTS-ROUTING.md`).

@@ -1,57 +1,51 @@
-# Memory — Serumah: Beranda redesign, auth dialog, bottom nav, docker deploy (2026-08-07)
+# Memory — Serumah: log viewer, timezone fix, weekend generate, galon widget, bottom nav (2026-08-08)
 
-Last updated: 2026-08-07 (updated same day with release bump)
+Last updated: 2026-08-08 (session end)
 
 ## What was built
 
-- **Version bump to 1.6.9 / versionCode 8** (`apps/mobile/app.json`) — `e409121 build(mobile): bump app to 1.6.9 and versionCode 8`. Version only lives in `app.json`; `lib/update.ts` reads installed/manifest versionCode, no hardcode.
-- **Beranda redesigned** to match `Serumah.html` (all in `apps/mobile/src/app/(tabs)/index.tsx` + `features/dashboard/api/dashboard.ts` + `lib/format.ts`):
-  - Weekend card: custom pine bg, deadline badge "Jum 20:00", active "Di kos" = paper pill w/ ink text, horizontal-scroll "anggota lain", brick warning strip `rgba(179,63,63,0.22)`/`colors.brickSoft`.
-  - Galon card: custom droplet SVG (`M7.4 13h9.2`), kicker mono, "Giliran: Nama (lo)" via new `isMine` from `GalonService.current()`.
-  - Billing card: kicker "Tagihan bulan ini", mono amount, "Lihat detail" → `/tagihan`. API `getBilling` returns `{total,lunas,bulan}`.
-  - Jadwal card: header + week range (e.g. "27 Jul – 2 Agu"), `Libur`-dashed cards for off days, chips weekday abbrev.
-- **Login/Register** (`(auth)/login.tsx`, `(auth)/register.tsx`): native `Alert.alert` → custom `ConfirmDialog` with new `single` prop (single-action info dialog). Password-mismatch shown as dialog too.
-- **Custom bottom nav** (`(tabs)/_layout.tsx` + new `components/ui/tab-icon.tsx`): absolute-overlay `LinearGradient` (solid paper → transparent, no gap, content flows behind), active = ink pill, inactive transparent. Icons rendered from **exact Serumah.html SVG paths** via `react-native-svg` (`TabIcon`) — NOT lucide (design glyphs don't map to lucide).
-- **Kelola Rumah → schedule refresh**: `manage.tsx` tracks `addedJenis`; on back after adding a jenis piket, confirm dialog calls new admin endpoint `POST /schedule/refresh-future-rooms` which rewrites only the `ruangan[]` snapshot of **future** Jadwal rows (member assignment preserved, past days untouched).
-- **Docker deploy** (all committed):
-  - `apps/api/Dockerfile`: multi-stage `oven/bun:1-alpine` build → `node:22-alpine` runtime; `bun install --frozen-lockfile --filter @serumah/api`; apk adds `openssl` (+`libc6-compat` in runner).
-  - `docker-compose.yml`: backend only, traefik host `api-serumah.spacelix.qzz.io`, port 3000, no postgres/minio (uses existing DB+MinIO). Build context = root; dockerfile `apps/api/Dockerfile`.
-  - `.dockerignore`: excludes mobile source (`apps/mobile/*`) but **keeps** `apps/mobile/package.json`.
+**Log Viewer & Stats (from prior session, committed):** global `LoggerInterceptor` → Redis `log:buffer` → BullMQ 5-min flush → `log_entries` table; `/api/admin` HTML page (stats + logs), fully public. Redis read-cache (`CacheService`) on dashboard/profile. Prettier root config (`singleQuote`, `.prettierignore`). (Commits `5ac23ee`..`00ba4ba`, `77ba8f8` review fixes.)
+
+**This session (commits `70e5101`, `571f551`, `6a666bf`):**
+- **Timezone fix (CRITICAL, schedule/dashboard):** Prisma stores `@db.Date` as **UTC** date strings. All date helpers in `schedule.service.ts` + `dashboard.service.ts` now build UTC-midnight Dates (`Date.UTC(...)`), resolve "today" by shifting +7h (WIB offset) before reading UTC components, and use `getUTCDay()/getUTC*`. `assertNotFrozen` (Fri 20:00 WIB) + fine `deadline` (20:00 WIB) are explicit UTC+7. This fixed the bug where the PJ banner + Generate button showed though the schedule existed (dates were shifted a day on WIB/UTC-mismatched servers).
+- **Weekend generate on Di kos (locked):** `setWeekendStatus` with `di_kos` now immediately calls `ensureWeekend` for that weekend day — UI shows who piket right away, no need to wait for freeze.
+- **Weekday exemption (locked):** members holding a weekend Jadwal that week are excluded from weekday round-robin that same week (`ensureWeekday` filters via `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows; `generateRestOfWeek` does weekend first then weekday).
+- **Safe area (mobile):** `welcome.tsx` root `View` → `SafeAreaView edges={['bottom']}`; splash `version` bottom uses `max(insets.bottom, 12)+26` — fixes content hidden behind Android 3-button nav.
+- **Beranda dialogs:** `Alert.alert` → `ConfirmDialog` (single mode) for "Status dibekukan" (WeekendCard) and galon "Gagal". Removed duplicate frozen handling in `WeekendDayRow`.
+- **Galon widget redesign (per Serumah.html):** conditional button — `isMine` → "Sudah Beli"; else bell/nudge icon (36×36) + hint "Galon habis? colek dia biar segera beli" → after tap "Notif sudah dikirim ke X" (local state, no backend). Green chip "Tercatat. Giliran maju ke X · notif terkirim." (bg `pineSoft`) — **full width** (was `alignSelf:'flex-start'`, fixed to `width:'100%'`).
+- **Bottom nav gap fix (UNCOMMITTED, `_layout.tsx`):** `paddingBottom: insets.bottom + 22` → `+ 8`. insets.bottom already = Android nav bar height (3-button ≈48dp), the +22 doubled the gap. Change made but **not yet committed/verified**.
 
 ## Decisions made
 
-- Backend mobile app is **RN** (not web) → docker only has a backend service; frontend/mobile excluded from deploy.
-- Bottom nav is an **overlay** (gradient fade, content scrolls behind) rather than a separate bar — per design, no gap between content and tabs.
-- Icons must come from the **design SVG paths** not lucide — lucide glyphs differ from the design.
-- Schedule refresh is triggered **on leaving** Kelola Rumah (confirm dialog), not at add-time; treats only future days.
-- **Major version (6→7) stays 6.x for now**: patch/minor (1.6.x + versionCode up) is enough for new features/redesigns. Only bump major on breaking change (schema overhaul, endpoint removal, big rewrite). versionCode is what the in-app update actually compares.
+- **Timezone:** all schedule/dashboard calendar math runs in WIB (UTC+7) wall-clock, stored/computed as UTC-midnight dates. Behavior identical whether server runs UTC (Docker) or WIB (dev). Documented in `context/features/schedule/context.md` constraints.
+- **Weekend rules (locked 2026-08-08):** (1) choosing `di_kos` generates that weekend day's Jadwal immediately; (2) weekend piket assignees are exempt from weekday piket the same week. Both documented in schedule context.
+- **Galon nudge is UI-only** (local state, no backend call — FCM not wired). Documented in galon context.
+- `iuran`/`listrik` services still use local-midnight `new Date(y,m,1)` for `bulan` (`@db.Date`) — **same timezone bug class, NOT yet fixed** (out of scope this session).
 
 ## Problems solved
 
-- Docker build failures in sequence:
-  1. `oven/bun:1` default is Debian (no `apk`) → use `oven/bun:1-alpine`.
-  2. `@serumah/typescript-config` workspace missing in deps stage → COPY `packages/typescript-config`.
-  3. `bun install --frozen-lockfile` failed ("lockfile had changes"): `bun.lock` spans all workspaces incl. mobile, but mobile pkg wasn't in context → add `apps/mobile/package.json` to context.
-- Dockerignore can't re-include a file whose parent dir is excluded → use `apps/mobile/*` (exclude contents) + `!apps/mobile/package.json` (re-include file).
-- `BottomTabBarProps` type import path is `expo-router/build/react-navigation/bottom-tabs/types` (not `@react-navigation/bottom-tabs`).
-- `bun install --filter <pkg>` temporarily prunes other workspaces' node_modules → run full `bun install` to restore workspace state.
+- **Timezone off-by-one:** local-midnight JS Dates vs `@db.Date` (Prisma stores UTC). Verified via repro: `new Date(2026,8,3)` in WIB = `2026-08-02T17:00Z` → stored `2026-08-02`. Fix: UTC-midnight helpers + WIB offset.
+- **Weekend schedule not appearing after di_kos:** `setWeekendStatus` only upserted status; now generates the Jadwal too.
+- **Galon "Sudah Beli" shown for others' turn:** now conditional on `isMine`.
+- **Green chip not showing:** was tied to transient local `justBought`; and `alignSelf:'flex-start'` made it not full width.
 
 ## Current state
 
-- Working tree **clean** at HEAD `e409121`. Committed today: `8b514c2` (docker files), `5f4d564` (alpine base), `998215a` (ts-config workspace), `adda829` (workspace set frozen lockfile), `a5da5c3` (mobile pkg.json dockerignore), `b56f7bd` (beranda + schedule refresh API), `a7de322` (auth dialog), `3c4cd69` (custom bottom nav), `44739b0` (rumah schedule refresh UI), `fab12a2` (progress tracker), `e409121` (version bump 1.6.9/versionCode 8).
-- **Push NOT yet — WSL SSH key rejected.** Repo at `/mnt/d` (WSL→Windows D:). Push normally done from **Windows** (`D:\Source\House`): `git push origin development`. Tag `v1.6.9` (annotated) still to create → triggers `release.yml`. `origin/development` ahead by 2 (`fab12a2`, `e409121`).
-- Backend deploy: Docker **build succeeded** on server (`43.129.40.34`) via traefik. Need `apps/api/.env` on server pointed at existing DB/MinIO (repo `.env` uses `localhost`) and `traefik-public` network to exist.
-- `bunx tsc --noEmit` mobile clean. Docker build verified; live runtime still to verify.
-- Phase: **M5** (Beranda done — weekend/galon/billing/jadwal). Piket, Tagihan, Swap, Profile still in-flight; **Phase M6 deferred** (awaiting approval).
+- Working tree: only `apps/mobile/src/app/(tabs)/_layout.tsx` (bottom nav gap fix) + `memory.md` **uncommitted**.
+- Branch `development` ahead of `origin/development` by **3 commits** (`70e5101`, `571f551`, `6a666bf`) — **push pending** (from Windows `D:\Source\House`, WSL SSH rejected).
+- `origin/development` was at `07a8c53` (redis compose). Tag `v1.6.9` exists.
+- All committed items verified green by user earlier (api build/test + mobile tsc + prettier). The uncommitted `_layout.tsx` change needs `bunx tsc --noEmit` + prettier check.
+- Redis service added to `docker-compose.yml` (commit `07a8c53`); server `.env` needs `REDIS_URL=redis://redis:6379`.
 
 ## Next session starts with
 
-1. **Push `development` + create annotated tag `v1.6.9`** — either from Windows (`D:\Source\House`): `git push origin development` then `git tag -a v1.6.9 -m "release: v1.6.9 (versionCode 8) — beranda redesign, bottom nav, auth dialog, schedule refresh" && git push origin v1.6.9`, or fix WSL key. Tag triggers CI APK. Confirm backend runs on server (`apps/api/.env` prod DB/MinIO) — curl health + real login.
-2. Continue **Phase M5**: Piket (per-room flow), Tagihan (Denda|Iuran|Listrik + month picker), Swap tabs.
-3. `progress-tracker.md` Phase M5 checklist — Beranda item can be marked done.
+1. **Commit the bottom-nav gap fix** (`_layout.tsx` `insets.bottom + 8`) after user verifies (`bunx tsc --noEmit` + prettier).
+2. **Push** `development` (3 commits ahead) from Windows; if user wants, also update server deploy with new Redis + re-deploy.
+3. Decide whether to apply the **same timezone fix to `iuran`/`listrik`** (`firstOfMonth`/`monthFromString` still local-midnight — same `@db.Date` bug).
+4. Continue **Phase M5**: Piket (per-room flow), Tagihan, Swap tabs (Beranda done).
 
 ## Open questions
 
-- Phase pacing: some Beranda cards were rebuilt from design; confirm the rest of Beranda matches.
-- Phase M6 E2E/release pipeline still not approved — ask before starting.
-- Note: prior-session "profile revision (uncommitted)" notes in progress-tracker were resolved and committed last session; profile revision itself was NOT rebuilt this session.
+- `iuran`/`listrik` timezone fix — apply or defer? (same bug class as the schedule fix)
+- Galon nudge is local-only; real FCM notification deferred (not required v1).
+- Phase M6 (E2E/final release) not approved — ask before starting.

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
@@ -56,7 +57,7 @@ export default function WelcomeScreen() {
   const goLogin = () => router.replace('/login');
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <SerumahLogo size={36} variant="mark" />
@@ -118,7 +119,7 @@ export default function WelcomeScreen() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

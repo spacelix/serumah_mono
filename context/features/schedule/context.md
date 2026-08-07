@@ -41,6 +41,8 @@ Locked decisions (from the old phase, preserved):
 - Generated from members with status `di_kos`. All `pulang` → day **Free** (no fine).
 - Freeze: Friday 20:00 (configurable). No update → default to last week's status.
 - The `hari` column = saturday/sunday per row (drift, preserved).
+- **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal (picks one di_kos member round-robin) so the UI shows who piket right away — before the Friday freeze.
+- **Weekday exemption (locked 2026-08-08):** members who hold a weekend Jadwal row that week are **excluded from weekday piket** (Senin/Rabu/Jumat) in the same week — the copy "yang piket Sabtu–Minggu bebas piket Senin–Jumat". `ensureWeekday` filters the round-robin pool with `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows (weekend generated first so the exclusion applies).
 
 **Auto-fine:**
 
@@ -62,6 +64,7 @@ Locked decisions (from the old phase, preserved):
 - Do not generate schedules for the past.
 - Weekend freeze is a server boundary — don't trust the client for time.
 - Round-robin logic must never live in the UI.
+- **Timezone (locked 2026-08-07):** all calendar math uses **WIB (UTC+7)** wall-clock days. `@db.Date` columns are stored by Prisma as UTC date strings, so services build every calendar date as a **UTC-midnight** Date (helper adds `+WIB_OFFSET_MS` before reading UTC components) and compare day-of-week via `getUTCDay()`. Weekday day-of-week, weekend hari, freeze (Fri 20:00 WIB), and fine deadline (20:00 WIB) all follow this. This makes behavior identical whether the server runs in UTC (Docker) or WIB (dev) — fixing the "banner/generate shows though schedule exists" bug where local-midnight dates were shifted one day by Prisma.
 
 ## 7. Dependencies
 

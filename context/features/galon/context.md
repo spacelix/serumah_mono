@@ -32,7 +32,8 @@ Widget on Beranda (`GalonWidget`):
 
 - Gold-accented card (4px left border), galon icon.
 - "Giliran galon: **[Nama]**".
-- **"Sudah Beli"** button → confirm → rotate. Instant feedback (turn name advances).
+- **When it's the user's turn (`isMine`):** **"Sudah Beli"** button → confirm → rotate. Instant feedback (turn name advances). After confirming, a green chip appears: **"Tercatat. Giliran maju ke [Nama] · notif terkirim."** (bg `pineSoft`, text `pine`).
+- **When it's another member's turn:** a **bell/notif icon button** (36×36, bordered, bell glyph) — "colek"/nudge. Below it the hint text **"Galon habis? colek dia biar segera beli"**; after tapping, the button tints and the text becomes **"Notif sudah dikirim ke [Nama]"** (local UI state, no backend call — FCM not wired).
 - Info notification: "Giliran beli galon: [Nama]" (not required in v1).
 
 ## 6. Constraints / Prohibited

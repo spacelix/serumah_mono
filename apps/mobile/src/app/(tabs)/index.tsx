@@ -1,6 +1,7 @@
-import { Droplets, ReceiptText, TriangleAlert } from 'lucide-react-native';
+import { TriangleAlert } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -13,7 +14,13 @@ import {
   type WeekendChoice,
   type WeekDayKey,
 } from '@/features/dashboard/api/dashboard';
-import { formatCurrency, formatShortDate, formatWeekdayDate } from '@/lib/format';
+import {
+  formatCurrency,
+  formatDayNumber,
+  formatMonthYear,
+  formatWeekRange,
+  formatWeekdayDate,
+} from '@/lib/format';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -87,6 +94,11 @@ function WeekendCard({ data }: { data: DashboardData }) {
   const sabtuDate = weekendDate(5);
   const mingguDate = weekendDate(6);
 
+  const pickedDays: string[] = [];
+  if (data.weekend.saturday === 'di_kos') pickedDays.push(formatWeekdayDate(sabtuDate));
+  if (data.weekend.sunday === 'di_kos') pickedDays.push(formatWeekdayDate(mingguDate));
+  const didKos = pickedDays.length > 0;
+
   return (
     <View style={styles.weekendCard}>
       <View style={styles.weekendHead}>
@@ -96,7 +108,9 @@ function WeekendCard({ data }: { data: DashboardData }) {
         </View>
       </View>
       <Text style={styles.weekendSub}>
-        Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.
+        {didKos
+          ? `Lo ambil piket ${pickedDays.join(' dan ')} — jadi bebas piket Senin–Jumat minggu ini.`
+          : 'Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.'}
       </Text>
       <View style={styles.weekendDays}>
         <WeekendDayRow
@@ -112,22 +126,31 @@ function WeekendCard({ data }: { data: DashboardData }) {
           onPick={(status) => set('minggu', status)}
         />
       </View>
-      {data.weekend.anggotaLain.length > 0 && (
-        <View style={styles.weekendOthers}>
-          <Text style={styles.weekendOthersLabel}>ANGGOTA LAIN</Text>
-          <View style={styles.weekendOthersList}>
-            {data.weekend.anggotaLain.map((m) => (
-              <Text
-                key={m.id}
-                style={[
-                  styles.weekendOtherItem,
-                  m.status === 'Pulang' && styles.weekendOtherItemMuted,
-                ]}>
-                {m.nama} · {m.status}
-              </Text>
-            ))}
-          </View>
+      {didKos && (
+        <View style={styles.weekendNotice}>
+          <Text style={styles.weekendNoticeText}>
+            Tapi kalau ternyata lo keluar dan piketnya nggak dikerjain, dendanya tetap jalan
+            seperti biasa.
+          </Text>
         </View>
+      )}
+      {data.weekend.anggotaLain.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.weekendOthers}>
+          <Text style={styles.weekendOthersLabel}>ANGGOTA LAIN</Text>
+          {data.weekend.anggotaLain.map((m) => (
+            <Text
+              key={m.id}
+              style={[
+                styles.weekendOtherItem,
+                m.status === 'Pulang' && styles.weekendOtherItemMuted,
+              ]}>
+              {m.nama} · {m.status}
+            </Text>
+          ))}
+        </ScrollView>
       )}
     </View>
   );
@@ -209,50 +232,71 @@ function GalonWidget({ data }: { data: DashboardData }) {
   return (
     <View style={styles.galonCard}>
       <View style={styles.galonBody}>
-        <View style={styles.galonIcon}>
-          <Droplets color={colors.mustard} size={18} strokeWidth={2.2} />
-        </View>
+        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M9 2.5h6M10 2.5v3l-3 3.5V20a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 17 20V9l-3-3.5v-3M7.4 13h9.2"
+            stroke={colors.mustard}
+            strokeWidth={1.9}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
         <View style={styles.galonText}>
-          <Text style={styles.galonKicker}>GILIRAN GALON</Text>
-          <Text style={styles.galonName}>{giliran.namaAnggota ?? 'Belum ada giliran'}</Text>
+          <Text style={styles.galonKicker}>Beli galon</Text>
+          <Text style={styles.galonName}>
+            {giliran.namaAnggota
+              ? `Giliran: ${giliran.namaAnggota}${giliran.isMine ? ' (lo)' : ''}`
+              : 'Belum ada giliran'}
+          </Text>
         </View>
+        <Pressable
+          onPress={onBuy}
+          disabled={giliran.giliran == null || confirm.isPending}
+          style={({ pressed }) => [styles.galonBtn, pressed && styles.galonBtnPressed]}>
+          <Text style={styles.galonBtnText}>
+            {confirm.isPending ? 'Memproses…' : 'Sudah Beli'}
+          </Text>
+        </Pressable>
       </View>
-      <Pressable
-        onPress={onBuy}
-        disabled={giliran.giliran == null || confirm.isPending}
-        style={({ pressed }) => [styles.galonBtn, pressed && styles.galonBtnPressed]}>
-        <Text style={styles.galonBtnText}>
-          {confirm.isPending ? 'Memproses…' : 'Sudah Beli'}
-        </Text>
-      </Pressable>
     </View>
   );
 }
 
 function BillingSummary({ data }: { data: DashboardData }) {
-  const { countUnpaid, totalUnpaid } = data.billing;
+  const router = useRouter();
+  const { total, lunas, totalUnpaid } = data.billing;
+  const bulan = formatMonthYear(data.billing.bulan ?? new Date().toISOString());
   return (
-    <View style={styles.billingCard}>
-      <View style={styles.billingLeft}>
-        <View style={styles.billingIcon}>
-          <ReceiptText color={colors.ink} size={16} strokeWidth={2} />
-        </View>
-        <View style={styles.billingText}>
-          <Text style={styles.billingKicker}>TAGIHAN BULAN INI</Text>
-          <Text style={styles.billingCount}>{countUnpaid} tagihan belum lunas</Text>
-        </View>
+    <Pressable
+      onPress={() => router.push('/(tabs)/tagihan')}
+      style={({ pressed }) => [styles.billingCard, pressed && styles.billingPressed]}>
+      <View style={styles.billingText}>
+        <Text style={styles.billingKicker}>
+          Tagihan bulan ini · {bulan}
+        </Text>
+        <Text style={[styles.billingAmount, totalUnpaid === 0 && styles.billingPaid]}>
+          {totalUnpaid === 0 ? 'Lunas' : formatCurrency(totalUnpaid)}
+        </Text>
+        <Text style={styles.billingSub}>
+          {formatCurrency(lunas)} dari {formatCurrency(total)} lunas
+        </Text>
       </View>
-      <Text style={[styles.billingAmount, totalUnpaid === 0 && styles.billingPaid]}>
-        {totalUnpaid === 0 ? 'Lunas' : formatCurrency(totalUnpaid)}
-      </Text>
-    </View>
+      <Text style={styles.billingLink}>Lihat detail →</Text>
+    </Pressable>
   );
 }
 
 function ScheduleList({ data }: { data: DashboardData }) {
+  const first = data.scheduleWeek[0]?.tanggal;
+  const last = data.scheduleWeek[data.scheduleWeek.length - 1]?.tanggal;
   return (
     <View style={styles.scheduleBlock}>
-      <Text style={styles.sectionKicker}>JADWAL PIKET · PEKAN INI</Text>
+      <View style={styles.scheduleHead}>
+        <Text style={styles.scheduleTitle}>Jadwal minggu ini</Text>
+        {first && last && (
+          <Text style={styles.scheduleRange}>{formatWeekRange(first, last)}</Text>
+        )}
+      </View>
       {data.scheduleWeek.length === 0 ? (
         <View style={styles.scheduleEmpty}>
           <Text style={styles.scheduleEmptyTitle}>Belum ada jadwal pekan ini</Text>
@@ -275,58 +319,96 @@ function ScheduleList({ data }: { data: DashboardData }) {
 
 function ScheduleRowItem({ row }: { row: ScheduleRow }) {
   const today = isToday(row.tanggal);
-  const isFree = row.statusTag === 'Free';
-  const isLibur = row.statusTag === 'LIBUR';
+  const isWeekendDay = row.dow === 'Sabtu' || row.dow === 'Minggu';
+  const isLibur = row.statusTag === 'LIBUR' || row.statusTag === 'Free';
+  const hasMember = row.anggota != null && !isLibur;
+
+  const name = hasMember
+    ? `${row.anggota!.nama}${row.isMine ? ' (lo)' : ''}`
+    : 'Libur';
+  const sub = hasMember
+    ? row.ruangan.join(' · ')
+    : liburSubtitle(isWeekendDay, row.dow);
 
   return (
-    <View style={[styles.scheduleRow, isFree && styles.scheduleRowFree]}>
-      <View
-        style={[
-          styles.dateChip,
-          today && styles.dateChipToday,
-          isFree && styles.dateChipFree,
-        ]}>
-        <Text style={[styles.dow, today && styles.dowToday, isFree && styles.textMuted]}>
-          {row.dow}
-        </Text>
-        <Text
-          style={[styles.dateNum, today && styles.dateNumToday, isFree && styles.textMuted]}>
-          {formatShortDate(row.tanggal)}
+    <View style={[styles.scheduleRow, isLibur && styles.scheduleRowFree]}>
+      <View style={[styles.dateChip, isLibur && styles.dateChipFree]}>
+        <Text style={[styles.dow, isLibur && styles.dateChipDim]}>{dowShort(row.dow)}</Text>
+        <Text style={[styles.dateNum, isLibur && styles.dateChipDim]}>
+          {formatDayNumber(row.tanggal)}
         </Text>
       </View>
       <View style={styles.scheduleBody}>
-        <Text style={[styles.memberName, (isLibur || isFree) && styles.textMuted]} numberOfLines={1}>
-          {isLibur || isFree ? 'Libur' : row.anggota?.nama ?? 'Belum ada jadwal'}
+        <Text style={[styles.memberName, isLibur && styles.textMuted]} numberOfLines={1}>
+          {name}
         </Text>
-        <Text style={[styles.rooms, (isLibur || isFree) && styles.textMuted]} numberOfLines={1}>
-          {isLibur || isFree ? '' : row.ruangan.join(' · ')}
+        <Text style={[styles.rooms, isLibur && styles.textMuted]} numberOfLines={1}>
+          {sub}
         </Text>
       </View>
-      <StatusPill tag={row.statusTag} today={today} />
+      <StatusPill tag={row.statusTag} isWeekendDay={isWeekendDay} today={today} isLibur={isLibur} />
     </View>
   );
 }
 
-function StatusPill({ tag, today }: { tag: string; today: boolean }) {
-  const isLibur = tag === 'LIBUR';
-  const isFree = tag === 'Free';
+function liburSubtitle(isWeekendDay: boolean, dow: string): string {
+  if (isWeekendDay) return 'Semua pulang — bebas piket';
+  if (dow === 'Selasa' || dow === 'Kamis') return 'Jeda antar piket — sengaja dikosongin';
+  return 'Slot nggak kepake minggu ini';
+}
+
+function dowShort(dow: string): string {
+  const map: Record<string, string> = {
+    Senin: 'SEN',
+    Selasa: 'SEL',
+    Rabu: 'RAB',
+    Kamis: 'KAM',
+    Jumat: 'JUM',
+    Sabtu: 'SAB',
+    Minggu: 'MIN',
+  };
+  return map[dow] ?? dow.slice(0, 3).toUpperCase();
+}
+
+function StatusPill({
+  tag,
+  isWeekendDay,
+  today,
+  isLibur,
+}: {
+  tag: string;
+  isWeekendDay: boolean;
+  today: boolean;
+  isLibur: boolean;
+}) {
   const done = tag === 'Selesai';
+  const bolong = tag === 'Bolong';
+  const label =
+    tag === 'Free' || tag === 'LIBUR'
+      ? today
+        ? 'Hari ini'
+        : 'Libur'
+      : isWeekendDay && !done
+        ? 'Weekend'
+        : tag;
+
+  const freeBuild = isLibur || label === 'Libur';
+
   return (
     <View
       style={[
         styles.tagPill,
-        today && styles.tagToday,
-        (isLibur || isFree) && styles.tagFree,
         done && styles.tagDone,
+        bolong && styles.tagBolong,
+        freeBuild && styles.tagFree,
       ]}>
       <Text
         style={[
           styles.tagText,
-          today && styles.tagTextToday,
-          (isLibur || isFree) && styles.textMuted,
+          (freeBuild || label === 'Hari ini') && styles.textMuted,
           done && styles.tagTextDone,
         ]}>
-        {tag}
+        {label}
       </Text>
     </View>
   );
@@ -398,7 +480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
   },
   weekendDeadlineText: {
-    ...type.kicker,
+    fontFamily: fontFamilies.mono[500],
     fontSize: 9.5,
     color: colors.paper,
   },
@@ -431,59 +513,86 @@ const styles = StyleSheet.create({
   },
   weekendDayBtnActive: { backgroundColor: colors.paper },
   weekendDayBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: 'rgba(239, 234, 224, 0.8)' },
-  weekendDayBtnTextActive: { color: colors.pineDeep },
-  weekendOthers: { marginTop: 11, gap: 7 },
-  weekendOthersLabel: {
-    ...type.kicker,
-    fontSize: 9.5,
-    color: 'rgba(239, 234, 224, 0.5)',
+  weekendDayBtnTextActive: { color: colors.ink },
+  weekendOthers: {
+    marginTop: 11,
+    flexGrow: 0,
+    paddingTop: 2,
   },
-  weekendOthersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  weekendOthersLabel: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 1.05,
+    textTransform: 'uppercase',
+    color: 'rgba(239, 234, 224, 0.5)',
+    marginRight: 9,
+    lineHeight: 16,
+  },
+  weekendNotice: {
+    backgroundColor: 'rgba(179, 63, 63, 0.22)',
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+  },
+  weekendNoticeText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11,
+    lineHeight: 15.4,
+    color: colors.brickSoft,
+  },
   weekendOtherItem: {
     fontFamily: fontFamilies.body[500],
     fontSize: 10.5,
     color: colors.paper,
-    marginRight: 5,
+    marginRight: 9,
+    lineHeight: 16,
   },
   weekendOtherItemMuted: { color: 'rgba(239, 234, 224, 0.55)' },
   galonCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: 14,
-    paddingLeft: 13,
+    padding: 13,
+    paddingLeft: 14,
     borderLeftWidth: 4,
     borderLeftColor: colors.mustard,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 10,
   },
-  galonBody: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  galonIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.mustardSoft, alignItems: 'center', justifyContent: 'center' },
-  galonText: { flex: 1 },
-  galonKicker: { ...type.kicker, fontSize: 9, color: colors.inkSoft },
-  galonName: { fontFamily: fontFamilies.body[600], fontSize: 14.5, color: colors.ink },
-  galonBtn: { backgroundColor: colors.pine, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' },
-  galonBtnPressed: { backgroundColor: colors.pineDeep },
-  galonBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  galonBody: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  galonText: { flex: 1, gap: 1 },
+  galonKicker: { fontFamily: fontFamilies.mono[500], fontSize: 9.5, lineHeight: 13, letterSpacing: 1.14, textTransform: 'uppercase', color: colors.inkSoft },
+  galonName: { fontFamily: fontFamilies.display[600], fontSize: 14.5, color: colors.ink, letterSpacing: -0.01 },
+  galonBtn: { backgroundColor: colors.ink, borderRadius: 11, paddingVertical: 9, paddingHorizontal: 13 },
+  galonBtnPressed: { backgroundColor: colors.pine },
+  galonBtnText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.paper },
   billingCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius['2xl'],
-    padding: 14,
+    padding: 13,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
   },
-  billingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  billingIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.paperDeep, alignItems: 'center', justifyContent: 'center' },
-  billingText: { gap: 2 },
-  billingKicker: { ...type.kicker, fontSize: 9, color: colors.inkSoft },
-  billingCount: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
-  billingAmount: { fontFamily: fontFamilies.mono[700], fontSize: 20, letterSpacing: -0.4, color: colors.brick },
+  billingPressed: { backgroundColor: colors.paperDeep },
+  billingText: { flex: 1, flexDirection: 'column', gap: 2 },
+  billingKicker: { fontFamily: fontFamilies.mono[500], fontSize: 9.5, lineHeight: 13, letterSpacing: 1.14, textTransform: 'uppercase', color: colors.inkSoft },
+  billingAmount: { fontFamily: fontFamilies.mono[700], fontSize: 21, letterSpacing: -0.4, color: colors.ink },
   billingPaid: { color: colors.inkSoft },
+  billingSub: { fontFamily: fontFamilies.body[400], fontSize: 10.5, color: colors.inkSoft },
+  billingLink: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.pine, flexShrink: 0 },
   scheduleBlock: { gap: 8 },
-  sectionKicker: { ...type.kicker, fontSize: 9.5, color: colors.inkMuted },
+  scheduleHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    paddingTop: 4,
+  },
+  scheduleTitle: { fontFamily: fontFamilies.display[600], fontSize: 13, color: colors.ink, letterSpacing: 0.47 },
+  scheduleRange: { fontFamily: fontFamilies.mono[500], fontSize: 10, color: colors.inkSoft },
   scheduleEmpty: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -501,43 +610,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.xl,
+    borderRadius: radius['2xl'],
     paddingVertical: 11,
     paddingHorizontal: 13,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   scheduleRowFree: { backgroundColor: colors.paperDeep },
   dateChip: {
-    width: 44,
+    width: 40,
     height: 44,
-    borderRadius: radius.md,
+    borderRadius: 11,
     backgroundColor: colors.paper,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 1,
   },
-  dateChipToday: { backgroundColor: colors.mustard },
   dateChipFree: { backgroundColor: 'transparent' },
-  dow: { fontFamily: fontFamilies.mono[500], fontSize: 8.5, letterSpacing: 0.6, color: colors.ink },
-  dowToday: { color: colors.mustardInkStrong },
-  dateNum: { fontFamily: fontFamilies.mono[700], fontSize: 12, color: colors.ink },
-  dateNumToday: { color: colors.mustardInkStrong },
+  dateChipDim: { color: colors.inkMuted },
+  dow: { fontFamily: fontFamilies.mono[500], fontSize: 8.5, letterSpacing: 0.6, color: colors.ink, opacity: 0.7 },
+  dateNum: { fontFamily: fontFamilies.mono[700], fontSize: 16, lineHeight: 16, color: colors.ink },
   textMuted: { color: colors.inkMuted },
-  scheduleBody: { flex: 1, gap: 1 },
-  memberName: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
-  rooms: { fontFamily: fontFamilies.body[400], fontSize: 10, color: colors.inkSoft },
+  scheduleBody: { flex: 1, gap: 2 },
+  memberName: { fontFamily: fontFamilies.body[600], fontSize: 13.5, color: colors.ink },
+  rooms: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
   tagPill: {
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
     paddingVertical: 5,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
   },
-  tagToday: { backgroundColor: colors.mustardSoft, borderColor: colors.mustardBorder },
   tagFree: { borderStyle: 'dashed', borderColor: colors.lineDash },
   tagDone: { backgroundColor: colors.pineSoft, borderColor: 'transparent' },
-  tagText: { fontFamily: fontFamilies.body[600], fontSize: 9.5, color: colors.inkSoft },
-  tagTextToday: { color: colors.mustardInk },
+  tagBolong: { backgroundColor: colors.brickSoft },
+  tagText: { fontFamily: fontFamilies.body[600], fontSize: 10, letterSpacing: 0.4, textTransform: 'uppercase', color: colors.inkSoft },
   tagTextDone: { color: colors.pineDeep },
 });

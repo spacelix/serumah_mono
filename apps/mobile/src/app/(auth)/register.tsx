@@ -1,10 +1,11 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
@@ -15,17 +16,24 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
 
   const handleSubmit = async () => {
     if (password !== confirmPassword) {
-      Alert.alert('Kata sandi tidak cocok', 'Pastikan kedua kata sandi sama.');
+      setError({
+        title: 'Kata sandi tidak cocok',
+        message: 'Pastikan kedua kata sandi sama.',
+      });
       return;
     }
+    setError(null);
     try {
       await register(email.trim(), password);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.';
-      Alert.alert('Gagal mendaftar', message);
+      setError({
+        title: 'Gagal mendaftar',
+        message: error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.',
+      });
     }
   };
 
@@ -89,6 +97,16 @@ export default function RegisterScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={error != null}
+        title={error?.title ?? ''}
+        message={error?.message ?? ''}
+        confirmText="Tutup"
+        single
+        onConfirm={() => setError(null)}
+        onCancel={() => setError(null)}
+      />
     </SafeAreaView>
   );
 }

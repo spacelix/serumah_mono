@@ -18,6 +18,7 @@ Module: `schedule`.
 | POST | `/schedule/generate/weekday` | — (admin) | `{ count }` | Generate next week round-robin (manual on-demand). |
 | POST | `/schedule/generate/rest-of-week` | — (admin) | `{ count }` | **First-time**: backfill the rest of the current week (today→Sunday, weekday + weekend from Di kos). Next week is handled by cron. |
 | POST | `/schedule/generate/weekend` | — (admin) | `{ count }` | Generate weekend from Di kos status. |
+| POST | `/schedule/refresh-future-rooms` | — (admin) | `{ updated }` | **Refresh only** the `ruangan[]` snapshot of future Jadwal rows (days after today) so only rooms with an active jenis piket appear. Member assignment is preserved; past days untouched. Triggered from Kelola Rumah when leaving after adding a jenis piket (confirm dialog). |
 | PUT | `/schedule/weekend-status` | `{ hari, status }` | `{ weekendStatus }` | Set Di kos/Pulang. Validates not yet frozen. |
 | POST | `/schedule/run-auto-fine` | — (internal) | `{ fined }` | Cron. Do not expose publicly without a service guard. |
 
@@ -42,6 +43,8 @@ Locked decisions (from the old phase, preserved):
 ## 5. UI Spec (React Native)
 - **ScheduleList** (Beranda): 7 rows, status tags (see dashboard).
 - **Rumah Management**: **"Generate Jadwal"** button (admin only) → calls `/schedule/generate/rest-of-week`. Card sits at the **bottom** of Kelola Rumah, **disabled** when the current week is already fully scheduled (`scheduleIncomplete` = false). Pekan depan is generated automatically by cron — the button only backfills today→Sunday.
+
+**Adding a jenis piket (Kelola Rumah):** after an admin adds a jenis piket, the future days' `ruangan[]` snapshot is stale (new room not yet included). When the admin **leaves** the Kelola Rumah page, a confirm dialog offers to call `/schedule/refresh-future-rooms` — only future days are updated, member assignment kept, so only rooms with an active jenis piket appear in the remaining schedule. If the admin cancels, the dialog is dismissed and no refresh occurs.
 - **Beranda banner (PJ only, not in design):** brick-soft reminder shown when `isAdmin && scheduleIncomplete`. Tapping it opens `/rumah/manage?scrollTo=generate` which auto-scrolls to the Generate Jadwal card.
 
 ## 6. Constraints / Prohibited

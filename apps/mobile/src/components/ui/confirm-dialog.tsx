@@ -21,6 +21,8 @@ interface ConfirmDialogProps {
   cancelText?: string;
   danger?: boolean;
   busy?: boolean;
+  /** Single-action info dialog: hides Batal, auto-fills cancel on dismiss. */
+  single?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -38,6 +40,7 @@ export function ConfirmDialog({
   cancelText = 'Batal',
   danger = false,
   busy = false,
+  single = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -107,21 +110,23 @@ export function ConfirmDialog({
           <Text style={styles.message}>{message}</Text>
 
           <View style={styles.buttons}>
-            <Pressable
-              onPress={onCancel}
-              disabled={busy}
-              style={[styles.button, styles.buttonCancel]}>
-              <Text style={styles.buttonCancelText}>{cancelText}</Text>
-            </Pressable>
+            {!single && (
+              <Pressable
+                onPress={onCancel}
+                disabled={busy}
+                style={[styles.button, styles.buttonCancel]}>
+                <Text style={styles.buttonCancelText}>{cancelText}</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={onConfirm}
               disabled={busy}
               style={[
                 styles.button,
-                danger ? styles.buttonDanger : styles.buttonPrimary,
+                single ? styles.buttonPrimary : danger ? styles.buttonDanger : styles.buttonPrimary,
                 busy && styles.buttonBusy,
               ]}>
-              <Text style={danger ? styles.buttonDangerText : styles.buttonPrimaryText}>
+              <Text style={single ? styles.buttonPrimaryText : danger ? styles.buttonDangerText : styles.buttonPrimaryText}>
                 {busy ? 'Memproses…' : confirmText}
               </Text>
             </Pressable>

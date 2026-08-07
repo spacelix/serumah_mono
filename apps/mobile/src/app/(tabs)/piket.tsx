@@ -285,7 +285,7 @@ function isDraftComplete(draft?: RoomDraft): boolean {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
-  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40, gap: 12 },
+  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 108, gap: 12 },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   empty: {

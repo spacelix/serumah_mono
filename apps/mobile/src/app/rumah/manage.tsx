@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Plus, X } from 'lucide-react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/stores/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { mediaSource } from '@/lib/api-client';
-import { useGenerateRestOfWeek, useDashboard } from '@/features/dashboard/api/dashboard';
+import { apiRefreshFutureRooms, useGenerateRestOfWeek, useDashboard } from '@/features/dashboard/api/dashboard';
 import {
   apiCreateJenisPiket,
   apiCreateRuangan,
@@ -45,11 +45,41 @@ export default function ManageRumahScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const shouldScrollToGenerate = params.scrollTo === 'generate';
   const scrolledRef = useRef(false);
+  const [addedJenis, setAddedJenis] = useState(false);
+  const [confirmRefresh, setConfirmRefresh] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleBack = () => {
+    if (addedJenis) {
+      setConfirmRefresh(true);
+    } else {
+      router.back();
+    }
+  };
 
   const scrollToGenerate = () => {
     if (scrolledRef.current) return;
     scrollRef.current?.scrollToEnd({ animated: true });
     scrolledRef.current = true;
+  };
+
+  const confirmAndExit = async () => {
+    setRefreshing(true);
+    try {
+      const res = await apiRefreshFutureRooms();
+      toast.success(
+        res.updated > 0
+          ? `Jadwal hari-hari ke depan diperbarui (${res.updated} hari).`
+          : 'Tidak ada jadwal masa depan untuk diperbarui.',
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Terjadi kesalahan saat memperbarui jadwal.');
+    } finally {
+      setRefreshing(false);
+      setConfirmRefresh(false);
+      invalidate();
+      router.back();
+    }
   };
 
   if (isLoading || data == null || data.rumah == null) {
@@ -64,7 +94,7 @@ export default function ManageRumahScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Kelola rumah" onBack={() => router.back()} backLabel="Profil" />
+      <ScreenHeader title="Kelola rumah" onBack={handleBack} backLabel="Profil" />
       <ScrollView
         ref={scrollRef}
         onContentSizeChange={() => {
@@ -74,9 +104,23 @@ export default function ManageRumahScreen() {
         showsVerticalScrollIndicator={false}>
         <RumahCard rumah={data.rumah} isAdmin={data.currentRole === 'admin'} onChange={() => invalidate()} />
         <MembersSection members={data.anggotaList} isAdmin={data.currentRole === 'admin'} />
-        <RoomsSection isAdmin={data.currentRole === 'admin'} denda={data.rumah.nominalDenda} />
+        <RoomsSection
+          isAdmin={data.currentRole === 'admin'}
+          denda={data.rumah.nominalDenda}
+          onAddedJenis={() => setAddedJenis(true)}
+        />
         <GenerateJadwalSection isAdmin={data.currentRole === 'admin'} />
       </ScrollView>
+
+      <ConfirmDialog
+        visible={confirmRefresh}
+        title="Perbarui jadwal piket?"
+        message="Karena lo nambah jenis piket, daftar ruangan di jadwal hari-hari ke depan bakal diperbarui supaya cuma ruangan yang ada jenis piketnya yang masuk. Anggota piketnya tetap."
+        confirmText="Perbarui"
+        busy={refreshing}
+        onConfirm={() => void confirmAndExit()}
+        onCancel={() => router.back()}
+      />
     </SafeAreaView>
   );
 }
@@ -439,7 +483,15 @@ function MembersSection({
 
 /* ================= Kelola Ruangan & Jenis Piket ================= */
 
-function RoomsSection({ isAdmin, denda }: { isAdmin: boolean; denda: number }) {
+function RoomsSection({
+  isAdmin,
+  denda,
+  onAddedJenis,
+}: {
+  isAdmin: boolean;
+  denda: number;
+  onAddedJenis: () => void;
+}) {
   const { data: ruangan, isLoading } = useRuangan();
   const queryClient = useQueryClient();
   const [newRoom, setNewRoom] = useState('');
@@ -518,6 +570,7 @@ function RoomsSection({ isAdmin, denda }: { isAdmin: boolean; denda: number }) {
       await apiCreateJenisPiket(ruanganId, nama);
       setNewJenis((p) => ({ ...p, [ruanganId]: '' }));
       setAddingJenis((p) => ({ ...p, [ruanganId]: false }));
+      onAddedJenis();
       revalidate();
       toast.success('Jenis piket berhasil ditambahkan.');
     } catch (e) {

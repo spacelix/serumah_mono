@@ -34,3 +34,26 @@ export function formatWeekdayDate(iso: string): string {
     .format(date)
     .replace('.', '');
 }
+
+/** "Juli 2026" — for the billing month label */
+export function formatMonthYear(iso: string): string {
+  const date = new Date(iso);
+  return new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+/** Day number e.g. "27" — for schedule date chips */
+export function formatDayNumber(iso: string): string {
+  return String(new Date(iso).getDate()).padStart(2, '0');
+}
+
+/** "27 Jul – 2 Agu" — schedule week range, both ends day+month */
+export function formatWeekRange(startIso: string, endIso: string): string {
+  const fmt = (iso: string) =>
+    new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' })
+      .format(new Date(iso))
+      .replace('.', '');
+  return `${fmt(startIso)} – ${fmt(endIso)}`;
+}

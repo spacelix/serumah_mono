@@ -243,7 +243,11 @@ export class ScheduleService {
     const sunday = this.addDays(this.mondayOf(today), 6);
 
     let count = 0;
-    for (let cursor = today; cursor <= sunday; cursor = this.addDays(cursor, 1)) {
+    for (
+      let cursor = today;
+      cursor <= sunday;
+      cursor = this.addDays(cursor, 1)
+    ) {
       if (this.isPiketDay(cursor)) {
         if (await this.ensureWeekday(anggota.rumahId!, cursor)) count += 1;
       } else if (this.isWeekendDay(cursor)) {
@@ -263,6 +267,33 @@ export class ScheduleService {
       }
     }
     return { message: 'Jadwal akhir pekan telah dibuat.' };
+  }
+
+  /**
+   * Refresh only the `ruangan[]` snapshot of future Jadwal rows (days after
+   * today) so that only rooms with an active jenis piket appear. Member
+   * assignment (round-robin) is preserved — day rows already in the past are
+   * left untouched. Triggered from Kelola Rumah after a jenis piket is added.
+   */
+  async refreshFutureRooms(payload: CurrentUserPayload) {
+    const anggota = await this.requirePj(payload);
+    const today = this.toDate(new Date());
+
+    const futureRows = await this.prisma.jadwal.findMany({
+      where: { rumahId: anggota.rumahId!, tanggal: { gt: today } },
+      select: { id: true },
+    });
+    if (futureRows.length === 0) return { updated: 0 };
+
+    const roomNames = await this.activeRoomNames(anggota.rumahId!);
+    await this.prisma.jadwal.updateMany({
+      where: { id: { in: futureRows.map((j) => j.id) } },
+      data: { ruangan: roomNames },
+    });
+    this.logger.log(
+      `[ScheduleService] Refresh ruangan ${futureRows.length} jadwal masa depan → ${roomNames.length} ruang`,
+    );
+    return { updated: futureRows.length };
   }
 
   async setWeekendStatus(payload: CurrentUserPayload, dto: WeekendStatusDto) {

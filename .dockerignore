@@ -4,8 +4,10 @@ node_modules
 .turbo
 dist
 **/dist
-apps/mobile
-**/apps/mobile
+apps/mobile/*
+**/apps/mobile/*
+!apps/mobile/package.json
+!**/apps/mobile/package.json
 */generated/client
 apps/api/.env
 **/*.log

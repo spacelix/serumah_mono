@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { useEffect, useMemo } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
@@ -13,6 +14,7 @@ import { fontFamilies } from '@/theme/typography';
  * (JetBrains Mono 500 9.5, .2em, uppercase, paper @ 55%).
  */
 export function SplashScreen() {
+  const insets = useSafeAreaInsets();
   const version = Constants.expoConfig?.version ?? '';
   const rise = useMemo(() => new Animated.Value(0), []);
   const word = useMemo(() => new Animated.Value(0), []);
@@ -67,7 +69,11 @@ export function SplashScreen() {
         <Text style={styles.wordmark}>Serumah</Text>
         <Text style={styles.kicker}>Piket · Iuran · Galon</Text>
       </Animated.View>
-      {version !== '' && <Text style={styles.version}>v{version}</Text>}
+      {version !== '' && (
+        <Text style={[styles.version, { bottom: Math.max(insets.bottom, 12) + 26 }]}>
+          v{version}
+        </Text>
+      )}
     </View>
   );
 }

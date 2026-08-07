@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.expo
+.android
+.ios
+coverage
+bun.lock
+**/generated
+packages/db/generated
+packages/db/prisma/migrations
+*.lock
+*.mdx

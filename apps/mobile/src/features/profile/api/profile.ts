@@ -38,7 +38,7 @@ export interface UpdateProfileInput {
 }
 
 export async function apiUpdateProfile(input: UpdateProfileInput) {
-  const response = await apiClient.patch('/anggota/me/profile', input);
+  const response = await apiClient.put('/anggota/me/profile', input);
   return response.data as { anggota: AnggotaDetail };
 }
 
@@ -138,8 +138,14 @@ export async function apiGetStats(): Promise<ProfileStats> {
   return response.data;
 }
 
-export async function apiChangePassword(passwordLama: string, passwordBaru: string) {
-  const response = await apiClient.patch('/auth/password', { passwordLama, passwordBaru });
+export async function apiChangePassword(
+  passwordLama: string,
+  passwordBaru: string,
+) {
+  const response = await apiClient.patch('/auth/password', {
+    passwordLama,
+    passwordBaru,
+  });
   return response.data as { success: boolean };
 }
 
@@ -195,7 +201,10 @@ export async function apiCreateRuangan(nama: string): Promise<Ruangan> {
   return response.data;
 }
 
-export async function apiUpdateRuangan(id: string, nama: string): Promise<Ruangan> {
+export async function apiUpdateRuangan(
+  id: string,
+  nama: string,
+): Promise<Ruangan> {
   const response = await apiClient.patch<Ruangan>(`/ruangan/${id}`, { nama });
   return response.data;
 }
@@ -214,11 +223,17 @@ export async function apiCreateJenisPiket(
   ruanganId: string,
   nama: string,
 ): Promise<JenisPiket> {
-  const response = await apiClient.post<JenisPiket>(`/ruangan/${ruanganId}/jenis`, { nama });
+  const response = await apiClient.post<JenisPiket>(
+    `/ruangan/${ruanganId}/jenis`,
+    { nama },
+  );
   return response.data;
 }
 
-export async function apiUpdateJenisPiket(id: string, input: { nama?: string; isActive?: boolean }) {
+export async function apiUpdateJenisPiket(
+  id: string,
+  input: { nama?: string; isActive?: boolean },
+) {
   const response = await apiClient.patch(`/ruangan/jenis/${id}`, input);
   return response.data as JenisPiket;
 }

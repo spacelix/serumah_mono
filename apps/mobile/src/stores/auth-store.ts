@@ -10,7 +10,8 @@ export interface AuthUser {
   email: string;
 }
 
-export type AuthStage = 'checking' | 'anonymous' | 'no-profile' | 'no-rumah' | 'ready';
+export type AuthStage =
+  'checking' | 'anonymous' | 'no-profile' | 'no-rumah' | 'ready';
 
 interface AuthState {
   token: string | null;
@@ -22,7 +23,12 @@ interface AuthState {
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  setSession: (token: string, user: AuthUser, hasProfile: boolean, hasRumah: boolean) => Promise<void>;
+  setSession: (
+    token: string,
+    user: AuthUser,
+    hasProfile: boolean,
+    hasRumah: boolean,
+  ) => Promise<void>;
   setOnboarding: (hasProfile: boolean, hasRumah: boolean) => void;
   clear: () => Promise<void>;
 }
@@ -41,7 +47,11 @@ async function writeSecure(key: string, value: unknown): Promise<void> {
   await SecureStore.setItemAsync(key, JSON.stringify(value));
 }
 
-function resolveStage(token: string | null, hasProfile: boolean, hasRumah: boolean): AuthStage {
+function resolveStage(
+  token: string | null,
+  hasProfile: boolean,
+  hasRumah: boolean,
+): AuthStage {
   if (!token) return 'anonymous';
   if (!hasProfile) return 'no-profile';
   if (!hasRumah) return 'no-rumah';
@@ -65,7 +75,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       const hasProfile = me.anggota != null;
       const hasRumah = (me.anggota?.rumahId ?? null) != null;
       queryClient.clear();
-      await useAuthStore.getState().setSession(session.token, session.user, hasProfile, hasRumah);
+      await useAuthStore
+        .getState()
+        .setSession(session.token, session.user, hasProfile, hasRumah);
     } finally {
       set({ loading: false });
     }
@@ -77,7 +89,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const session = await apiRegister(email, password);
       queryClient.clear();
-      await useAuthStore.getState().setSession(session.token, session.user, false, false);
+      await useAuthStore
+        .getState()
+        .setSession(session.token, session.user, false, false);
     } finally {
       set({ loading: false });
     }
@@ -138,6 +152,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       SecureStore.deleteItemAsync('serumah_has_profile'),
       SecureStore.deleteItemAsync('serumah_has_rumah'),
     ]);
-    set({ token: null, user: null, hasProfile: false, hasRumah: false, stage: 'anonymous' });
+    set({
+      token: null,
+      user: null,
+      hasProfile: false,
+      hasRumah: false,
+      stage: 'anonymous',
+    });
   },
 }));

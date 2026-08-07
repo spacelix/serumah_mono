@@ -31,11 +31,17 @@ export default function OnboardingCreateRumahScreen() {
     if (nama.trim() === '' || alamat.trim() === '') return;
     setSubmitting(true);
     try {
-      const result = await apiCreateRumah({ nama: nama.trim(), alamat: alamat.trim() });
+      const result = await apiCreateRumah({
+        nama: nama.trim(),
+        alamat: alamat.trim(),
+      });
       setInviteCode(result.inviteCode);
       setRumahNama(result.rumah.nama);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan. Coba lagi.';
       Alert.alert('Gagal membuat kos', message);
     } finally {
       setSubmitting(false);
@@ -62,7 +68,8 @@ export default function OnboardingCreateRumahScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.content}>
           {inviteCode == null ? (
             <>
@@ -70,7 +77,8 @@ export default function OnboardingCreateRumahScreen() {
                 <Text style={styles.kicker}>Langkah 2 dari 2</Text>
                 <Text style={styles.title}>Buat Kos Baru</Text>
                 <Text style={styles.subtitle}>
-                  Jadi admin (PJ Kos) — kamu yang atur piket, iuran, dan verifikasi.
+                  Jadi admin (PJ Kos) — kamu yang atur piket, iuran, dan
+                  verifikasi.
                 </Text>
               </View>
 
@@ -93,15 +101,22 @@ export default function OnboardingCreateRumahScreen() {
 
                 <View style={styles.actions}>
                   <SerumahButton
-                    title={submitting ? 'Membuat…' : 'Buat & Dapatkan Kode Undangan'}
-                    disabled={submitting || nama.trim() === '' || alamat.trim() === ''}
+                    title={
+                      submitting ? 'Membuat…' : 'Buat & Dapatkan Kode Undangan'
+                    }
+                    disabled={
+                      submitting || nama.trim() === '' || alamat.trim() === ''
+                    }
                     onPress={handleCreate}
                   />
                 </View>
 
                 <View style={styles.switchRow}>
                   <Text style={styles.switchText}>Punya kode undangan? </Text>
-                  <Text style={styles.switchLink} onPress={() => router.replace('/onboarding/join-rumah')}>
+                  <Text
+                    style={styles.switchLink}
+                    onPress={() => router.replace('/onboarding/join-rumah')}
+                  >
                     Gabung kos
                   </Text>
                 </View>
@@ -123,7 +138,11 @@ export default function OnboardingCreateRumahScreen() {
               </View>
 
               <View style={styles.successActions}>
-                <SerumahButton title="Bagikan ke temen" variant="outline" onPress={shareInvite} />
+                <SerumahButton
+                  title="Bagikan ke temen"
+                  variant="outline"
+                  onPress={shareInvite}
+                />
                 <SerumahButton title="Lanjut ke Beranda" onPress={finish} />
               </View>
             </View>

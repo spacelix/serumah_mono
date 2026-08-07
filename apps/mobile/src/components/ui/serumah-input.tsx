@@ -1,4 +1,10 @@
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+} from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
@@ -16,7 +22,12 @@ interface SerumahInputProps extends Omit<TextInputProps, 'style'> {
  *         Inter 500 13.5px ink, focus border pine
  * error banner = bg brickSoft, Inter 500 11.5, brickDeep
  */
-export function SerumahInput({ label, hint, error, ...rest }: SerumahInputProps) {
+export function SerumahInput({
+  label,
+  hint,
+  error,
+  ...rest
+}: SerumahInputProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>

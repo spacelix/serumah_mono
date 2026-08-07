@@ -42,12 +42,16 @@ export interface DendaListResponse {
 }
 
 export async function apiGetDenda(bulan: string): Promise<DendaListResponse> {
-  const response = await apiClient.get<DendaListResponse>('/denda', { params: { bulan } });
+  const response = await apiClient.get<DendaListResponse>('/denda', {
+    params: { bulan },
+  });
   return response.data;
 }
 
 export async function apiUploadDendaBukti(id: string, buktiUrl: string) {
-  const response = await apiClient.post(`/denda/${id}/upload-bukti`, { buktiUrl });
+  const response = await apiClient.post(`/denda/${id}/upload-bukti`, {
+    buktiUrl,
+  });
   return response.data as { status: string };
 }
 
@@ -86,12 +90,18 @@ export interface IuranListResponse {
   pelunasan: PelunasanItem[];
   rumah: {
     totalPerBulan: number;
-    rekening: { bank: string | null; nomor: string | null; nama: string | null };
+    rekening: {
+      bank: string | null;
+      nomor: string | null;
+      nama: string | null;
+    };
   };
 }
 
 export async function apiGetIuran(bulan: string): Promise<IuranListResponse> {
-  const response = await apiClient.get<IuranListResponse>('/iuran', { params: { bulan } });
+  const response = await apiClient.get<IuranListResponse>('/iuran', {
+    params: { bulan },
+  });
   return response.data;
 }
 
@@ -101,7 +111,10 @@ export async function apiEnsureBulan(bulan: string) {
 }
 
 export async function apiUploadBuktiTotal(bulan: string, buktiUrl: string) {
-  const response = await apiClient.post('/iuran/upload-bukti-total', { bulan, buktiUrl });
+  const response = await apiClient.post('/iuran/upload-bukti-total', {
+    bulan,
+    buktiUrl,
+  });
   return response.data as { status: string; count: number };
 }
 
@@ -110,8 +123,16 @@ export async function apiConfirmIuranLunas(id: string) {
   return response.data as { iuran: { id: string } };
 }
 
-export async function apiPelunasan(bulan: string, kategori: string, buktiLunas: string) {
-  const response = await apiClient.post('/iuran/pelunasan', { bulan, kategori, buktiLunas });
+export async function apiPelunasan(
+  bulan: string,
+  kategori: string,
+  buktiLunas: string,
+) {
+  const response = await apiClient.post('/iuran/pelunasan', {
+    bulan,
+    kategori,
+    buktiLunas,
+  });
   return response.data as { pelunasan: PelunasanItem };
 }
 
@@ -136,8 +157,12 @@ export interface ListrikListResponse {
   myCredit: number;
 }
 
-export async function apiGetListrik(bulan: string): Promise<ListrikListResponse> {
-  const response = await apiClient.get<ListrikListResponse>('/listrik', { params: { bulan } });
+export async function apiGetListrik(
+  bulan: string,
+): Promise<ListrikListResponse> {
+  const response = await apiClient.get<ListrikListResponse>('/listrik', {
+    params: { bulan },
+  });
   return response.data;
 }
 
@@ -178,7 +203,9 @@ export function useTagihanInvalidate() {
   return (bulan: string) => {
     void queryClient.invalidateQueries({ queryKey: tagihanKeys.denda(bulan) });
     void queryClient.invalidateQueries({ queryKey: tagihanKeys.iuran(bulan) });
-    void queryClient.invalidateQueries({ queryKey: tagihanKeys.listrik(bulan) });
+    void queryClient.invalidateQueries({
+      queryKey: tagihanKeys.listrik(bulan),
+    });
   };
 }
 
@@ -196,7 +223,8 @@ export function shiftMonth(bulan: string, delta: number): string {
 
 export function formatMonthLabel(bulan: string): string {
   const [y, m] = bulan.split('-').map(Number);
-  return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(
-    new Date(Date.UTC(y, m - 1, 1)),
-  );
+  return new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(y, m - 1, 1)));
 }

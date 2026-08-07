@@ -369,14 +369,14 @@ model FcmToken {
 
 ## State Machines
 
-| Entity | Transition |
-|---|---|
-| PiketSubmission | `menunggu` → `approved` \| `rejected` (→ flat fine) \| `bolong` (auto, no submit) |
-| Denda | `belum_bayar` → (upload proof) `menunggu_konfirmasi` → (PJ approve) `lunas`; reject → `belum_bayar`. **PJ/Admin's own fine → proof upload directly `lunas`.** |
-| IuranBulanan | `belum_bayar` → (upload total proof) `menunggu_konfirmasi` → (PJ confirm) `lunas`. **PJ/Admin → directly `lunas`.** |
-| PembayaranListrik | No status — self-record recorded immediately. |
-| SwapRequest | `diajukan` → `diterima` (schedule moves) \| `ditolak` (stays). |
-| GiliranGalon | `menunggu` → `sudah_dibeli` → rotate to next member. No nominal/reimbursement. |
+| Entity            | Transition                                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PiketSubmission   | `menunggu` → `approved` \| `rejected` (→ flat fine) \| `bolong` (auto, no submit)                                                                             |
+| Denda             | `belum_bayar` → (upload proof) `menunggu_konfirmasi` → (PJ approve) `lunas`; reject → `belum_bayar`. **PJ/Admin's own fine → proof upload directly `lunas`.** |
+| IuranBulanan      | `belum_bayar` → (upload total proof) `menunggu_konfirmasi` → (PJ confirm) `lunas`. **PJ/Admin → directly `lunas`.**                                           |
+| PembayaranListrik | No status — self-record recorded immediately.                                                                                                                 |
+| SwapRequest       | `diajukan` → `diterima` (schedule moves) \| `ditolak` (stays).                                                                                                |
+| GiliranGalon      | `menunggu` → `sudah_dibeli` → rotate to next member. No nominal/reimbursement.                                                                                |
 
 ---
 

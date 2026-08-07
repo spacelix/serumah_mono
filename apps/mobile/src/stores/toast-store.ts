@@ -29,7 +29,8 @@ export const useToastStore = create<ToastState>((set, get) => ({
 }));
 
 export const toast = {
-  success: (message: string) => useToastStore.getState().show(message, 'success'),
+  success: (message: string) =>
+    useToastStore.getState().show(message, 'success'),
   error: (message: string) => useToastStore.getState().show(message, 'error'),
   info: (message: string) => useToastStore.getState().show(message, 'info'),
 };

@@ -1,22 +1,27 @@
 # Feature Context — Listrik Tambahan
 
 ## 1. Goal & Scope
+
 Extra electricity token purchases mid-month (self-record). Cost split equally to all members and adjusts next month's `listrik_wajib` iuran. No approval — anyone can upload.
 
 ## 2. Data Model
+
 - `PembayaranListrik`: `rumahId`, `anggotaId`, `bulan`, `nominal`, `buktiBayar`, `keterangan`.
 - Effect on `IuranBulanan.listrik_wajib` the following month (see iuran).
 
 ## 3. API Contract (NestJS)
+
 Module: `listrik`.
 
-| Method | Path | Request | Response | Notes |
-|---|---|---|---|---|
-| GET | `/listrik?bulan=YYYY-MM` | — | `{ records, nameMap, total, myBought, nAnggota }` | Current month by default. |
-| POST | `/listrik` | `{ bulan, nominal, keterangan?, buktiUrl }` | `{ record }` | Direct insert (self-record). Proof uploaded first → `photos/listrik/{id}/bukti_{ts}.jpg`. |
+| Method | Path                     | Request                                     | Response                                          | Notes                                                                                     |
+| ------ | ------------------------ | ------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| GET    | `/listrik?bulan=YYYY-MM` | —                                           | `{ records, nameMap, total, myBought, nAnggota }` | Current month by default.                                                                 |
+| POST   | `/listrik`               | `{ bulan, nominal, keterangan?, buktiUrl }` | `{ record }`                                      | Direct insert (self-record). Proof uploaded first → `photos/listrik/{id}/bukti_{ts}.jpg`. |
 
 ## 4. Business Rules & State Machine
+
 Locked decisions:
+
 - Self-record — NO status/approval. Direct insert.
 - Split: `share = floor(nominal / n_anggota)` per record.
 - **Next-month adjustment** (current month vs previous month):
@@ -28,6 +33,7 @@ Locked decisions:
 - Notify all: "A beli listrik RpX — tagihan lo +RpY bulan depan".
 
 ## 5. UI Spec (React Native)
+
 Tab **Tagihan → Listrik** (segment 3). Components: `ListrikRecordCard`, `ListrikFormSheet`.
 
 - Month picker in header (shares `selectedMonth` with Denda/Iuran).
@@ -37,12 +43,15 @@ Tab **Tagihan → Listrik** (segment 3). Components: `ListrikRecordCard`, `Listr
 - CTA **"Tambah Record Beli Listrik"** → form: amount (currency), optional note, MANDATORY photo proof, save active when complete.
 
 ## 6. Constraints / Prohibited
+
 - No status/approval — no confirm buttons.
 - Do not compute splits in the UI — read from the API.
 - Unrelated to galon (galon has no amount — locked decision).
 
 ## 7. Dependencies
+
 - Required read: `features/iuran/context.md` (adjustment effect), `features/denda/context.md` (shared month picker).
 
 ## 8. Status
+
 Not yet implemented (awaiting Phase 2–3).

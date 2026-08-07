@@ -16,7 +16,10 @@ import { Camera } from 'lucide-react-native';
 
 import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
-import { apiUpdateProfile, uploadAvatar } from '@/features/onboarding/api/onboarding';
+import {
+  apiUpdateProfile,
+  uploadAvatar,
+} from '@/features/onboarding/api/onboarding';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
@@ -33,7 +36,10 @@ export default function OnboardingProfileScreen() {
   const pickPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Butuh izin', 'Izinkan akses galeri untuk memilih foto profil.');
+      Alert.alert(
+        'Butuh izin',
+        'Izinkan akses galeri untuk memilih foto profil.',
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -48,7 +54,10 @@ export default function OnboardingProfileScreen() {
 
   const handleNext = async () => {
     if (nama.trim() === '') {
-      Alert.alert('Nama wajib diisi', 'Masukkan nama kamu dulu untuk melanjutkan.');
+      Alert.alert(
+        'Nama wajib diisi',
+        'Masukkan nama kamu dulu untuk melanjutkan.',
+      );
       return;
     }
     setSubmitting(true);
@@ -66,7 +75,10 @@ export default function OnboardingProfileScreen() {
       setOnboarding(true, false);
       router.replace('/onboarding/create-rumah');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan. Coba lagi.';
       Alert.alert('Gagal menyimpan profil', message);
     } finally {
       setSubmitting(false);
@@ -77,19 +89,26 @@ export default function OnboardingProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.kicker}>Langkah 1 dari 2</Text>
             <Text style={styles.title}>Lengkapi profil</Text>
-            <Text style={styles.subtitle}>Data ini dipakai buat papan piket kos kamu.</Text>
+            <Text style={styles.subtitle}>
+              Data ini dipakai buat papan piket kos kamu.
+            </Text>
           </View>
 
           <View style={styles.center}>
             <Pressable
               accessibilityRole="button"
               onPress={pickPhoto}
-              style={({ pressed }) => [styles.avatarWrap, pressed && styles.avatarPressed]}>
+              style={({ pressed }) => [
+                styles.avatarWrap,
+                pressed && styles.avatarPressed,
+              ]}
+            >
               {fotoProfil != null ? (
                 <Pressable onPress={pickPhoto} style={styles.avatarImageWrap}>
                   <ExpoImage
@@ -110,7 +129,9 @@ export default function OnboardingProfileScreen() {
               </View>
             </Pressable>
             <Text style={styles.avatarHint}>
-              {fotoProfil != null ? 'Ketuk buat ganti' : 'Tambah foto (opsional)'}
+              {fotoProfil != null
+                ? 'Ketuk buat ganti'
+                : 'Tambah foto (opsional)'}
             </Text>
 
             <View style={styles.form}>

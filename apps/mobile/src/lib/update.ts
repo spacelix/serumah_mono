@@ -63,12 +63,9 @@ export async function downloadUpdate(
 }
 
 export async function installApk(file: File): Promise<void> {
-  await IntentLauncher.startActivityAsync(
-    'android.intent.action.VIEW',
-    {
-      data: file.contentUri,
-      type: 'application/vnd.android.package-archive',
-      flags: 1,
-    },
-  );
+  await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+    data: file.contentUri,
+    type: 'application/vnd.android.package-archive',
+    flags: 1,
+  });
 }

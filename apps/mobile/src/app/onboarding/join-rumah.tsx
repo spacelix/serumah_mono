@@ -66,7 +66,9 @@ export default function OnboardingJoinRumahScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.';
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan. Coba lagi.';
       Alert.alert('Gagal gabung kos', message);
     } finally {
       setJoining(false);
@@ -77,7 +79,8 @@ export default function OnboardingJoinRumahScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.kicker}>Langkah 2 dari 2</Text>
@@ -128,7 +131,8 @@ export default function OnboardingJoinRumahScreen() {
               <Text style={styles.switchText}>Belum ada kode? </Text>
               <Text
                 style={styles.switchLink}
-                onPress={() => router.replace('/onboarding/create-rumah')}>
+                onPress={() => router.replace('/onboarding/create-rumah')}
+              >
                 Buat kos baru
               </Text>
             </View>

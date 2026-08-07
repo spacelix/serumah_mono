@@ -43,6 +43,7 @@ font: Space Grotesk Bold, uppercase, wide letter-spacing
 Position: top-right corner inside the card. Never center/center.
 
 **Colors:**
+
 - Lunas/Approved: `pine` solid border
 - Ditolak: `brick` solid border
 - Pending: `olive` dashed border
@@ -99,6 +100,7 @@ amount: JetBrains Mono 700 15px, same fg as label
 All cards use `colors.card` background (except explicit tinted variants below). Never use colored card surfaces by default — color goes inside via stamps, badges, borders, and text.
 
 **Bill Card:**
+
 ```
 ┌──────────────────────────┐
 │                  [Stempel] │
@@ -141,6 +143,7 @@ Kicker/list labels use JetBrains Mono 500 9.5px, uppercase, letter-spacing .1–
 ## Empty States
 
 Every list that can be empty must have an empty state:
+
 - Short text in `inkSoft` color
 - Relevant icon above the text
 - CTA if a logical next action exists

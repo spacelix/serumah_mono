@@ -91,17 +91,17 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Locked Migration Decisions
 
-| # | Decision | Detail |
-|---|---|---|
-| Mig-1 | Stack | RN (Expo) + NestJS + PostgreSQL/Prisma + MinIO, React Query + Zustand. |
-| Mig-2 | Location | Monorepo in `/mnt/d/Source/House`. Old Flutter repo `/mnt/d/Source/serumah` kept as reference. |
-| Mig-3 | Data | Full re-seed from scratch — no supabase data export (project not live). Passwords not an issue (argon2→bcrypt). |
-| Mig-4 | Design | The "Papan Piket Digital" design system + Bahasa Indonesia fully preserved (tokens → RN theme). |
-| Mig-5 | Context | 1 file per feature (API+UI combined), 8-part template; single shared data-model file. Unlocked TBCs marked explicitly → agent stops & asks. |
-| Mig-6 | Server | Self-hosted NestJS (VPS/Docker) — abandons the "serverless only" principle. |
-| Mig-7 | App update | Keep the GitHub Releases flow (`version.json` + APK) for in-app updates. |
-| Mig-8 | Tooling | Use **Bun** for project creation & package management; create projects via generators, never hand-write `package.json`. |
-| Mig-9 | Docs language | All documentation (AGENTS.md + context/) is in **English**. Only the app UI is in Bahasa Indonesia. |
+| #     | Decision      | Detail                                                                                                                                      |
+| ----- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mig-1 | Stack         | RN (Expo) + NestJS + PostgreSQL/Prisma + MinIO, React Query + Zustand.                                                                      |
+| Mig-2 | Location      | Monorepo in `/mnt/d/Source/House`. Old Flutter repo `/mnt/d/Source/serumah` kept as reference.                                              |
+| Mig-3 | Data          | Full re-seed from scratch — no supabase data export (project not live). Passwords not an issue (argon2→bcrypt).                             |
+| Mig-4 | Design        | The "Papan Piket Digital" design system + Bahasa Indonesia fully preserved (tokens → RN theme).                                             |
+| Mig-5 | Context       | 1 file per feature (API+UI combined), 8-part template; single shared data-model file. Unlocked TBCs marked explicitly → agent stops & asks. |
+| Mig-6 | Server        | Self-hosted NestJS (VPS/Docker) — abandons the "serverless only" principle.                                                                 |
+| Mig-7 | App update    | Keep the GitHub Releases flow (`version.json` + APK) for in-app updates.                                                                    |
+| Mig-8 | Tooling       | Use **Bun** for project creation & package management; create projects via generators, never hand-write `package.json`.                     |
+| Mig-9 | Docs language | All documentation (AGENTS.md + context/) is in **English**. Only the app UI is in Bahasa Indonesia.                                         |
 
 ---
 

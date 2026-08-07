@@ -92,7 +92,8 @@ export default function WelcomeScreen() {
               style={({ pressed }) => [
                 styles.backBtn,
                 pressed && styles.backBtnPressed,
-              ]}>
+              ]}
+            >
               <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M15 18l-6-6 6-6"
@@ -106,7 +107,11 @@ export default function WelcomeScreen() {
           )}
           <Pressable
             onPress={() => (isLast ? goLogin() : setStep((v) => v + 1))}
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}>
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && styles.primaryBtnPressed,
+            ]}
+          >
             <Text style={styles.primaryText}>
               {isLast ? 'Mulai · Masuk' : 'Lanjut'}
             </Text>
@@ -180,7 +185,8 @@ function Stripes() {
             patternUnits="userSpaceOnUse"
             width={9.9}
             height={9.9}
-            patternTransform="rotate(45)">
+            patternTransform="rotate(45)"
+          >
             <Rect width="4.95" height="9.9" fill={colors.paper28} />
             <Rect x="4.95" width="4.95" height="9.9" fill={colors.paper14} />
           </Pattern>

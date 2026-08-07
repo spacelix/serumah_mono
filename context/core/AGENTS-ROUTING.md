@@ -21,22 +21,22 @@ designs/Serumah.html        ← visual prototype (open in browser)
 
 ## Feature → context file map
 
-| Feature | Context file | Scope |
-|---|---|---|
-| Auth | `features/auth/context.md` | Register, login, JWT, logout, session |
-| Onboarding | `features/onboarding/context.md` | Profile setup, create rumah, join rumah (invite code) |
-| Dashboard | `features/dashboard/context.md` | Beranda: weekend toggle, galon widget, billing summary, schedule list |
-| Schedule | `features/schedule/context.md` | Round-robin weekday, dynamic weekend, no back-to-back, freeze, auto-fine |
-| Piket | `features/piket/context.md` | Daily execution: per-room before→checklist→after, submit |
-| Verifikasi | `features/verifikasi/context.md` | PJ approval per submission, reject → flat fine |
-| Denda | `features/denda/context.md` | QRIS payment, proof upload, PJ confirmation, PJ auto-paid |
-| Iuran | `features/iuran/context.md` | Monthly iuran: total cost auto-split, payment proof, confirmation, pelunasan |
-| Listrik | `features/listrik/context.md` | Extra electricity self-record, next-month adjustment |
-| Swap | `features/swap/context.md` | All-or-nothing full day swap |
-| Galon | `features/galon/context.md` | Galon rotation + "Sudah Beli" (no reimbursement) |
-| Profile | `features/profile/context.md` | View/edit name, photo, emergency contact, address |
-| Rumah | `features/rumah/context.md` | Management: members, costs, rekening, QRIS, invite code + rooms & jenis_piket |
-| Update | `features/update/context.md` | In-app non-store update via GitHub Releases |
+| Feature    | Context file                     | Scope                                                                         |
+| ---------- | -------------------------------- | ----------------------------------------------------------------------------- |
+| Auth       | `features/auth/context.md`       | Register, login, JWT, logout, session                                         |
+| Onboarding | `features/onboarding/context.md` | Profile setup, create rumah, join rumah (invite code)                         |
+| Dashboard  | `features/dashboard/context.md`  | Beranda: weekend toggle, galon widget, billing summary, schedule list         |
+| Schedule   | `features/schedule/context.md`   | Round-robin weekday, dynamic weekend, no back-to-back, freeze, auto-fine      |
+| Piket      | `features/piket/context.md`      | Daily execution: per-room before→checklist→after, submit                      |
+| Verifikasi | `features/verifikasi/context.md` | PJ approval per submission, reject → flat fine                                |
+| Denda      | `features/denda/context.md`      | QRIS payment, proof upload, PJ confirmation, PJ auto-paid                     |
+| Iuran      | `features/iuran/context.md`      | Monthly iuran: total cost auto-split, payment proof, confirmation, pelunasan  |
+| Listrik    | `features/listrik/context.md`    | Extra electricity self-record, next-month adjustment                          |
+| Swap       | `features/swap/context.md`       | All-or-nothing full day swap                                                  |
+| Galon      | `features/galon/context.md`      | Galon rotation + "Sudah Beli" (no reimbursement)                              |
+| Profile    | `features/profile/context.md`    | View/edit name, photo, emergency contact, address                             |
+| Rumah      | `features/rumah/context.md`      | Management: members, costs, rekening, QRIS, invite code + rooms & jenis_piket |
+| Update     | `features/update/context.md`     | In-app non-store update via GitHub Releases                                   |
 
 ---
 
@@ -51,19 +51,19 @@ designs/Serumah.html        ← visual prototype (open in browser)
 
 ## Quick lookup from user requests
 
-| User keyword | Feature |
-|---|---|
-| login, register, sign up, sign in, logout | auth |
-| profile setup, join, invite code, create kos, onboarding | onboarding |
-| beranda, home, weekend, galon, billing summary, weekly schedule | dashboard |
-| generate schedule, round-robin, senin rabu jumat, weekend schedule | schedule |
-| piket today, photo before, checklist, submit | piket |
-| verify, approve, reject | verifikasi |
-| denda, fine, pay, QRIS, payment proof | denda |
-| iuran, sewa, wifi, listrik wajib, pelunasan, transfer proof | iuran |
-| extra electricity, token listrik, buy listrik | listrik |
-| swap, exchange schedule, request swap | swap |
-| galon, buy galon, water refill turn | galon |
-| profile, my profile, emergency contact | profile |
-| manage rumah, manage kos, costs, rekening, invite, members, rooms, jenis piket | rumah |
-| update, version, apk, release | update |
+| User keyword                                                                   | Feature    |
+| ------------------------------------------------------------------------------ | ---------- |
+| login, register, sign up, sign in, logout                                      | auth       |
+| profile setup, join, invite code, create kos, onboarding                       | onboarding |
+| beranda, home, weekend, galon, billing summary, weekly schedule                | dashboard  |
+| generate schedule, round-robin, senin rabu jumat, weekend schedule             | schedule   |
+| piket today, photo before, checklist, submit                                   | piket      |
+| verify, approve, reject                                                        | verifikasi |
+| denda, fine, pay, QRIS, payment proof                                          | denda      |
+| iuran, sewa, wifi, listrik wajib, pelunasan, transfer proof                    | iuran      |
+| extra electricity, token listrik, buy listrik                                  | listrik    |
+| swap, exchange schedule, request swap                                          | swap       |
+| galon, buy galon, water refill turn                                            | galon      |
+| profile, my profile, emergency contact                                         | profile    |
+| manage rumah, manage kos, costs, rekening, invite, members, rooms, jenis piket | rumah      |
+| update, version, apk, release                                                  | update     |

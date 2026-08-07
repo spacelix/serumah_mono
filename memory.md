@@ -1,43 +1,57 @@
-# Memory — Serumah: UI Header Revision underway + login fixes (uncommitted)
+# Memory — Serumah: Beranda redesign, auth dialog, bottom nav, docker deploy (2026-08-07)
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07 (updated same day with release bump)
 
 ## What was built
 
-- **Debug rute API**: setting emulator pakai `10.0.2.2` (bukan `localhost`) sudah benar di `apps/mobile/.env` (`EXPO_PUBLIC_API_URL=http://10.0.2.2:3000/api`) — sudah wajib.
-- **Fix bug login (401 "Sesi berakhir"):** `apiMe()` dipanggil sebelum token disimpan ke Zustand store, jadi request `/auth/me` keluar tanpa header `Authorization`. Diusulkan imbalance di `stores/auth-store.ts` → `apiMe(session.token)`; `features/auth/api/auth.ts` → `apiMe(token?)` menyisipkan header `Bearer` eksplisit.
-- **Fix "No QueryClient set":** root `_layout.tsx` selamanya membungkus `QueryClientProvider` (sebelumnya tidak ada sama sekali) dengan `new QueryClient` + `defaultOptions`.
-- **Diagnostic log JWT:** `apps/api/src/common/guards/jwt-auth.guard.ts` kini log `reason` + `hasAuthHeader` saat 401.
-- **Revisi UI Header (berjalan):** komponen reusable baru `apps/mobile/src/components/ui/screen-header.tsx` (`ScreenHeader` + `AvatarChip`), mengikuti desain: kicker mono `PAPAN PIKET · <nama kos>` + judul Space Grotesk 25px kiri + avatar chip kanan; sub-screen pakai prop `onBack`. Diterapkan ke 6 screen: Beranda, Piket, Tagihan, Swap, Profil, Kelola Kos (`app/profile.tsx`, `app/rumah/manage.tsx`, `app/(tabs)/{index,piket,tagihan,swap}.tsx`). Header dijadikan sibling (di luar ScrollView) dengan padding sendiri `12/20/10` agar tidak mepet ujung layar — sejak sebelumnya Tagihan & Profil tak punya inset sisi.
+- **Version bump to 1.6.9 / versionCode 8** (`apps/mobile/app.json`) — `e409121 build(mobile): bump app to 1.6.9 and versionCode 8`. Version only lives in `app.json`; `lib/update.ts` reads installed/manifest versionCode, no hardcode.
+- **Beranda redesigned** to match `Serumah.html` (all in `apps/mobile/src/app/(tabs)/index.tsx` + `features/dashboard/api/dashboard.ts` + `lib/format.ts`):
+  - Weekend card: custom pine bg, deadline badge "Jum 20:00", active "Di kos" = paper pill w/ ink text, horizontal-scroll "anggota lain", brick warning strip `rgba(179,63,63,0.22)`/`colors.brickSoft`.
+  - Galon card: custom droplet SVG (`M7.4 13h9.2`), kicker mono, "Giliran: Nama (lo)" via new `isMine` from `GalonService.current()`.
+  - Billing card: kicker "Tagihan bulan ini", mono amount, "Lihat detail" → `/tagihan`. API `getBilling` returns `{total,lunas,bulan}`.
+  - Jadwal card: header + week range (e.g. "27 Jul – 2 Agu"), `Libur`-dashed cards for off days, chips weekday abbrev.
+- **Login/Register** (`(auth)/login.tsx`, `(auth)/register.tsx`): native `Alert.alert` → custom `ConfirmDialog` with new `single` prop (single-action info dialog). Password-mismatch shown as dialog too.
+- **Custom bottom nav** (`(tabs)/_layout.tsx` + new `components/ui/tab-icon.tsx`): absolute-overlay `LinearGradient` (solid paper → transparent, no gap, content flows behind), active = ink pill, inactive transparent. Icons rendered from **exact Serumah.html SVG paths** via `react-native-svg` (`TabIcon`) — NOT lucide (design glyphs don't map to lucide).
+- **Kelola Rumah → schedule refresh**: `manage.tsx` tracks `addedJenis`; on back after adding a jenis piket, confirm dialog calls new admin endpoint `POST /schedule/refresh-future-rooms` which rewrites only the `ruangan[]` snapshot of **future** Jadwal rows (member assignment preserved, past days untouched).
+- **Docker deploy** (all committed):
+  - `apps/api/Dockerfile`: multi-stage `oven/bun:1-alpine` build → `node:22-alpine` runtime; `bun install --frozen-lockfile --filter @serumah/api`; apk adds `openssl` (+`libc6-compat` in runner).
+  - `docker-compose.yml`: backend only, traefik host `api-serumah.spacelix.qzz.io`, port 3000, no postgres/minio (uses existing DB+MinIO). Build context = root; dockerfile `apps/api/Dockerfile`.
+  - `.dockerignore`: excludes mobile source (`apps/mobile/*`) but **keeps** `apps/mobile/package.json`.
 
 ## Decisions made
 
-- **Emulator Android** memakai `10.0.2.2` → host. `EXPO_PUBLIC_*` di-inline saat build; restart `bun expo start` stih ganti `.env`.
-- Screen header tim core: `paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10`, di orang kanan chip avatar. Kicker pakai `useProfile()` (query-cache `profile/me`) — jadi tidak perlu prop rumahName dari tiap layar.
-- Native Android build masih dibawa ke Windows (dari sesi lalu) — tidak px beberapa di WSL.
-- Janam Header (logo+mark) lama dihapus dari tab screen; `SerumahLogo` masih dipakai di `(auth)`.
+- Backend mobile app is **RN** (not web) → docker only has a backend service; frontend/mobile excluded from deploy.
+- Bottom nav is an **overlay** (gradient fade, content scrolls behind) rather than a separate bar — per design, no gap between content and tabs.
+- Icons must come from the **design SVG paths** not lucide — lucide glyphs differ from the design.
+- Schedule refresh is triggered **on leaving** Kelola Rumah (confirm dialog), not at add-time; treats only future days.
+- **Major version (6→7) stays 6.x for now**: patch/minor (1.6.x + versionCode up) is enough for new features/redesigns. Only bump major on breaking change (schema overhaul, endpoint removal, big rewrite). versionCode is what the in-app update actually compares.
 
-## Problems solved (this session)
+## Problems solved
 
-- 401 bukan karena expired token: dengan log baru terbukti `hasAuthHeader=false` — request tanpa token karena `apiMe` dipanggil sebelum `setSession`.
-- Root app crash "No QueryClient set" karena `QueryClientProvider` tidak dibungkus di `_layout.tsx`.
-- Header tab mepet sebelah screen karena header diposisikan di level `SafeAreaView` tanpa padding; solusi: beri padding 20 pada komponen & jadikan header sibling konsisten.
+- Docker build failures in sequence:
+  1. `oven/bun:1` default is Debian (no `apk`) → use `oven/bun:1-alpine`.
+  2. `@serumah/typescript-config` workspace missing in deps stage → COPY `packages/typescript-config`.
+  3. `bun install --frozen-lockfile` failed ("lockfile had changes"): `bun.lock` spans all workspaces incl. mobile, but mobile pkg wasn't in context → add `apps/mobile/package.json` to context.
+- Dockerignore can't re-include a file whose parent dir is excluded → use `apps/mobile/*` (exclude contents) + `!apps/mobile/package.json` (re-include file).
+- `BottomTabBarProps` type import path is `expo-router/build/react-navigation/bottom-tabs/types` (not `@react-navigation/bottom-tabs`).
+- `bun install --filter <pkg>` temporarily prunes other workspaces' node_modules → run full `bun install` to restore workspace state.
 
 ## Current state
 
-- **M0–M5 sudah commit & green. Phase tracker: M5; Next Phase M6 (belum diapprove).**
-- Semua perubahan proyek ini **BELUM di-commit** (`git status`): api guard, login fix (auth-store/auth.ts), `_layout.tsx`, revisi header 5 file + screen-header.tsx (untracked). sql; bun.lock sengaja tidak ikut.
-- `bunx tsc --noEmit` di apps/mobile **hijau**. `eslint` tidak terinstal lokal (env belum install devDeps) — lint tidak bisa jalan di WSL.
-- Expo Go dev server: `cd apps/mobile && bun expo start`. Backend: `bun run start:dev` di apps/api (pastikan `@serumah/db` dibuild dulu).
+- Working tree **clean** at HEAD `e409121`. Committed today: `8b514c2` (docker files), `5f4d564` (alpine base), `998215a` (ts-config workspace), `adda829` (workspace set frozen lockfile), `a5da5c3` (mobile pkg.json dockerignore), `b56f7bd` (beranda + schedule refresh API), `a7de322` (auth dialog), `3c4cd69` (custom bottom nav), `44739b0` (rumah schedule refresh UI), `fab12a2` (progress tracker), `e409121` (version bump 1.6.9/versionCode 8).
+- **Push NOT yet — WSL SSH key rejected.** Repo at `/mnt/d` (WSL→Windows D:). Push normally done from **Windows** (`D:\Source\House`): `git push origin development`. Tag `v1.6.9` (annotated) still to create → triggers `release.yml`. `origin/development` ahead by 2 (`fab12a2`, `e409121`).
+- Backend deploy: Docker **build succeeded** on server (`43.129.40.34`) via traefik. Need `apps/api/.env` on server pointed at existing DB/MinIO (repo `.env` uses `localhost`) and `traefik-public` network to exist.
+- `bunx tsc --noEmit` mobile clean. Docker build verified; live runtime still to verify.
+- Phase: **M5** (Beranda done — weekend/galon/billing/jadwal). Piket, Tagihan, Swap, Profile still in-flight; **Phase M6 deferred** (awaiting approval).
 
 ## Next session starts with
 
-1. **Commit perubahan yang sedang berjalan** — paling logis split jadi 2 item: (a) fix bug koneksi/login (auth.ts, auth-store.ts) + QueryClientProvider layout + debug jWT guard; (b) revisi header. Menunggu keputusan user bagaimana pemecahan commit.
-2. **Lanjutkan revisi UI Header** — validasi tampilan di emulator (inset 20px, rasa nyaman). Konfirmasi kalau ada layar lain yang perlu header (mis. kursus/booking?).
-3. Phase gating: konfirmasi dengan user sebelum lanjut Phase M6.
+1. **Push `development` + create annotated tag `v1.6.9`** — either from Windows (`D:\Source\House`): `git push origin development` then `git tag -a v1.6.9 -m "release: v1.6.9 (versionCode 8) — beranda redesign, bottom nav, auth dialog, schedule refresh" && git push origin v1.6.9`, or fix WSL key. Tag triggers CI APK. Confirm backend runs on server (`apps/api/.env` prod DB/MinIO) — curl health + real login.
+2. Continue **Phase M5**: Piket (per-room flow), Tagihan (Denda|Iuran|Listrik + month picker), Swap tabs.
+3. `progress-tracker.md` Phase M5 checklist — Beranda item can be marked done.
 
 ## Open questions
 
-- Bagaimana user ingin memecah commit (bug fix vs header rev).
-- `eslint` belum terpasang lokal — perlu `bun install` di workspace mobile atau lewat turbo.
-- Phase M6 scope masih belum disetujui (stop & ask dahulu).
+- Phase pacing: some Beranda cards were rebuilt from design; confirm the rest of Beranda matches.
+- Phase M6 E2E/release pipeline still not approved — ask before starting.
+- Note: prior-session "profile revision (uncommitted)" notes in progress-tracker were resolved and committed last session; profile revision itself was NOT rebuilt this session.

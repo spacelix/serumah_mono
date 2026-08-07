@@ -2,7 +2,7 @@
 
 Phased plan for implementing the Serumah monorepo (RN + NestJS + Postgres/Prisma). Same principle as the Flutter era: **UI-first** — design with mock data, review, then wire the API. Docs-first: update the feature context before code.
 
-Each phase must be fully complete before the next starts (Phase Gating). When a phase is complete → stop & ask the user: *"Phase X done. Proceed to Phase Y?"*
+Each phase must be fully complete before the next starts (Phase Gating). When a phase is complete → stop & ask the user: _"Phase X done. Proceed to Phase Y?"_
 
 **Phase ordering (locked):** the **Release pipeline comes FIRST** (M1), right after the scaffold. This is a user decision — it lets the in-app update feature be tested and monitored continuously while the rest of the app is built. Every phase after M1 ships an APK that updates in-app through the same mechanism.
 
@@ -11,6 +11,7 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 ## Phase M0 — Documentation & Foundation (ACTIVE)
 
 ### M0.1 Per-feature context split — DONE
+
 - `AGENTS.md` rewritten (RN+NestJS stack, routing, anti-hallucination).
 - `context/core/*` (AGENTS-ROUTING, ui-tokens, ui-rules, code-standards).
 - `context/architecture/data-model.md` (Prisma schema source of truth).
@@ -18,6 +19,7 @@ Each phase must be fully complete before the next starts (Phase Gating). When a 
 - `context/progress/*`.
 
 ### M0.2 Monorepo scaffold
+
 - Root: `package.json` (npm/bun workspaces + turborepo), `tsconfig.base.json`, `.gitignore`.
 - `docker-compose.yml` (Postgres 16 + MinIO) + `.env.example`.
 - `packages/db`: Prisma schema (from `architecture/data-model.md`), initial migration, seed.
@@ -91,11 +93,11 @@ Dependency: needs a buildable `apps/mobile` (M0.2 scaffold) — even before feat
 
 ## Feature Count (per area)
 
-| Area | Features |
-|---|---|
-| Docs | 1 (per-feature context split) |
+| Area    | Features                                                                                                               |
+| ------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Docs    | 1 (per-feature context split)                                                                                          |
 | Backend | 14 (auth, profile, rumah, ruangan, schedule, piket, verifikasi, denda, iuran, listrik, swap, galon, update, logviewer) |
-| Mobile | 14 screen-groups (auth, onboarding, dashboard, piket, tagihan×3, swap, profile, rumah, update) |
+| Mobile  | 14 screen-groups (auth, onboarding, dashboard, piket, tagihan×3, swap, profile, rumah, update)                         |
 
 Every feature has `context/features/<feature>/context.md` — read before coding (see `core/AGENTS-ROUTING.md`).
 

@@ -4,13 +4,41 @@ import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
 
 const STATUS_STYLE = {
-  lunas: { bg: colors.pineSoft, color: colors.pineDeep, border: colors.pineDeep },
-  approved: { bg: colors.pineSoft, color: colors.pineDeep, border: colors.pineDeep },
-  belum_bayar: { bg: colors.brickSoft, color: colors.brickDeep, border: colors.brickDeep },
-  ditolak: { bg: colors.brickSoft, color: colors.brickDeep, border: colors.brickDeep },
-  menunggu_konfirmasi: { bg: colors.mustardSoft, color: colors.mustardInk, border: colors.mustardInk },
-  pending: { bg: colors.mustardSoft, color: colors.mustardInk, border: colors.mustardInk },
-  menunggu: { bg: colors.mustardSoft, color: colors.mustardInk, border: colors.mustardInk },
+  lunas: {
+    bg: colors.pineSoft,
+    color: colors.pineDeep,
+    border: colors.pineDeep,
+  },
+  approved: {
+    bg: colors.pineSoft,
+    color: colors.pineDeep,
+    border: colors.pineDeep,
+  },
+  belum_bayar: {
+    bg: colors.brickSoft,
+    color: colors.brickDeep,
+    border: colors.brickDeep,
+  },
+  ditolak: {
+    bg: colors.brickSoft,
+    color: colors.brickDeep,
+    border: colors.brickDeep,
+  },
+  menunggu_konfirmasi: {
+    bg: colors.mustardSoft,
+    color: colors.mustardInk,
+    border: colors.mustardInk,
+  },
+  pending: {
+    bg: colors.mustardSoft,
+    color: colors.mustardInk,
+    border: colors.mustardInk,
+  },
+  menunggu: {
+    bg: colors.mustardSoft,
+    color: colors.mustardInk,
+    border: colors.mustardInk,
+  },
 } as const;
 
 type StatusKey = keyof typeof STATUS_STYLE;
@@ -46,7 +74,8 @@ export function Stamp({ status }: { status: string }) {
         styles.stamp,
         { backgroundColor: s.bg, borderColor: s.border },
         dashed && styles.dashed,
-      ]}>
+      ]}
+    >
       <Text style={[styles.text, { color: s.color }]}>{labelOf(status)}</Text>
     </View>
   );

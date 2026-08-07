@@ -54,7 +54,13 @@ export function ScreenHeader({
             {title}
           </Text>
         </View>
-        {right ?? (showAvatar ? <AvatarChip nama={nama} fotoProfil={data?.anggota?.fotoProfil ?? null} /> : null)}
+        {right ??
+          (showAvatar ? (
+            <AvatarChip
+              nama={nama}
+              fotoProfil={data?.anggota?.fotoProfil ?? null}
+            />
+          ) : null)}
       </View>
       {onBack != null && (
         <Pressable onPress={onBack} style={styles.backRow} hitSlop={6}>
@@ -77,12 +83,21 @@ export function AvatarChip({
   const token = useAuthStore((s) => s.token);
   const source = mediaSource(fotoProfil, token);
   return (
-    <Pressable onPress={() => router.push('/profile')} style={styles.avatarChip}>
+    <Pressable
+      onPress={() => router.push('/profile')}
+      style={styles.avatarChip}
+    >
       <View style={styles.avatarCircle}>
         {source ? (
-          <ExpoImage source={source} style={styles.avatarImage} contentFit="cover" />
+          <ExpoImage
+            source={source}
+            style={styles.avatarImage}
+            contentFit="cover"
+          />
         ) : (
-          <Text style={styles.avatarInitial}>{nama?.charAt(0)?.toUpperCase() ?? '?'}</Text>
+          <Text style={styles.avatarInitial}>
+            {nama?.charAt(0)?.toUpperCase() ?? '?'}
+          </Text>
         )}
       </View>
       <Text style={styles.avatarName} numberOfLines={1}>
@@ -111,7 +126,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingBottom: 6,
   },
-  backLabel: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.inkSoft },
+  backLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.inkSoft,
+  },
   textCol: { flexDirection: 'column', gap: 3, flexShrink: 1 },
   kicker: { ...type.kicker, color: colors.inkSoft },
   title: { ...type.display, color: colors.ink },
@@ -140,7 +159,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  avatarInitial: { fontFamily: fontFamilies.display[600], fontSize: 11, color: colors.paper },
+  avatarInitial: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 11,
+    color: colors.paper,
+  },
   avatarName: {
     fontFamily: fontFamilies.body[600],
     fontSize: 11.5,

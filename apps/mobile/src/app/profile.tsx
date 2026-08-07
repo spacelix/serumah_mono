@@ -3,7 +3,18 @@ import { Image as ExpoImage } from 'expo-image';
 import { LogOut, Pencil, X } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Animated,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
@@ -95,7 +106,10 @@ export default function ProfileScreen() {
       setPwKonfirmasi('');
       setPwClosing(true);
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      Alert.alert(
+        'Gagal',
+        e instanceof Error ? e.message : 'Terjadi kesalahan.',
+      );
     } finally {
       setPwSaving(false);
     }
@@ -113,7 +127,10 @@ export default function ProfileScreen() {
       invalidate();
       toast.success('Foto profil ganti.');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      Alert.alert(
+        'Gagal',
+        e instanceof Error ? e.message : 'Terjadi kesalahan.',
+      );
     } finally {
       setUploading(false);
     }
@@ -134,9 +151,11 @@ export default function ProfileScreen() {
           aspect: [1, 1],
           quality: 0.7,
         });
-        if (!result.canceled && result.assets[0]) await uploadAvatar(result.assets[0].uri);
+        if (!result.canceled && result.assets[0])
+          await uploadAvatar(result.assets[0].uri);
       } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
           Alert.alert('Izin galeri', 'Izinkan akses galeri untuk foto profil.');
           return;
@@ -147,7 +166,8 @@ export default function ProfileScreen() {
           aspect: [1, 1],
           quality: 0.7,
         });
-        if (!result.canceled && result.assets[0]) await uploadAvatar(result.assets[0].uri);
+        if (!result.canceled && result.assets[0])
+          await uploadAvatar(result.assets[0].uri);
       }
     } finally {
       setPicking(false);
@@ -160,7 +180,10 @@ export default function ProfileScreen() {
       invalidate();
       toast.success('Foto profil udah dihapus.');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      Alert.alert(
+        'Gagal',
+        e instanceof Error ? e.message : 'Terjadi kesalahan.',
+      );
     }
   };
 
@@ -202,7 +225,10 @@ export default function ProfileScreen() {
       setOnboarding(true, false);
       router.replace('/onboarding/create-rumah');
     } catch (e) {
-      Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      Alert.alert(
+        'Gagal',
+        e instanceof Error ? e.message : 'Terjadi kesalahan.',
+      );
     } finally {
       setBusy(false);
     }
@@ -225,8 +251,10 @@ export default function ProfileScreen() {
         onBack={() => router.back()}
         backLabel="Beranda"
       />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {editing ? (
           <EditProfileCard
             nama={nama}
@@ -250,7 +278,11 @@ export default function ProfileScreen() {
           />
         ) : (
           <View style={styles.profileCard}>
-            <Pressable onPress={startEdit} style={styles.avatarThumb} hitSlop={4}>
+            <Pressable
+              onPress={startEdit}
+              style={styles.avatarThumb}
+              hitSlop={4}
+            >
               <View style={styles.avatarClip}>
                 <AvatarThumbContent fotoProfil={anggota?.fotoProfil} />
               </View>
@@ -266,13 +298,24 @@ export default function ProfileScreen() {
               <Text style={styles.cardMeta} numberOfLines={1}>
                 {rumah?.nama ?? 'Belum bergabung'}
               </Text>
-              {joinLabel !== '' && <Text style={styles.cardJoin}>{joinLabel}</Text>}
+              {joinLabel !== '' && (
+                <Text style={styles.cardJoin}>{joinLabel}</Text>
+              )}
             </View>
 
             <View style={styles.cardRight}>
-              <View style={[styles.roleBadge, isAdmin ? styles.roleAdmin : styles.roleMember]}>
+              <View
+                style={[
+                  styles.roleBadge,
+                  isAdmin ? styles.roleAdmin : styles.roleMember,
+                ]}
+              >
                 <Text
-                  style={[styles.roleText, isAdmin ? styles.roleAdminText : styles.roleMemberText]}>
+                  style={[
+                    styles.roleText,
+                    isAdmin ? styles.roleAdminText : styles.roleMemberText,
+                  ]}
+                >
                   {isAdmin ? 'PJ KOS' : 'ANGGOTA'}
                 </Text>
               </View>
@@ -284,7 +327,12 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.statsRow}>
-          <StatCard label="Piket selesai" value={String(stats?.piketSelesai ?? 0)} color={colors.pine} size={22} />
+          <StatCard
+            label="Piket selesai"
+            value={String(stats?.piketSelesai ?? 0)}
+            color={colors.pine}
+            size={22}
+          />
           <StatCard
             label="Belum lunas"
             value={formatCurrency(stats?.totalBelumLunas ?? 0)}
@@ -329,14 +377,18 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.actionRow}>
-          <Pressable onPress={onLogout} style={[styles.actionBtn, styles.logoutOutline]}>
+          <Pressable
+            onPress={onLogout}
+            style={[styles.actionBtn, styles.logoutOutline]}
+          >
             <LogOut color={colors.ink} size={15} strokeWidth={2.2} />
             <Text style={[styles.actionText, styles.logoutText]}>Logout</Text>
           </Pressable>
           <Pressable
             onPress={onLeaveRumah}
             style={[styles.actionBtn, styles.leaveOutline]}
-            disabled={busy}>
+            disabled={busy}
+          >
             <Text style={[styles.actionText, styles.leaveText]}>
               {busy ? 'Keluar…' : 'Keluar dari rumah'}
             </Text>
@@ -374,7 +426,8 @@ export default function ProfileScreen() {
         visible={srcOpen}
         transparent
         animationType="none"
-        onRequestClose={() => setSrcOpen(false)}>
+        onRequestClose={() => setSrcOpen(false)}
+      >
         <Pressable style={styles.srcBackdrop} onPress={() => setSrcOpen(false)}>
           <Pressable style={styles.srcSheet}>
             <Text style={styles.srcTitle}>Foto profil lo</Text>
@@ -383,11 +436,14 @@ export default function ProfileScreen() {
                 <AvatarThumbContent fotoProfil={anggota?.fotoProfil} />
               </View>
             </View>
-            <Text style={styles.srcSub}>Foto ini yang sekarang dipakai. Mau ganti apa hapus?</Text>
+            <Text style={styles.srcSub}>
+              Foto ini yang sekarang dipakai. Mau ganti apa hapus?
+            </Text>
             <Pressable
               onPress={() => void launchPicker('camera')}
               disabled={picking}
-              style={styles.srcOption}>
+              style={styles.srcOption}
+            >
               <Text style={styles.srcOptionText}>
                 {picking ? 'Memproses…' : 'Ambil dari kamera'}
               </Text>
@@ -395,17 +451,27 @@ export default function ProfileScreen() {
             <Pressable
               onPress={() => void launchPicker('galeri')}
               disabled={picking}
-              style={styles.srcOption}>
+              style={styles.srcOption}
+            >
               <Text style={styles.srcOptionText}>
                 {picking ? 'Memproses…' : 'Pilih dari galeri'}
               </Text>
             </Pressable>
             {anggota?.fotoProfil != null && (
-              <Pressable onPress={() => { setSrcOpen(false); void onDeleteAvatar(); }} style={styles.srcHapus}>
+              <Pressable
+                onPress={() => {
+                  setSrcOpen(false);
+                  void onDeleteAvatar();
+                }}
+                style={styles.srcHapus}
+              >
                 <Text style={styles.srcHapusText}>Hapus foto</Text>
               </Pressable>
             )}
-            <Pressable onPress={() => setSrcOpen(false)} style={styles.srcCancel}>
+            <Pressable
+              onPress={() => setSrcOpen(false)}
+              style={styles.srcCancel}
+            >
               <Text style={styles.srcCancelText}>Batal</Text>
             </Pressable>
           </Pressable>
@@ -437,7 +503,7 @@ function EditProfileCard({
   closing,
   onClose,
   onClosed,
-onSave,
+  onSave,
   onPickAvatar,
   onDeleteAvatar,
 }: {
@@ -493,28 +559,47 @@ onSave,
           opacity: rise,
           transform: [
             {
-              translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+              translateY: rise.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-18, 0],
+              }),
             },
           ],
         },
-      ]}>
+      ]}
+    >
       <View style={styles.editHeader}>
         <Text style={styles.editTitle}>Update profil</Text>
-        <Pressable onPress={onClose} disabled={saving} style={styles.editClose} hitSlop={4}>
+        <Pressable
+          onPress={onClose}
+          disabled={saving}
+          style={styles.editClose}
+          hitSlop={4}
+        >
           <X color={colors.inkSoft} size={15} strokeWidth={2.4} />
         </Pressable>
       </View>
 
       <View style={styles.photoRow}>
-        <Pressable onPress={onPickAvatar} style={styles.avatarThumb} hitSlop={4}>
+        <Pressable
+          onPress={onPickAvatar}
+          style={styles.avatarThumb}
+          hitSlop={4}
+        >
           <View style={styles.avatarClip}>
             <AvatarThumbContent fotoProfil={fotoProfil} />
           </View>
         </Pressable>
         <View style={styles.photoCol}>
-          <Text style={styles.photoHint}>Klik avatar untuk lihat{'\n'}atau ganti foto profil.</Text>
+          <Text style={styles.photoHint}>
+            Klik avatar untuk lihat{'\n'}atau ganti foto profil.
+          </Text>
           {fotoProfil != null && (
-            <Pressable onPress={onDeleteAvatar} hitSlop={4} style={styles.deletePhotoBtn}>
+            <Pressable
+              onPress={onDeleteAvatar}
+              hitSlop={4}
+              style={styles.deletePhotoBtn}
+            >
               <Text style={styles.deletePhotoText}>Hapus foto</Text>
             </Pressable>
           )}
@@ -562,14 +647,26 @@ onSave,
         Nama ini yang muncul di jadwal piket, tagihan, dan histori swap.
       </Text>
 
-      <Pressable onPress={onSave} disabled={saving} style={styles.saveProfileBtn}>
-        <Text style={styles.saveProfileText}>{saving ? 'Menyimpan…' : 'Simpan profil'}</Text>
+      <Pressable
+        onPress={onSave}
+        disabled={saving}
+        style={styles.saveProfileBtn}
+      >
+        <Text style={styles.saveProfileText}>
+          {saving ? 'Menyimpan…' : 'Simpan profil'}
+        </Text>
       </Pressable>
     </Animated.View>
   );
 }
 
-function EditField({ label, children }: { label: string; children: ReactNode }) {
+function EditField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <View style={styles.editField}>
       <Text style={styles.editLabel}>{label}</Text>
@@ -639,14 +736,23 @@ function ChangePasswordCard({
           opacity: rise,
           transform: [
             {
-              translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+              translateY: rise.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-18, 0],
+              }),
             },
           ],
         },
-      ]}>
+      ]}
+    >
       <View style={styles.editHeader}>
         <Text style={styles.editTitle}>Ganti password</Text>
-        <Pressable onPress={onClose} disabled={saving} style={styles.editClose} hitSlop={4}>
+        <Pressable
+          onPress={onClose}
+          disabled={saving}
+          style={styles.editClose}
+          hitSlop={4}
+        >
           <X color={colors.inkSoft} size={15} strokeWidth={2.4} />
         </Pressable>
       </View>
@@ -686,11 +792,18 @@ function ChangePasswordCard({
       </EditField>
 
       <Text style={styles.editHint}>
-        Butuh password lama dulu. Paling aman pakai kombinasi angka, huruf, dan simbol.
+        Butuh password lama dulu. Paling aman pakai kombinasi angka, huruf, dan
+        simbol.
       </Text>
 
-      <Pressable onPress={onSave} disabled={saving} style={styles.saveProfileBtn}>
-        <Text style={styles.saveProfileText}>{saving ? 'Menyimpan…' : 'Simpan password'}</Text>
+      <Pressable
+        onPress={onSave}
+        disabled={saving}
+        style={styles.saveProfileBtn}
+      >
+        <Text style={styles.saveProfileText}>
+          {saving ? 'Menyimpan…' : 'Simpan password'}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -705,7 +818,8 @@ function AvatarStripes() {
           patternUnits="userSpaceOnUse"
           width={8}
           height={8}
-          patternTransform="rotate(45)">
+          patternTransform="rotate(45)"
+        >
           <Rect width="4" height="8" fill={colors.textureA} />
           <Rect x="4" width="4" height="8" fill={colors.textureB} />
         </Pattern>
@@ -719,14 +833,18 @@ function AvatarThumbContent({ fotoProfil }: { fotoProfil?: string | null }) {
   const token = useAuthStore((s) => s.token);
   const source = mediaSource(fotoProfil, token);
   if (source) {
-    return <ExpoImage source={source} style={styles.avatarImage} contentFit="cover" />;
+    return (
+      <ExpoImage
+        source={source}
+        style={styles.avatarImage}
+        contentFit="cover"
+      />
+    );
   }
   return (
     <>
       <AvatarStripes />
-      <Text style={styles.avatarLabel}>
-        foto{'\n'}profil
-      </Text>
+      <Text style={styles.avatarLabel}>foto{'\n'}profil</Text>
     </>
   );
 }
@@ -745,7 +863,10 @@ function StatCard({
   return (
     <View style={styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color, fontSize: size }]} numberOfLines={1}>
+      <Text
+        style={[styles.statValue, { color, fontSize: size }]}
+        numberOfLines={1}
+      >
         {value}
       </Text>
     </View>
@@ -844,14 +965,22 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: colors.ink,
   },
-  cardMeta: { fontFamily: fontFamilies.body[400], fontSize: 11.5, color: colors.inkSoft },
+  cardMeta: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11.5,
+    color: colors.inkSoft,
+  },
   cardJoin: {
     fontFamily: fontFamilies.mono[400],
     fontSize: 10.5,
     color: colors.inkMuted,
   },
   cardRight: { alignSelf: 'flex-start', gap: 6, alignItems: 'flex-end' },
-  roleBadge: { borderRadius: radius.pill, paddingVertical: 5, paddingHorizontal: 9 },
+  roleBadge: {
+    borderRadius: radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+  },
   roleAdmin: { backgroundColor: colors.pine },
   roleMember: { backgroundColor: colors.paperDeep },
   roleText: {
@@ -862,7 +991,11 @@ const styles = StyleSheet.create({
   },
   roleAdminText: { color: colors.paper },
   roleMemberText: { color: colors.inkSoft },
-  updateText: { fontFamily: fontFamilies.body[600], fontSize: 10, color: colors.pine },
+  updateText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 10,
+    color: colors.pine,
+  },
 
   editCard: {
     backgroundColor: colors.card,
@@ -878,7 +1011,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  editTitle: { fontFamily: fontFamilies.display[600], fontSize: 14, color: colors.ink },
+  editTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 14,
+    color: colors.ink,
+  },
   editClose: {
     width: 26,
     height: 26,
@@ -948,7 +1085,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pine,
     alignItems: 'center',
   },
-  saveProfileText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.paper },
+  saveProfileText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
 
   statsRow: { flexDirection: 'row', gap: 9 },
   statCard: {
@@ -982,9 +1123,21 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   menuText: { flex: 1, gap: 2 },
-  menuTitle: { fontFamily: fontFamilies.display[600], fontSize: 13.5, color: colors.ink },
-  menuSub: { fontFamily: fontFamilies.body[400], fontSize: 10.5, color: colors.inkSoft },
-  menuCta: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.pine },
+  menuTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13.5,
+    color: colors.ink,
+  },
+  menuSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
+  menuCta: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.pine,
+  },
 
   actionRow: { flexDirection: 'row', gap: 8, paddingTop: 2 },
   actionBtn: {
@@ -1059,7 +1212,11 @@ const styles = StyleSheet.create({
     borderColor: colors.brick,
     backgroundColor: 'transparent',
   },
-  srcHapusText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.brick },
+  srcHapusText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.brick,
+  },
   srcOption: {
     alignItems: 'center',
     paddingVertical: 13,
@@ -1068,13 +1225,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  srcOptionText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  srcOptionText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   srcCancel: {
     alignItems: 'center',
     paddingVertical: 12,
     marginTop: 2,
   },
-  srcCancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.inkSoft },
+  srcCancelText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.inkSoft,
+  },
 
   uploadOverlay: {
     flex: 1,

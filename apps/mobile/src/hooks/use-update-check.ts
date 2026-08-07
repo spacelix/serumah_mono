@@ -18,7 +18,9 @@ export interface UpdateCheckResult {
 }
 
 export function useUpdateCheck(): UpdateCheckResult {
-  const [decision, setDecision] = useState<UpdateDecision>({ type: 'uptodate' });
+  const [decision, setDecision] = useState<UpdateDecision>({
+    type: 'uptodate',
+  });
   const [checking, setChecking] = useState(true);
   const [dismissed, setDismissed] = useState(false);
   const inFlight = useRef(false);

@@ -60,7 +60,16 @@ export const usePiketDraft = create<PiketDraftState>((set) => ({
     set((s) => ({
       drafts: {
         ...s.drafts,
-        [ruanganId]: { ...(s.drafts[ruanganId] ?? { ruanganId, fotoBefore: null, fotoAfter: null, jenisSelesai: [], uploading: false }), uploading },
+        [ruanganId]: {
+          ...(s.drafts[ruanganId] ?? {
+            ruanganId,
+            fotoBefore: null,
+            fotoAfter: null,
+            jenisSelesai: [],
+            uploading: false,
+          }),
+          uploading,
+        },
       },
     })),
   reset: () => set({ drafts: {} }),

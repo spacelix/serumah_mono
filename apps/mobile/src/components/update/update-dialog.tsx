@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { downloadUpdate, installApk, type UpdateManifest } from '@/lib/update';
 import { colors } from '@/theme/colors';
@@ -15,7 +21,13 @@ interface UpdateDialogProps {
   onDismiss: () => void;
 }
 
-export function UpdateDialog({ visible, manual = false, force = false, manifest, onDismiss }: UpdateDialogProps) {
+export function UpdateDialog({
+  visible,
+  manual = false,
+  force = false,
+  manifest,
+  onDismiss,
+}: UpdateDialogProps) {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +50,12 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={force ? undefined : onDismiss}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={force ? undefined : onDismiss}
+    >
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>
@@ -48,9 +65,7 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
               </View>
             )}
           </View>
-          <Text style={styles.title}>
-            Update tersedia
-          </Text>
+          <Text style={styles.title}>Update tersedia</Text>
           <Text style={styles.body}>
             {force
               ? 'Versi sebelumnya tidak lagi didukung. Silakan perbaharui untuk melanjutkan.'
@@ -63,12 +78,19 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
 
           <View style={styles.buttons}>
             {!force && (
-              <Pressable style={[styles.button, styles.buttonSecondary]} onPress={onDismiss}>
+              <Pressable
+                style={[styles.button, styles.buttonSecondary]}
+                onPress={onDismiss}
+              >
                 <Text style={styles.buttonSecondaryText}>Nanti saja</Text>
               </Pressable>
             )}
             <Pressable
-              style={[styles.button, styles.buttonPrimary, downloading && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                styles.buttonPrimary,
+                downloading && styles.buttonDisabled,
+              ]}
               onPress={handleUpdate}
               disabled={downloading}
             >
@@ -83,7 +105,9 @@ export function UpdateDialog({ visible, manual = false, force = false, manifest,
           {downloading && (
             <View style={styles.progressWrap}>
               <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                <View
+                  style={[styles.progressFill, { width: `${progress}%` }]}
+                />
               </View>
               <Text style={styles.progressLabel}>{progress}%</Text>
             </View>

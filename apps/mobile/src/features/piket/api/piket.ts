@@ -101,6 +101,7 @@ export function useCreateSubmission() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateSubmissionInput) => apiCreateSubmission(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: piketKeys.today }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: piketKeys.today }),
   });
 }

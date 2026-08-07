@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Put } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { ProfileService } from './profile.service';
@@ -13,7 +13,7 @@ export class ProfileController {
     return this.profileService.getProfile(payload);
   }
 
-  @Patch('me/profile')
+  @Put('me/profile')
   updateProfile(
     @CurrentUser() payload: CurrentUserPayload,
     @Body() dto: UpdateProfileDto,

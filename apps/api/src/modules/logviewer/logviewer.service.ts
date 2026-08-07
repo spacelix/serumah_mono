@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@serumah/db/prisma';
 import { Redis } from 'ioredis';
-import { REDIS_CLIENT } from '../redis/redis.module';
+import { REDIS_CLIENT } from '../redis/redis.constants';
 import type { LogEntryPayload } from '../../common/interceptors/logger.interceptor';
 
 export interface StatsResponse {
@@ -32,23 +32,33 @@ export class LogViewerService {
 
   /** Drain the Redis buffer atomically and bulk-insert into Postgres. */
   async flushBuffer(): Promise<{ flushed: number }> {
-    const entries = await this.redis.lrange(this.bufferKey, 0, -1);
-    if (entries.length === 0) {
+    const processingKey = `${this.bufferKey}:processing`;
+
+    // Atomically claim the buffer via RENAME. If the buffer key is missing
+    // (nothing to flush, or another worker already claimed it) RENAME throws —
+    // treat that as "nothing to do" so concurrent workers never double-insert.
+    let claimed: unknown;
+    try {
+      claimed = await this.redis.rename(this.bufferKey, processingKey);
+    } catch {
+      return { flushed: 0 };
+    }
+    if (claimed !== 'OK') {
       return { flushed: 0 };
     }
 
-    const parsed = entries
-      .map((raw) => {
-        try {
-          return JSON.parse(raw) as LogEntryPayload;
-        } catch {
-          return null;
-        }
-      })
-      .filter((e): e is LogEntryPayload => e !== null);
-
-    let flushed = 0;
     try {
+      const entries = await this.redis.lrange(processingKey, 0, -1);
+      const parsed = entries
+        .map((raw) => {
+          try {
+            return JSON.parse(raw) as LogEntryPayload;
+          } catch {
+            return null;
+          }
+        })
+        .filter((e): e is LogEntryPayload => e !== null);
+
       if (parsed.length > 0) {
         await this.prisma.logEntry.createMany({
           data: parsed.map((e) => ({
@@ -63,15 +73,15 @@ export class LogViewerService {
             errorMessage: e.errorMessage,
           })),
         });
-        flushed = parsed.length;
       }
-      await this.redis.del(this.bufferKey);
+      await this.redis.del(processingKey);
+      return { flushed: parsed.length };
     } catch (err) {
-      // Keep the buffer intact for the next flush attempt on failure.
+      // Restore the buffer for the next flush attempt (data not lost).
+      await this.redis.rename(processingKey, this.bufferKey).catch(() => {});
       this.logger.error(`[LogViewerService] flush failed: ${String(err)}`);
       throw err;
     }
-    return { flushed };
   }
 
   async stats(days = 7): Promise<StatsResponse> {

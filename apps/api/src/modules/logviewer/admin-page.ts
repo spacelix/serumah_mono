@@ -87,6 +87,12 @@ export function adminPage(): string {
 <script>
   const state = { page: 1, limit: 50 };
 
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
   async function fetchJson(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.status);
@@ -104,8 +110,8 @@ export function adminPage(): string {
     ];
     document.getElementById('cards').innerHTML = cards
       .map(([label, value, cls]) =>
-        '<div class="card"><div class="label">' + label + '</div>' +
-        '<div class="value ' + cls + '">' + value + '</div></div>')
+        '<div class="card"><div class="label">' + esc(label) + '</div>' +
+        '<div class="value ' + cls + '">' + esc(value) + '</div></div>')
       .join('');
   }
 
@@ -134,13 +140,14 @@ export function adminPage(): string {
           const time = new Date(e.timestamp).toLocaleString('id-ID');
           const pill = e.isError ? 'bad' : 'ok';
           const label = e.isError ? e.statusCode : 'OK';
+          const title = e.isError && e.errorMessage ? ' title="' + esc(e.errorMessage) + '"' : '';
           return '<tr>' +
-            '<td class="mono">' + time + '</td>' +
-            '<td>' + e.method + '</td>' +
-            '<td class="mono">' + e.path + '</td>' +
-            '<td><span class="pill ' + pill + '">' + label + '</span></td>' +
-            '<td class="mono">' + e.durationMs + ' ms</td>' +
-            '<td class="mono">' + (e.userId ? e.userId.slice(0, 8) : '-') + '</td>' +
+            '<td class="mono">' + esc(time) + '</td>' +
+            '<td>' + esc(e.method) + '</td>' +
+            '<td class="mono" data-err="' + (e.isError ? '1' : '0') + '">' + esc(e.path) + '</td>' +
+            '<td' + title + '><span class="pill ' + pill + '">' + esc(label) + '</span></td>' +
+            '<td class="mono">' + esc(e.durationMs) + ' ms</td>' +
+            '<td class="mono">' + (e.userId ? esc(e.userId.slice(0, 8)) : '-') + '</td>' +
             '</tr>';
         }).join('');
       }

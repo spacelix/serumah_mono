@@ -8,7 +8,7 @@ Because NestJS logs today only go to stdout (lost on container restart), the fea
 
 **Locked decisions (2026-08-07):**
 
-- **Pipeline:** `LoggerInterceptor` → `RPUSH log:buffer` (Redis list, microseconds, never blocks) → **BullMQ repeatable job every 5 min** drains buffer atomically (`LRANGE` + `DEL`) → `prisma.logEntry.createMany` bulk insert. No per-request queueing.
+- **Pipeline:** `LoggerInterceptor` → `RPUSH log:buffer` (Redis list, microseconds, never blocks) → **BullMQ repeatable job every 5 min** claims the buffer atomically (`RENAME` → `LRANGE` → `createMany` → `DEL`; restored on failure) → `prisma.logEntry.createMany` bulk insert, with BullMQ retry/backoff. No per-request queueing.
 - **Sink table:** Postgres `LogEntry`. Survives restarts, queried for stats.
 - **Redis:** shared instance for (a) log buffer and (b) referential Beranda/Profile read-cache (via `ioredis`, brought in by BullMQ). TTL ~60s, invalidated on related mutations. Keyed `cache:{rumahId|anggotaId}:{resource}`.
 - **Access surface:** self-hosted lightweight HTML page at `GET /admin`, backed by REST endpoints.

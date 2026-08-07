@@ -80,8 +80,9 @@ No feature is complete until it is testable.
 ## Verification & Per-Item Commits (mandatory)
 
 1. **Verify before done.** Every item (feature, endpoint, refactor, fix) is **not** complete until it is verified: run its `build`, `lint`, `typecheck`, and tests (`turbo run build lint typecheck test --filter=<pkg>`) and confirm they pass. Never mark an item done or start the next item on unverified work.
-2. **Commit per item.** Commit changes **after each completed (and verified) item**, never as one bundled WIP commit. One commit = one logical item, message in the repo style and scoped to that item. Cross-cutting files (e.g. `bun.lock`) go with the item they belong to.
-3. **Update docs with the item.** `context/progress/progress-tracker.md` (and any affected context) is updated in the same commit as its item — never a separate later catch-up.
+2. **Never run build/typecheck/lint/test in the agent — hand the command to the user.** The agent writes the exact verification commands and gives them to the user to run (WSL sandbox has known hangs on this repo, e.g. BullMQ require on the 9p mount). The user runs them and reports the result. The agent only proceeds once the user confirms green.
+3. **Commit per item.** Commit changes **after each completed (and verified) item**, never as one bundled WIP commit. One commit = one logical item, message in the repo style and scoped to that item. Cross-cutting files (e.g. `bun.lock`) go with the item they belong to.
+4. **Update docs with the item.** `context/progress/progress-tracker.md` (and any affected context) is updated in the same commit as its item — never a separate later catch-up.
 
 ---
 

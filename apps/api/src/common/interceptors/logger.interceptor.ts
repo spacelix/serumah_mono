@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpException,
   Inject,
   Injectable,
   NestInterceptor,
@@ -8,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { Observable, tap } from 'rxjs';
-import { REDIS_CLIENT } from '../../modules/redis/redis.module';
+import { REDIS_CLIENT } from '../../modules/redis/redis.constants';
 
 export interface LogEntryPayload {
   timestamp: string;
@@ -86,9 +87,7 @@ export class LoggerInterceptor implements NestInterceptor {
         },
         error: (err: unknown) => {
           const statusCode =
-            (err as { status?: number } | null)?.status ??
-            response.statusCode ??
-            500;
+            err instanceof HttpException ? err.getStatus() : 500;
           const errorMessage =
             err instanceof Error ? err.message.slice(0, 500) : null;
           const entry = this.buildEntry({

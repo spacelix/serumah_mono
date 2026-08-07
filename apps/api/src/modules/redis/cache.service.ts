@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
-import { REDIS_CLIENT } from './redis.module';
+import { REDIS_CLIENT } from './redis.constants';
 
 export type CacheValue = Record<string, unknown>;
 
@@ -63,7 +63,12 @@ export class CacheService {
   /** Invalidate every key belonging to a scope (e.g. a whole rumah). */
   async invalidateScope(scope: string): Promise<void> {
     try {
-      const keys = await this.redis.keys(`cache:${scope}:*`);
+      const pattern = `cache:${scope}:*`;
+      const keys: string[] = [];
+      const stream = this.redis.scanStream({ match: pattern, count: 100 });
+      for await (const batch of stream) {
+        keys.push(...(batch as string[]));
+      }
       if (keys.length > 0) {
         await this.redis.del(...keys);
       }

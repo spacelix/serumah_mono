@@ -34,9 +34,13 @@ export class LogFlushProcessor extends WorkerHost {
   private async scheduleRepeatableJob(): Promise<void> {
     try {
       const schedulerId = 'log-flush-every-5m';
-      await this.queue.upsertJobScheduler(schedulerId, {
-        every: LOG_FLUSH_EVERY_MS,
-      });
+      await this.queue.upsertJobScheduler(
+        schedulerId,
+        { every: LOG_FLUSH_EVERY_MS },
+        {
+          opts: { attempts: 3, backoff: { type: 'exponential', delay: 30000 } },
+        },
+      );
       this.logger.log(
         `[LogFlushProcessor] scheduled flush job every ${LOG_FLUSH_EVERY_MS / 60000} min`,
       );

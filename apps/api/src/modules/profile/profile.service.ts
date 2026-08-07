@@ -1,17 +1,34 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { CacheService } from '../redis/cache.service';
 import { UpdateProfileDto } from './dto/profile.dto';
 
 @Injectable()
 export class ProfileService {
   private readonly logger = new Logger(ProfileService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async getProfile(payload: CurrentUserPayload) {
+    const scope = 'profile';
+    const resource = payload.userId;
+    const cached = await this.cache.get(scope, resource);
+    if (cached) {
+      return cached;
+    }
+
+    const profile = await this.loadProfile(payload.userId);
+    await this.cache.set(scope, resource, profile);
+    return profile;
+  }
+
+  private async loadProfile(userId: string) {
     const anggota = await this.prisma.anggota.findUnique({
-      where: { id: payload.userId },
+      where: { id: userId },
       include: {
         user: {
           select: {
@@ -31,11 +48,11 @@ export class ProfileService {
 
     if (anggota?.user) {
       // expose email as top-level field on anggota while keeping the shape
-      const { user: _user, ...rest } = anggota;
+      const { user, ...rest } = anggota;
       return {
         anggota: {
           ...rest,
-          email: anggota.user.email,
+          email: user.email,
         },
         rumah: anggota?.rumah ?? null,
       };
@@ -74,6 +91,8 @@ export class ProfileService {
         });
 
     this.logger.log(`[ProfileService] Profil diperbarui: ${anggota.id}`);
+    await this.cache.invalidate('profile', anggota.id);
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId ?? 'none'}`);
     return { anggota };
   }
 

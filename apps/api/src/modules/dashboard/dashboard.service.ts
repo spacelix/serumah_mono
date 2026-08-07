@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { CacheService } from '../redis/cache.service';
 import { GalonService } from '../galon/galon.service';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
@@ -34,33 +35,65 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly galonService: GalonService,
+    private readonly cache: CacheService,
   ) {}
 
   async getDashboard(payload: CurrentUserPayload) {
     const anggota = await this.scope.requireAnggota(payload.userId);
     if (!anggota.rumahId) {
-      return {
-        weekend: {
-          saturday: null,
-          sunday: null,
-          frozen: false,
-          anggotaLain: [],
-        },
-        galon: { giliran: null, namaAnggota: null, isMine: false },
-        billing: {
-          total: 0,
-          lunas: 0,
-          totalUnpaid: 0,
-          countUnpaid: 0,
-          bulan: null,
-        },
-        scheduleWeek: [],
-        scheduleIncomplete: false,
-        isAdmin: anggota.role === 'admin',
-        memberName: anggota.nama,
-      };
+      return this.noRumahDashboard(anggota);
     }
 
+    const scope = `dashboard:${anggota.rumahId}`;
+    const resource = anggota.id;
+    const cached = await this.cache.get(scope, resource);
+    if (cached) {
+      return cached;
+    }
+
+    const dashboard = await this.buildDashboard({
+      id: anggota.id,
+      rumahId: anggota.rumahId,
+      nama: anggota.nama,
+      role: anggota.role,
+    });
+    await this.cache.set(scope, resource, dashboard);
+    return dashboard;
+  }
+
+  private noRumahDashboard(anggota: {
+    id: string;
+    nama: string;
+    role: string;
+  }) {
+    return {
+      weekend: {
+        saturday: null,
+        sunday: null,
+        frozen: false,
+        anggotaLain: [],
+      },
+      galon: { giliran: null, namaAnggota: null, isMine: false },
+      billing: {
+        total: 0,
+        lunas: 0,
+        totalUnpaid: 0,
+        countUnpaid: 0,
+        bulan: null,
+      },
+      scheduleWeek: [],
+      scheduleIncomplete: false,
+      isAdmin: anggota.role === 'admin',
+      memberName: anggota.nama,
+    };
+  }
+
+  private async buildDashboard(anggota: {
+    id: string;
+    rumahId: string;
+    nama: string;
+    role: string;
+  }) {
     const [
       galon,
       weekend,
@@ -69,8 +102,8 @@ export class DashboardService {
       scheduleWeek,
       scheduleIncomplete,
     ] = await Promise.all([
-      this.galonService.current(payload),
-      this.getWeekend(payload.userId),
+      this.galonService.currentFromAnggota(anggota),
+      this.getWeekend(anggota.id),
       this.getAnggotaLain(anggota.rumahId, anggota.id),
       this.getBilling(anggota.id),
       this.getScheduleWeek(anggota.rumahId, anggota.id),

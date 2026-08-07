@@ -8,6 +8,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { CacheService } from '../redis/cache.service';
 import { WeekendStatusDto } from './dto/schedule.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
@@ -25,6 +26,7 @@ export class ScheduleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly cache: CacheService,
   ) {}
 
   // ── DATE HELPERS (local, date-only) ─────────────────────────────────
@@ -228,6 +230,7 @@ export class ScheduleService {
     const anggota = await this.requirePj(payload);
     const monday = this.addDays(this.mondayOf(new Date()), 7);
     const count = await this.ensureWeekdayWeek(anggota.rumahId!, monday);
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal pekan depan telah dibuat.', count };
   }
 
@@ -254,6 +257,7 @@ export class ScheduleService {
         if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
       }
     }
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal pekan ini telah dibuat.', count };
   }
 
@@ -266,6 +270,7 @@ export class ScheduleService {
         await this.ensureWeekend(anggota.rumahId!, day);
       }
     }
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal akhir pekan telah dibuat.' };
   }
 
@@ -293,6 +298,7 @@ export class ScheduleService {
     this.logger.log(
       `[ScheduleService] Refresh ruangan ${futureRows.length} jadwal masa depan → ${roomNames.length} ruang`,
     );
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { updated: futureRows.length };
   }
 
@@ -325,6 +331,7 @@ export class ScheduleService {
     this.logger.log(
       `[ScheduleService] ${anggota.nama} ${dto.hari} → ${dto.status}`,
     );
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { hari: dto.hari, status: dto.status };
   }
 

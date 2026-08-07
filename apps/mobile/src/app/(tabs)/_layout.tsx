@@ -25,7 +25,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       locations={[0.62, 1]}
       start={{ x: 0, y: 1 }}
       end={{ x: 0, y: 0 }}
-      style={[styles.gradient, { paddingBottom: insets.bottom + 22 }]}
+      style={[styles.gradient, { paddingBottom: insets.bottom + 8 }]}
       pointerEvents="box-none"
     >
       <View style={styles.bar}>

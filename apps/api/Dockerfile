@@ -5,10 +5,11 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock turbo.json ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/mobile/package.json apps/mobile/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/db/prisma packages/db/prisma
 COPY packages/typescript-config packages/typescript-config
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --filter @serumah/api
 
 FROM base AS builder
 WORKDIR /app

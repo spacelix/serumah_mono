@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.git
+.turbo
+dist
+**/dist
+apps/mobile
+**/apps/mobile
+*/generated/client
+apps/api/.env
+**/*.log
+logs

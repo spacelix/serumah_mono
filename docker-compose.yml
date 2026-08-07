@@ -1,36 +1,25 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: serumah-postgres
+  backend:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - ./apps/api/.env
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: serumah
-      POSTGRES_PASSWORD: serumah
-      POSTGRES_DB: serumah
-    ports:
-      - "5432:5432"
+    networks:
+      - traefik-public
+      - default
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U serumah -d serumah"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - ./logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.serumah-backend.rule=Host(`api-serumah.spacelix.qzz.io`)"
+      - "traefik.http.routers.serumah-backend.entrypoints=websecure"
+      - "traefik.http.routers.serumah-backend.tls=true"
+      - "traefik.http.services.serumah-backend.loadbalancer.server.port=3000"
 
-  minio:
-    image: minio/minio:latest
-    container_name: serumah-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: serumah
-      MINIO_ROOT_PASSWORD: serumah-secret
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-
-volumes:
-  postgres_data:
-  minio_data:
+networks:
+  traefik-public:
+    external: true
+  default:
+    driver: bridge

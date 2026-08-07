@@ -14,13 +14,13 @@ None currently open. All TBC-1..TBC-5 (verifikasi/denda) were locked on 2026-08-
 
 ## Resolved (for the record)
 
-| # | Feature | Item | Locked Decision | Date |
-|---|---|---|---|---|
-| TBC-1 | verifikasi | Rejected piket flow | **Auto-fine** — reject sets `rejected`, creates flat fine. No resubmission. | 2026-08-06 |
-| TBC-2 | verifikasi | Who may review | **Admin/PJ only.** Anggota are read-only; sender never reviews own. | 2026-08-06 |
-| TBC-3 | piket/denda | Photo URL visibility | **Permanent public URLs** (MinIO bucket public; DB stores permanent URLs). | 2026-08-06 |
-| TBC-4 | verifikasi | Verifikasi tab visibility | **Always visible**, even on non-piket days. | 2026-08-06 |
-| TBC-5 | verifikasi | Submission history visibility | **All members** of the rumah see everyone's history. | 2026-08-06 |
+| #     | Feature     | Item                          | Locked Decision                                                             | Date       |
+| ----- | ----------- | ----------------------------- | --------------------------------------------------------------------------- | ---------- |
+| TBC-1 | verifikasi  | Rejected piket flow           | **Auto-fine** — reject sets `rejected`, creates flat fine. No resubmission. | 2026-08-06 |
+| TBC-2 | verifikasi  | Who may review                | **Admin/PJ only.** Anggota are read-only; sender never reviews own.         | 2026-08-06 |
+| TBC-3 | piket/denda | Photo URL visibility          | **Permanent public URLs** (MinIO bucket public; DB stores permanent URLs).  | 2026-08-06 |
+| TBC-4 | verifikasi  | Verifikasi tab visibility     | **Always visible**, even on non-piket days.                                 | 2026-08-06 |
+| TBC-5 | verifikasi  | Submission history visibility | **All members** of the rumah see everyone's history.                        | 2026-08-06 |
 
 ---
 

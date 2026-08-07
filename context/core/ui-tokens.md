@@ -22,39 +22,39 @@ color: '#3D6B5C',
 
 ### Paper & Neutrals
 
-| Token | Hex | CSS Name | Usage |
-|---|---|---|---|
-| `paperCanvas` | `#DCD6C8` | `--paper-canvas` | Background outside the device frame |
-| `paper` | `#EFEAE0` | `--paper-base` | Main screen background |
-| `card` | `#FBF9F4` | `--paper-card` | Card & panel surface |
-| `paperDeep` | `#E5DFD1` | `--paper-muted` | Segmented control track, secondary panel |
-| `line` | `#D9D2C0` | `--paper-border` | Standard card & button border |
-| `lineDash` | `#C3BAA2` | `--paper-dash` | Empty state / add-new border |
-| `disabledBg` | `#CFC7B4` | `--disabled-bg` | Disabled button background |
-| `disabledFg` | `#7D7768` | `--disabled-fg` | Disabled button text |
+| Token         | Hex       | CSS Name         | Usage                                    |
+| ------------- | --------- | ---------------- | ---------------------------------------- |
+| `paperCanvas` | `#DCD6C8` | `--paper-canvas` | Background outside the device frame      |
+| `paper`       | `#EFEAE0` | `--paper-base`   | Main screen background                   |
+| `card`        | `#FBF9F4` | `--paper-card`   | Card & panel surface                     |
+| `paperDeep`   | `#E5DFD1` | `--paper-muted`  | Segmented control track, secondary panel |
+| `line`        | `#D9D2C0` | `--paper-border` | Standard card & button border            |
+| `lineDash`    | `#C3BAA2` | `--paper-dash`   | Empty state / add-new border             |
+| `disabledBg`  | `#CFC7B4` | `--disabled-bg`  | Disabled button background               |
+| `disabledFg`  | `#7D7768` | `--disabled-fg`  | Disabled button text                     |
 
 ### Ink
 
-| Token | Hex | CSS Name | Usage |
-|---|---|---|---|
-| `ink` | `#1E2A24` | `--ink-900` | Primary text, headings, dark surfaces |
-| `inkSoft` | `#5B6862` | `--ink-500` | Secondary text, meta, placeholder |
+| Token      | Hex       | CSS Name    | Usage                                  |
+| ---------- | --------- | ----------- | -------------------------------------- |
+| `ink`      | `#1E2A24` | `--ink-900` | Primary text, headings, dark surfaces  |
+| `inkSoft`  | `#5B6862` | `--ink-500` | Secondary text, meta, placeholder      |
 | `inkMuted` | `#8B8474` | `--ink-300` | Tertiary text, "free from piket" state |
 
 ### Green · Primary
 
-| Token | Hex | CSS Name | Usage |
-|---|---|---|---|
-| `pine` | `#3D6B5C` | `--forest-600` | Primary accent, CTA buttons, links |
-| `pineDeep` | `#2B4E43` | `--forest-700` | Hover/pressed of forest 600 |
+| Token      | Hex       | CSS Name       | Usage                                   |
+| ---------- | --------- | -------------- | --------------------------------------- |
+| `pine`     | `#3D6B5C` | `--forest-600` | Primary accent, CTA buttons, links      |
+| `pineDeep` | `#2B4E43` | `--forest-700` | Hover/pressed of forest 600             |
 | `pineSoft` | `#D7E6DF` | `--forest-100` | Success tint background (tag "Selesai") |
 
 ### Red · Danger
 
-| Token | Hex | CSS Name | Usage |
-|---|---|---|---|
-| `brick` | `#B33F3F` | `--brick-600` | Unpaid, rejected, fines |
-| `brickDeep` | `#8F2F2F` | `--brick-700` | Text on brick 100 background |
+| Token       | Hex       | CSS Name      | Usage                               |
+| ----------- | --------- | ------------- | ----------------------------------- |
+| `brick`     | `#B33F3F` | `--brick-600` | Unpaid, rejected, fines             |
+| `brickDeep` | `#8F2F2F` | `--brick-700` | Text on brick 100 background        |
 | `brickSoft` | `#F1DAD5` | `--brick-100` | Warning / fine risk tint background |
 
 ### Gold · Accent
@@ -82,11 +82,11 @@ color: '#3D6B5C',
 
 ### Stamp Colors
 
-| Status | Border Color | Border Style |
-|---|---|---|
-| Lunas/OK | `pine` | 2.5px solid |
-| Ditolak/Unpaid | `brick` | 2.5px solid |
-| Pending/Waiting | `olive` | 2.5px dashed |
+| Status          | Border Color | Border Style |
+| --------------- | ------------ | ------------ |
+| Lunas/OK        | `pine`       | 2.5px solid  |
+| Ditolak/Unpaid  | `brick`      | 2.5px solid  |
+| Pending/Waiting | `olive`      | 2.5px dashed |
 
 ---
 
@@ -94,41 +94,41 @@ color: '#3D6B5C',
 
 ### Font Families
 
-| Role | Font | Weights | Usage |
-|---|---|---|---|
-| Display | Space Grotesk | 600, 700 | Page headings, section headings, stamp caps |
-| Body | Inter | 400, 500, 600 | Body text, button labels, member names |
-| Data/Mono | JetBrains Mono | 400, 500, 600, 700 | Rupiah amounts, kickers, dates, timestamps |
+| Role      | Font           | Weights            | Usage                                       |
+| --------- | -------------- | ------------------ | ------------------------------------------- |
+| Display   | Space Grotesk  | 600, 700           | Page headings, section headings, stamp caps |
+| Body      | Inter          | 400, 500, 600      | Body text, button labels, member names      |
+| Data/Mono | JetBrains Mono | 400, 500, 600, 700 | Rupiah amounts, kickers, dates, timestamps  |
 
 ### Type Scale
 
-| Role | Spec | Sample Size |
-|---|---|---|
-| Display / H1 | Space Grotesk 600 · 25px/1.1 · -0.02em | 25px | (screen title header, see `Serumah.html` header)
-| Section heading | Space Grotesk 600 · 13–14.5px | 14px |
-| Large amount | JetBrains Mono 700 · 21–26px · -0.02em | 22px |
-| Medium amount | JetBrains Mono 700 · 14–18px | 16px |
-| Name / strong label | Inter 600 · 12.5–13.5px | 13px |
-| Body | Inter 400/500 · 10.5–11.5px | 11px |
-| Button label | Inter 600 · 11.5–14px | 12px |
-| Kicker / eyebrow | JetBrains Mono 500 · 8.5–10.5px · +0.1–0.14em | 10px |
-| Meta / caption | JetBrains Mono 400/500 · 9.5–11px | 10px |
-| Stamp cap | Space Grotesk 700 · 9–10px · +0.11em | 10px |
+| Role                | Spec                                          | Sample Size |
+| ------------------- | --------------------------------------------- | ----------- |
+| Display / H1        | Space Grotesk 600 · 25px/1.1 · -0.02em        | 25px        | (screen title header, see `Serumah.html` header) |
+| Section heading     | Space Grotesk 600 · 13–14.5px                 | 14px        |
+| Large amount        | JetBrains Mono 700 · 21–26px · -0.02em        | 22px        |
+| Medium amount       | JetBrains Mono 700 · 14–18px                  | 16px        |
+| Name / strong label | Inter 600 · 12.5–13.5px                       | 13px        |
+| Body                | Inter 400/500 · 10.5–11.5px                   | 11px        |
+| Button label        | Inter 600 · 11.5–14px                         | 12px        |
+| Kicker / eyebrow    | JetBrains Mono 500 · 8.5–10.5px · +0.1–0.14em | 10px        |
+| Meta / caption      | JetBrains Mono 400/500 · 9.5–11px             | 10px        |
+| Stamp cap           | Space Grotesk 700 · 9–10px · +0.11em          | 10px        |
 
 ---
 
 ## Radius Scale
 
-| Name | Value | Usage |
-|---|---|---|
-| `r-xs` | **7px** | Checkbox |
-| `r-sm` | **9px** | Day toggle button, small elements |
-| `r-md` | **11px** | Standard button, nominal input, rows |
-| `r-lg` | **14px** | Large button (submit piket), ink primary button |
-| `r-xl` | **16px** | Standard card |
-| `r-2xl` | **18px** | Elevated card, bill card |
-| `r-3xl` | **20px** | Hero card (weekend card, swap form) |
-| `r-pill` | **999px** | Tag, pill badge |
+| Name     | Value     | Usage                                           |
+| -------- | --------- | ----------------------------------------------- |
+| `r-xs`   | **7px**   | Checkbox                                        |
+| `r-sm`   | **9px**   | Day toggle button, small elements               |
+| `r-md`   | **11px**  | Standard button, nominal input, rows            |
+| `r-lg`   | **14px**  | Large button (submit piket), ink primary button |
+| `r-xl`   | **16px**  | Standard card                                   |
+| `r-2xl`  | **18px**  | Elevated card, bill card                        |
+| `r-3xl`  | **20px**  | Hero card (weekend card, swap form)             |
+| `r-pill` | **999px** | Tag, pill badge                                 |
 
 ---
 
@@ -167,23 +167,23 @@ textTransform: uppercase
 
 ### Buttons
 
-| Variant | Properties |
-|---|---|
-| Primary · Ink | bg `ink`, fg `paper`, radius **14px**, padding 15 (h), Inter 600 14px. Pressed → `pine` |
-| Primary · Forest | bg `pine`, fg `paper`, radius **11px**, padding 12×13, Inter 600 12.5px. Pressed → `pineDeep` |
-| Secondary · Outline | transparent, border `line` 1px, fg `ink`, radius **11px**, padding 11×13, Inter 600 12.5px |
-| Disabled | bg `disabledBg`, fg `disabledFg`, radius **14px**, padding 15, Inter 600 14px |
-| On dark | bg `paper`, fg `ink`, radius **12px**, padding 13, Inter 600 12.5px |
-| Dashed CTA | bg `paperDeep`, dashed border `lineDash`, fg `pine`, radius **11px**, padding 14, Inter 600 12.5px |
+| Variant             | Properties                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Primary · Ink       | bg `ink`, fg `paper`, radius **14px**, padding 15 (h), Inter 600 14px. Pressed → `pine`            |
+| Primary · Forest    | bg `pine`, fg `paper`, radius **11px**, padding 12×13, Inter 600 12.5px. Pressed → `pineDeep`      |
+| Secondary · Outline | transparent, border `line` 1px, fg `ink`, radius **11px**, padding 11×13, Inter 600 12.5px         |
+| Disabled            | bg `disabledBg`, fg `disabledFg`, radius **14px**, padding 15, Inter 600 14px                      |
+| On dark             | bg `paper`, fg `ink`, radius **12px**, padding 13, Inter 600 12.5px                                |
+| Dashed CTA          | bg `paperDeep`, dashed border `lineDash`, fg `pine`, radius **11px**, padding 14, Inter 600 12.5px |
 
 ### Cards
 
-| Variant | Properties |
-|---|---|
-| Standard (tap) | bg `card`, border `line` 1px, radius **16px**, padding 14×15 |
-| Hero · Forest | bg `pine`, fg white, radius **20px**, padding 16×16 (bottom 14) |
-| Gold accent | bg `card`, border `line` 1px + left `mustard` 4px, radius **16px**, padding 14×13 |
-| Dark (swap) | bg `ink`, fg white, radius **20px**, padding 17 |
+| Variant        | Properties                                                                        |
+| -------------- | --------------------------------------------------------------------------------- |
+| Standard (tap) | bg `card`, border `line` 1px, radius **16px**, padding 14×15                      |
+| Hero · Forest  | bg `pine`, fg white, radius **20px**, padding 16×16 (bottom 14)                   |
+| Gold accent    | bg `card`, border `line` 1px + left `mustard` 4px, radius **16px**, padding 14×13 |
+| Dark (swap)    | bg `ink`, fg white, radius **20px**, padding 17                                   |
 
 ### Segmented Control
 
@@ -222,13 +222,13 @@ date: JetBrains Mono 700 16px
 
 ### Tags (schedule)
 
-| Variant | Properties |
-|---|---|
-| Today | bg `mustardSoft`, fg `mustardInk`, pill; row border `mustardBorder` |
-| Planned / Scheduled | transparent, border `line` 1px, fg `inkSoft`, pill |
-| Free | transparent, dashed border `lineDash`, fg `inkMuted`, pill; row bg `paperDeep` |
-| Waiting | transparent, dashed border `lineDash`, fg `inkMuted`, pill |
-| Done / Selesai | bg `pineSoft`, fg `pineDeep`, pill |
+| Variant             | Properties                                                                     |
+| ------------------- | ------------------------------------------------------------------------------ |
+| Today               | bg `mustardSoft`, fg `mustardInk`, pill; row border `mustardBorder`            |
+| Planned / Scheduled | transparent, border `line` 1px, fg `inkSoft`, pill                             |
+| Free                | transparent, dashed border `lineDash`, fg `inkMuted`, pill; row bg `paperDeep` |
+| Waiting             | transparent, dashed border `lineDash`, fg `inkMuted`, pill                     |
+| Done / Selesai      | bg `pineSoft`, fg `pineDeep`, pill                                             |
 
 ### Bill Row
 
@@ -365,21 +365,21 @@ drag / close: × button, bg rgba(paper,.12) on dark / rgba(ink,.08) on light, 26
 
 Exactly two keyframe animations in the design — no others.
 
-| Name | Duration | Timing | Keyframes | Used on |
-|---|---|---|---|---|
-| `stampIn` | 0.42s | cubic-bezier(.2,1.4,.4,1), `both` | 0%: opacity 0, rotate -14°, scale 1.6 → 60%: opacity 1, rotate -4°, scale .96 → 100%: opacity 1, rotate -4°, scale 1 | Stamp elements (status change) |
-| `riseIn` | 0.22–0.5s | ease (default), `both` | from: opacity 0, translateY 8px → to: opacity 1, none | Cards/sheets/forms appearing. Variants: .22 (inline notes), .24 (toasts/notes), .26 (forms/sheets), .28 (cards/banners), .3 (bill/approval/swap cards), .32 (onboarding step), .5 (—) |
+| Name      | Duration  | Timing                            | Keyframes                                                                                                            | Used on                                                                                                                                                                               |
+| --------- | --------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stampIn` | 0.42s     | cubic-bezier(.2,1.4,.4,1), `both` | 0%: opacity 0, rotate -14°, scale 1.6 → 60%: opacity 1, rotate -4°, scale .96 → 100%: opacity 1, rotate -4°, scale 1 | Stamp elements (status change)                                                                                                                                                        |
+| `riseIn`  | 0.22–0.5s | ease (default), `both`            | from: opacity 0, translateY 8px → to: opacity 1, none                                                                | Cards/sheets/forms appearing. Variants: .22 (inline notes), .24 (toasts/notes), .26 (forms/sheets), .28 (cards/banners), .3 (bill/approval/swap cards), .32 (onboarding step), .5 (—) |
 
 ### Transitions (interaction feedback)
 
-| Property | Duration | Used on |
-|---|---|---|
-| background | .16s | Button hover/press color shifts |
-| all | .16s | Segmented-control & tab pills (bg/color swap) |
-| height | .2s | Photo slot expand (72→104px) |
-| width | .3s | Listrik progress bar fill |
-| all | .22s | Onboarding dot pills |
-| all | .14s | PIN entry dots |
+| Property   | Duration | Used on                                       |
+| ---------- | -------- | --------------------------------------------- |
+| background | .16s     | Button hover/press color shifts               |
+| all        | .16s     | Segmented-control & tab pills (bg/color swap) |
+| height     | .2s      | Photo slot expand (72→104px)                  |
+| width      | .3s      | Listrik progress bar fill                     |
+| all        | .22s     | Onboarding dot pills                          |
+| all        | .14s     | PIN entry dots                                |
 
 ---
 

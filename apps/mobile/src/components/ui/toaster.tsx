@@ -37,10 +37,16 @@ function ToastRow({ item }: { item: ToastItem }) {
         {
           opacity: progress,
           transform: [
-            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) },
+            {
+              translateY: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-12, 0],
+              }),
+            },
           ],
         },
-      ]}>
+      ]}
+    >
       {icon}
       <Text style={styles.message}>{item.message}</Text>
     </Animated.View>

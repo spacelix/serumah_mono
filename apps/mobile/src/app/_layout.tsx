@@ -56,16 +56,16 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
           </Stack>
         )}
-          {manifest && (
-            <UpdateDialog
-              visible={!checking && !dismissed && updateVisible}
-              force={decision.type === 'force'}
-              manifest={manifest}
-              onDismiss={dismiss}
-            />
-          )}
-        </ThemeProvider>
-        <Toaster />
-      </QueryClientProvider>
+        {manifest && (
+          <UpdateDialog
+            visible={!checking && !dismissed && updateVisible}
+            force={decision.type === 'force'}
+            manifest={manifest}
+            onDismiss={dismiss}
+          />
+        )}
+      </ThemeProvider>
+      <Toaster />
+    </QueryClientProvider>
   );
 }

@@ -309,6 +309,27 @@ model GiliranGalon {
   @@map("giliran_galon")
 }
 
+// ── OBSERVABILITY / LOG VIEWER ───────────────────────────────────────────
+// Infra/audit table for the log viewer — NOT rumah-scoped (exception to the
+// "every query filters rumah_id" invariant). Written in bulk every 5 min by a
+// BullMQ flush job draining a Redis buffer (LoggerInterceptor in apps/api).
+model LogEntry {
+  id           BigInt   @id @default(autoincrement())
+  timestamp    DateTime @default(now()) @db.Timestamptz
+  method       String
+  path         String
+  statusCode   Int
+  durationMs   Int
+  userId       String?  @db.Uuid // JWT user id when the route was authenticated
+  ip           String?
+  isError      Boolean // derived: statusCode >= 400
+  errorMessage String? @map("error_message") // snippet, captured only when statusCode >= 400
+
+  @@index([timestamp])
+  @@index([isError])
+  @@map("log_entries")
+}
+
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────
 model FcmToken {
   id        String   @id @default(uuid()) @db.Uuid

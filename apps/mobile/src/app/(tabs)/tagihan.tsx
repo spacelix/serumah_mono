@@ -2,7 +2,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Plus, ReceiptText } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -50,14 +58,23 @@ export default function TagihanScreen() {
           <Pressable
             key={s.key}
             onPress={() => setSegment(s.key)}
-            style={[styles.seg, segment === s.key && styles.segActive]}>
-            <Text style={[styles.segText, segment === s.key && styles.segTextActive]}>
+            style={[styles.seg, segment === s.key && styles.segActive]}
+          >
+            <Text
+              style={[
+                styles.segText,
+                segment === s.key && styles.segTextActive,
+              ]}
+            >
               {s.label}
             </Text>
           </Pressable>
         ))}
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {segment === 'denda' && <DendaView bulan={bulan} />}
         {segment === 'iuran' && <IuranView bulan={bulan} />}
         {segment === 'listrik' && <ListrikView bulan={bulan} />}
@@ -81,7 +98,9 @@ function DendaView({ bulan }: { bulan: string }) {
   const myId = my.data?.user?.id ?? null;
   const isPj = my.data?.anggota?.role === 'admin';
   const myDenda = data.denda.filter((d) => d.anggota.id === myId);
-  const pending = data.denda.filter((d) => d.status === 'menunggu_konfirmasi' && d.anggota.id !== myId);
+  const pending = data.denda.filter(
+    (d) => d.status === 'menunggu_konfirmasi' && d.anggota.id !== myId,
+  );
   const unpaid = myDenda.filter((d) => d.status === 'belum_bayar');
   const totalUnpaid = unpaid.reduce((s, d) => s + d.nominal, 0);
 
@@ -132,10 +151,17 @@ function DendaView({ bulan }: { bulan: string }) {
     <View style={styles.section}>
       <View style={styles.summaryCard}>
         <Text style={styles.summaryKicker}>TAGIHAN DENDA</Text>
-        <Text style={[styles.summaryAmount, unpaid.length === 0 && styles.amountPaid]}>
+        <Text
+          style={[
+            styles.summaryAmount,
+            unpaid.length === 0 && styles.amountPaid,
+          ]}
+        >
           {unpaid.length === 0 ? 'Lunas' : formatCurrency(totalUnpaid)}
         </Text>
-        <Text style={styles.summarySub}>{unpaid.length} tagihan belum bayar</Text>
+        <Text style={styles.summarySub}>
+          {unpaid.length} tagihan belum bayar
+        </Text>
       </View>
 
       {myDenda.length === 0 && pending.length === 0 ? (
@@ -190,7 +216,9 @@ function BillView({
       <View style={styles.billTop}>
         <View style={styles.billTexts}>
           <Text style={styles.billReason}>Denda piket</Text>
-          <Text style={styles.billDate}>{formatShortDate(denda.createdAt)}</Text>
+          <Text style={styles.billDate}>
+            {formatShortDate(denda.createdAt)}
+          </Text>
         </View>
         <Stamp status={denda.status} />
       </View>
@@ -198,11 +226,17 @@ function BillView({
 
       {denda.status === 'belum_bayar' && (
         <View style={styles.billActions}>
-          <Pressable onPress={() => setShowQris((v) => !v)} disabled={!qrisUrl} style={styles.qrisBtn}>
+          <Pressable
+            onPress={() => setShowQris((v) => !v)}
+            disabled={!qrisUrl}
+            style={styles.qrisBtn}
+          >
             <Text style={styles.qrisBtnText}>Show QRIS</Text>
           </Pressable>
           <Pressable onPress={onUpload} disabled={busy} style={styles.payBtn}>
-            <Text style={styles.payBtnText}>{busy ? 'Mengunggah…' : 'Upload Bukti'}</Text>
+            <Text style={styles.payBtnText}>
+              {busy ? 'Mengunggah…' : 'Upload Bukti'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -210,7 +244,10 @@ function BillView({
         <Text style={styles.waitNote}>nunggu konfirmasi PJ</Text>
       )}
       {showQris && qrisUrl != null && (
-        <Pressable onPress={() => showImage(qrisUrl)} style={styles.qrisPreview}>
+        <Pressable
+          onPress={() => showImage(qrisUrl)}
+          style={styles.qrisPreview}
+        >
           <Text style={styles.qrisPreviewText}>Lihat QRIS pembayaran</Text>
         </Pressable>
       )}
@@ -244,7 +281,11 @@ function ApprovalCard({
         <Pressable onPress={onReject} disabled={busy} style={styles.rejectBtn}>
           <Text style={styles.rejectText}>Reject</Text>
         </Pressable>
-        <Pressable onPress={onApprove} disabled={busy} style={styles.approveBtn}>
+        <Pressable
+          onPress={onApprove}
+          disabled={busy}
+          style={styles.approveBtn}
+        >
           <Text style={styles.approveText}>{busy ? '…' : 'Approve'}</Text>
         </Pressable>
       </View>
@@ -270,7 +311,9 @@ function IuranView({ bulan }: { bulan: string }) {
   const unpaid = myIuran.filter((i) => i.status === 'belum_bayar');
   const total = myIuran.reduce((s, i) => s + i.nominal, 0);
   const nAnggota = new Set(data.iuranList.map((i) => i.anggota.id)).size;
-  const pending = data.iuranList.filter((i) => i.status === 'menunggu_konfirmasi' && i.anggota.id !== myId);
+  const pending = data.iuranList.filter(
+    (i) => i.status === 'menunggu_konfirmasi' && i.anggota.id !== myId,
+  );
 
   const revalidate = () => {
     void queryClient.invalidateQueries({ queryKey: tagihanKeys.iuran(bulan) });
@@ -311,11 +354,17 @@ function IuranView({ bulan }: { bulan: string }) {
           <ReceiptText color={colors.ink} size={16} strokeWidth={2} />
           <Text style={styles.iuranKicker}>IURAN BULANAN · {bulan}</Text>
         </View>
-        <Text style={[styles.iuranTotal, unpaid.length === 0 && styles.amountPaid]}>
+        <Text
+          style={[styles.iuranTotal, unpaid.length === 0 && styles.amountPaid]}
+        >
           {formatCurrency(total)}
         </Text>
         <Text style={styles.iuranSub}>
-          Rp {formatInt(Math.round(data.rumah.totalPerBulan / Math.max(nAnggota, 1)))} ÷ {Math.max(nAnggota, 1)} anggota aktif
+          Rp{' '}
+          {formatInt(
+            Math.round(data.rumah.totalPerBulan / Math.max(nAnggota, 1)),
+          )}{' '}
+          ÷ {Math.max(nAnggota, 1)} anggota aktif
         </Text>
       </View>
 
@@ -333,8 +382,14 @@ function IuranView({ bulan }: { bulan: string }) {
       </View>
 
       {unpaid.length > 0 && (
-        <Pressable onPress={() => void onUploadTotal()} disabled={busy} style={styles.uploadBtn}>
-          <Text style={styles.uploadBtnText}>{busy ? 'Mengunggah…' : 'Upload Bukti Bayar'}</Text>
+        <Pressable
+          onPress={() => void onUploadTotal()}
+          disabled={busy}
+          style={styles.uploadBtn}
+        >
+          <Text style={styles.uploadBtnText}>
+            {busy ? 'Mengunggah…' : 'Upload Bukti Bayar'}
+          </Text>
         </Pressable>
       )}
 
@@ -351,7 +406,11 @@ function IuranView({ bulan }: { bulan: string }) {
               <Text style={styles.pendingIuranText}>
                 {i.anggota.nama} · {i.label}
               </Text>
-              <Pressable onPress={() => void onConfirm(i.id)} disabled={busy} style={styles.approveBtn}>
+              <Pressable
+                onPress={() => void onConfirm(i.id)}
+                disabled={busy}
+                style={styles.approveBtn}
+              >
                 <Text style={styles.approveText}>{busy ? '…' : 'Lunas'}</Text>
               </Pressable>
             </View>
@@ -367,7 +426,9 @@ function CategoryRow({ item }: { item: IuranItem }) {
     <View style={styles.categoryRow}>
       <Text style={styles.categoryLabel}>{item.label}</Text>
       <View style={styles.categoryRight}>
-        <Text style={styles.categoryAmount}>{formatCurrency(item.nominal)}</Text>
+        <Text style={styles.categoryAmount}>
+          {formatCurrency(item.nominal)}
+        </Text>
         <Stamp status={item.status} />
       </View>
     </View>
@@ -390,10 +451,13 @@ function ListrikView({ bulan }: { bulan: string }) {
   if (!data) return <Loading />;
 
   const revalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: tagihanKeys.listrik(bulan) });
+    void queryClient.invalidateQueries({
+      queryKey: tagihanKeys.listrik(bulan),
+    });
   };
 
-  const createEnabled = nominal.replace(/\D/g, '').length > 0 && bukti != null && !busy;
+  const createEnabled =
+    nominal.replace(/\D/g, '').length > 0 && bukti != null && !busy;
 
   const onCreate = async () => {
     if (!bukti || !createEnabled) return;
@@ -429,7 +493,9 @@ function ListrikView({ bulan }: { bulan: string }) {
               styles.progressFill,
               {
                 width: `${
-                  data.total > 0 ? Math.round((data.myBought / data.total) * 100) : 0
+                  data.total > 0
+                    ? Math.round((data.myBought / data.total) * 100)
+                    : 0
                 }%`,
               },
             ]}
@@ -440,8 +506,8 @@ function ListrikView({ bulan }: { bulan: string }) {
         </Text>
         <View style={styles.listrikNote}>
           <Text style={styles.listrikNoteText}>
-            Listrik tambahan {formatCurrency(data.total)} dibagi rata: tagihan lo{' '}
-            {data.myCredit >= 0 ? '+' : ''}
+            Listrik tambahan {formatCurrency(data.total)} dibagi rata: tagihan
+            lo {data.myCredit >= 0 ? '+' : ''}
             {formatCurrency(data.myCredit)} bulan depan
           </Text>
         </View>
@@ -475,19 +541,30 @@ function ListrikView({ bulan }: { bulan: string }) {
               placeholderTextColor={colors.inkMuted}
             />
           </View>
-          <Pressable onPress={() => void pickListrikProof(setBukti)} style={styles.buktiBtn}>
+          <Pressable
+            onPress={() => void pickListrikProof(setBukti)}
+            style={styles.buktiBtn}
+          >
             {bukti ? (
               <Text style={styles.buktiReady}>✓</Text>
             ) : (
               <Camera color={colors.ink} size={16} strokeWidth={2} />
             )}
-            <Text style={styles.buktiText}>{bukti ? 'Foto siap' : 'Foto bukti (wajib)'}</Text>
+            <Text style={styles.buktiText}>
+              {bukti ? 'Foto siap' : 'Foto bukti (wajib)'}
+            </Text>
           </Pressable>
           <Pressable
             onPress={() => void onCreate()}
             disabled={!createEnabled}
-            style={[styles.submitBtn, !createEnabled && styles.submitBtnDisabled]}>
-            <Text style={styles.submitText}>{busy ? 'Menyimpan…' : 'Simpan'}</Text>
+            style={[
+              styles.submitBtn,
+              !createEnabled && styles.submitBtnDisabled,
+            ]}
+          >
+            <Text style={styles.submitText}>
+              {busy ? 'Menyimpan…' : 'Simpan'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -508,11 +585,17 @@ function ListrikRecordCard({ record }: { record: ListrikRecord }) {
       <View style={styles.recordTop}>
         <View style={styles.recordLeft}>
           <Text style={styles.recordName}>{record.anggota.nama}</Text>
-          <Text style={styles.recordDate}>{formatShortDate(record.createdAt)}</Text>
+          <Text style={styles.recordDate}>
+            {formatShortDate(record.createdAt)}
+          </Text>
         </View>
-        <Text style={styles.recordAmount}>{formatCurrency(record.nominal)}</Text>
+        <Text style={styles.recordAmount}>
+          {formatCurrency(record.nominal)}
+        </Text>
       </View>
-      <Pressable onPress={() => record.buktiBayar && showImage(record.buktiBayar!)}>
+      <Pressable
+        onPress={() => record.buktiBayar && showImage(record.buktiBayar!)}
+      >
         <Text style={styles.recordProof}>Lihat bukti</Text>
       </Pressable>
     </View>
@@ -524,10 +607,16 @@ function ListrikRecordCard({ record }: { record: ListrikRecord }) {
 async function capturePhoto(): Promise<string | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Izin kamera', 'Izinkan kamera untuk memotret bukti pembayaran.');
+    Alert.alert(
+      'Izin kamera',
+      'Izinkan kamera untuk memotret bukti pembayaran.',
+    );
     return null;
   }
-  const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    quality: 0.7,
+  });
   if (result.canceled || !result.assets[0]) return null;
   return result.assets[0].uri;
 }
@@ -549,7 +638,9 @@ function errMsg(e: unknown): string {
 }
 
 function formatInt(value: number): string {
-  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(
+    value,
+  );
 }
 
 function Loading() {
@@ -579,9 +670,18 @@ const styles = StyleSheet.create({
     padding: 3,
     gap: 4,
   },
-  seg: { flex: 1, borderRadius: radius['xl'], paddingVertical: 9, alignItems: 'center' },
+  seg: {
+    flex: 1,
+    borderRadius: radius['xl'],
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
   segActive: { backgroundColor: colors.card },
-  segText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.inkSoft },
+  segText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.inkSoft,
+  },
   segTextActive: { color: colors.ink },
   content: { paddingHorizontal: 20, paddingBottom: 108, gap: 12 },
   section: { gap: 12 },
@@ -614,10 +714,22 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
-  billTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  billTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   billTexts: { gap: 2 },
-  billReason: { fontFamily: fontFamilies.body[600], fontSize: 13, color: colors.ink },
-  billDate: { fontFamily: fontFamilies.body[400], fontSize: 10.5, color: colors.inkSoft },
+  billReason: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 13,
+    color: colors.ink,
+  },
+  billDate: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
   billAmount: {
     fontFamily: fontFamilies.mono[700],
     fontSize: 26,
@@ -634,7 +746,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.paper,
   },
-  qrisBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.ink },
+  qrisBtnText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.ink,
+  },
   payBtn: {
     flex: 1,
     backgroundColor: colors.pine,
@@ -642,8 +758,16 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     alignItems: 'center',
   },
-  payBtnText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.paper },
-  waitNote: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.mustardInk },
+  payBtnText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.paper,
+  },
+  waitNote: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.mustardInk,
+  },
   qrisPreview: {
     borderWidth: 1,
     borderColor: colors.line,
@@ -651,7 +775,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  qrisPreviewText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.ink },
+  qrisPreviewText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.ink,
+  },
 
   approvalSection: {
     backgroundColor: colors.mustardSoft,
@@ -659,22 +787,38 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
-  approvalHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  approvalTitle: { fontFamily: fontFamilies.display[600], fontSize: 13.5, color: colors.mustardInk },
+  approvalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  approvalTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13.5,
+    color: colors.mustardInk,
+  },
   badge: {
     backgroundColor: colors.mustard,
     borderRadius: radius.pill,
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
-  badgeText: { fontFamily: fontFamilies.body[700], fontSize: 10, color: colors.mustardInkStrong },
+  badgeText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 10,
+    color: colors.mustardInkStrong,
+  },
   approvalCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 12,
     gap: 10,
   },
-  approvalClaim: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  approvalClaim: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   approvalActions: { flexDirection: 'row', gap: 10 },
   rejectBtn: {
     flex: 1,
@@ -684,7 +828,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  rejectText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.brick },
+  rejectText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.brick,
+  },
   approveBtn: {
     flex: 1,
     backgroundColor: colors.pine,
@@ -692,7 +840,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  approveText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.paper },
+  approveText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.paper,
+  },
   pendingIuranRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -702,7 +854,12 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
   },
-  pendingIuranText: { flex: 1, fontFamily: fontFamilies.body[500], fontSize: 12, color: colors.ink },
+  pendingIuranText: {
+    flex: 1,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 12,
+    color: colors.ink,
+  },
 
   iuranTotalCard: {
     backgroundColor: colors.card,
@@ -720,7 +877,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     color: colors.brick,
   },
-  iuranSub: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
+  iuranSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
   rekening: {
     fontFamily: fontFamilies.body[400],
     fontSize: 11.5,
@@ -742,16 +903,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  categoryLabel: { flex: 1, fontFamily: fontFamilies.body[500], fontSize: 12.5, color: colors.ink },
+  categoryLabel: {
+    flex: 1,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   categoryRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  categoryAmount: { fontFamily: fontFamilies.mono[600], fontSize: 13, color: colors.ink },
+  categoryAmount: {
+    fontFamily: fontFamilies.mono[600],
+    fontSize: 13,
+    color: colors.ink,
+  },
   uploadBtn: {
     backgroundColor: colors.pine,
     borderRadius: radius.xl,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  uploadBtnText: { fontFamily: fontFamilies.body[700], fontSize: 13, color: colors.paper },
+  uploadBtnText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 13,
+    color: colors.paper,
+  },
 
   listrikSummary: {
     backgroundColor: colors.card,
@@ -762,7 +936,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   listrikKicker: { ...type.kicker, fontSize: 9, color: colors.inkSoft },
-  listrikTotal: { fontFamily: fontFamilies.mono[700], fontSize: 26, letterSpacing: -0.5, color: colors.ink },
+  listrikTotal: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 26,
+    letterSpacing: -0.5,
+    color: colors.ink,
+  },
   progressBar: {
     height: 8,
     borderRadius: 4,
@@ -770,13 +949,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: 8, backgroundColor: colors.mustard },
-  listrikSub: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
+  listrikSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
   listrikNote: {
     backgroundColor: colors.pineSoft,
     borderRadius: radius.md,
     padding: 12,
   },
-  listrikNoteText: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.pineDeep },
+  listrikNoteText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.pineDeep,
+  },
   addBtn: {
     backgroundColor: colors.ink,
     borderRadius: radius.xl,
@@ -786,7 +973,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  addBtnText: { fontFamily: fontFamilies.body[700], fontSize: 13, color: colors.paper },
+  addBtnText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 13,
+    color: colors.paper,
+  },
   formCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -796,7 +987,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   inputRow: { gap: 6 },
-  inputLabel: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.inkSoft },
+  inputLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.inkSoft,
+  },
   input: {
     fontFamily: fontFamilies.mono[600],
     fontSize: 14,
@@ -819,8 +1014,16 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     backgroundColor: colors.paper,
   },
-  buktiReady: { fontFamily: fontFamilies.body[700], fontSize: 15, color: colors.pine },
-  buktiText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  buktiReady: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 15,
+    color: colors.pine,
+  },
+  buktiText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   submitBtn: {
     backgroundColor: colors.pine,
     borderRadius: radius.md,
@@ -828,7 +1031,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitBtnDisabled: { backgroundColor: colors.disabledBg },
-  submitText: { fontFamily: fontFamilies.body[700], fontSize: 13, color: colors.paper },
+  submitText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 13,
+    color: colors.paper,
+  },
   listrikRecord: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -837,10 +1044,30 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 8,
   },
-  recordTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recordTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   recordLeft: { gap: 2 },
-  recordName: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
-  recordDate: { fontFamily: fontFamilies.body[400], fontSize: 10.5, color: colors.inkSoft },
-  recordAmount: { fontFamily: fontFamilies.mono[700], fontSize: 15, color: colors.ink },
-  recordProof: { fontFamily: fontFamilies.body[600], fontSize: 11, color: colors.pine },
+  recordName: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  recordDate: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
+  recordAmount: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 15,
+    color: colors.ink,
+  },
+  recordProof: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11,
+    color: colors.pine,
+  },
 });

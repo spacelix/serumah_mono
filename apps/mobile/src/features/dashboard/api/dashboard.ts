@@ -26,12 +26,7 @@ export interface BillingInfo {
 }
 
 export type ScheduleTag =
-  | 'Hari ini'
-  | 'Selesai'
-  | 'Terjadwal'
-  | 'Bolong'
-  | 'Free'
-  | 'LIBUR';
+  'Hari ini' | 'Selesai' | 'Terjadwal' | 'Bolong' | 'Free' | 'LIBUR';
 
 export interface ScheduleRow {
   tanggal: string;

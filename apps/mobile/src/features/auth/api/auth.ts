@@ -11,13 +11,25 @@ export interface OnboardingState {
   hasRumah: boolean;
 }
 
-export async function apiLogin(email: string, password: string): Promise<AuthSession> {
-  const response = await apiClient.post<AuthSession>('/auth/login', { email, password });
+export async function apiLogin(
+  email: string,
+  password: string,
+): Promise<AuthSession> {
+  const response = await apiClient.post<AuthSession>('/auth/login', {
+    email,
+    password,
+  });
   return response.data;
 }
 
-export async function apiRegister(email: string, password: string): Promise<AuthSession> {
-  const response = await apiClient.post<AuthSession>('/auth/register', { email, password });
+export async function apiRegister(
+  email: string,
+  password: string,
+): Promise<AuthSession> {
+  const response = await apiClient.post<AuthSession>('/auth/register', {
+    email,
+    password,
+  });
   return response.data;
 }
 

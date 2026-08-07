@@ -160,7 +160,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
-    const message = err.response?.data?.message ?? 'Terjadi kesalahan. Coba lagi.';
+    const message =
+      err.response?.data?.message ?? 'Terjadi kesalahan. Coba lagi.';
     return Promise.reject(new Error(message)); // Indonesian message
   },
 );

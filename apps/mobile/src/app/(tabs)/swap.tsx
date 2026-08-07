@@ -1,6 +1,13 @@
 import { ArrowLeftRight, CalendarDays, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -24,7 +31,10 @@ export default function SwapScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title="Swap" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading || data == null ? (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Memuat…</Text>
@@ -37,7 +47,9 @@ export default function SwapScreen() {
               </View>
               <View style={styles.ctaText}>
                 <Text style={styles.ctaTitle}>Ajukan swap baru</Text>
-                <Text style={styles.ctaSub}>Tukar jadwal piket dengan anggota lain</Text>
+                <Text style={styles.ctaSub}>
+                  Tukar jadwal piket dengan anggota lain
+                </Text>
               </View>
             </Pressable>
 
@@ -65,7 +77,13 @@ export default function SwapScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -78,11 +96,19 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
   const { accept, reject } = useSwapMutations();
   const onAccept = () =>
     accept.mutate(swap.id, {
-      onError: (e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+      onError: (e) =>
+        Alert.alert(
+          'Gagal',
+          e instanceof Error ? e.message : 'Terjadi kesalahan.',
+        ),
     });
   const onReject = () =>
     reject.mutate(swap.id, {
-      onError: (e) => Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+      onError: (e) =>
+        Alert.alert(
+          'Gagal',
+          e instanceof Error ? e.message : 'Terjadi kesalahan.',
+        ),
     });
 
   return (
@@ -99,11 +125,21 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
         <Text style={styles.dayText}>{formatShortDate(swap.tanggal)}</Text>
       </View>
       <View style={styles.swapActions}>
-        <Pressable onPress={onReject} disabled={reject.isPending} style={styles.rejectBtn}>
+        <Pressable
+          onPress={onReject}
+          disabled={reject.isPending}
+          style={styles.rejectBtn}
+        >
           <Text style={styles.rejectText}>Tolak</Text>
         </Pressable>
-        <Pressable onPress={onAccept} disabled={accept.isPending} style={styles.acceptBtn}>
-          <Text style={styles.acceptText}>{accept.isPending ? '…' : 'Terima'}</Text>
+        <Pressable
+          onPress={onAccept}
+          disabled={accept.isPending}
+          style={styles.acceptBtn}
+        >
+          <Text style={styles.acceptText}>
+            {accept.isPending ? '…' : 'Terima'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -154,10 +190,16 @@ function SwapForm({ onClose }: { onClose: () => void }) {
       {
         onSuccess: () => {
           onClose();
-          Alert.alert('Terkirim', 'Permintaan swap terkirim untuk dikonfirmasi.');
+          Alert.alert(
+            'Terkirim',
+            'Permintaan swap terkirim untuk dikonfirmasi.',
+          );
         },
         onError: (e) =>
-          Alert.alert('Gagal', e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+          Alert.alert(
+            'Gagal',
+            e instanceof Error ? e.message : 'Terjadi kesalahan.',
+          ),
       },
     );
   };
@@ -175,8 +217,14 @@ function SwapForm({ onClose }: { onClose: () => void }) {
             <Pressable
               key={d}
               onPress={() => setDay(d)}
-              style={[styles.dayChip, day === d && styles.dayChipActive]}>
-              <Text style={[styles.dayChipText, day === d && styles.dayChipTextActive]}>
+              style={[styles.dayChip, day === d && styles.dayChipActive]}
+            >
+              <Text
+                style={[
+                  styles.dayChipText,
+                  day === d && styles.dayChipTextActive,
+                ]}
+              >
                 {formatShortDate(d)}
               </Text>
             </Pressable>
@@ -193,9 +241,17 @@ function SwapForm({ onClose }: { onClose: () => void }) {
           <Pressable
             key={m.id}
             onPress={() => setMember(m.id)}
-            style={[styles.memberRow, member === m.id && styles.memberRowActive]}>
+            style={[
+              styles.memberRow,
+              member === m.id && styles.memberRowActive,
+            ]}
+          >
             <Text
-              style={[styles.memberRowName, member === m.id && styles.memberRowNameActive]}>
+              style={[
+                styles.memberRowName,
+                member === m.id && styles.memberRowNameActive,
+              ]}
+            >
               {m.nama}
             </Text>
           </Pressable>
@@ -206,8 +262,14 @@ function SwapForm({ onClose }: { onClose: () => void }) {
         <Pressable onPress={onClose} style={styles.cancelBtn}>
           <Text style={styles.cancelText}>Batal</Text>
         </Pressable>
-        <Pressable onPress={() => void onSubmit()} disabled={!canSubmit} style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}>
-          <Text style={styles.submitText}>{create.isPending ? 'Mengirim…' : 'Ajukan'}</Text>
+        <Pressable
+          onPress={() => void onSubmit()}
+          disabled={!canSubmit}
+          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+        >
+          <Text style={styles.submitText}>
+            {create.isPending ? 'Mengirim…' : 'Ajukan'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -224,7 +286,12 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
-  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 108, gap: 12 },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 108,
+    gap: 12,
+  },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   section: { gap: 8 },
@@ -252,8 +319,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: { flex: 1, gap: 2 },
-  ctaTitle: { fontFamily: fontFamilies.body[700], fontSize: 13.5, color: colors.ink },
-  ctaSub: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkSoft },
+  ctaTitle: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 13.5,
+    color: colors.ink,
+  },
+  ctaSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
 
   swapCard: {
     backgroundColor: colors.card,
@@ -279,9 +354,17 @@ const styles = StyleSheet.create({
     gap: 2,
     minHeight: 52,
   },
-  memberName: { fontFamily: fontFamilies.body[700], fontSize: 12.5, color: colors.ink },
+  memberName: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dayText: { fontFamily: fontFamilies.mono[600], fontSize: 12, color: colors.ink },
+  dayText: {
+    fontFamily: fontFamilies.mono[600],
+    fontSize: 12,
+    color: colors.ink,
+  },
   swapActions: { flexDirection: 'row', gap: 10 },
   rejectBtn: {
     flex: 1,
@@ -291,7 +374,11 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     alignItems: 'center',
   },
-  rejectText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.brick },
+  rejectText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.brick,
+  },
   acceptBtn: {
     flex: 1,
     backgroundColor: colors.pine,
@@ -299,7 +386,11 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     alignItems: 'center',
   },
-  acceptText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.paper },
+  acceptText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.paper,
+  },
 
   mineCard: {
     backgroundColor: colors.card,
@@ -309,7 +400,11 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
   },
-  mineMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  mineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 
   formCard: {
     backgroundColor: colors.card,
@@ -319,9 +414,21 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  formTitle: { fontFamily: fontFamilies.display[600], fontSize: 16, color: colors.ink },
-  formLabel: { fontFamily: fontFamilies.body[600], fontSize: 11.5, color: colors.inkSoft },
-  formHint: { fontFamily: fontFamilies.body[400], fontSize: 11, color: colors.inkMuted },
+  formTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 16,
+    color: colors.ink,
+  },
+  formLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11.5,
+    color: colors.inkSoft,
+  },
+  formHint: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayChip: {
     borderWidth: 1,
@@ -332,7 +439,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   dayChipActive: { backgroundColor: colors.pine, borderColor: colors.pine },
-  dayChipText: { fontFamily: fontFamilies.mono[600], fontSize: 11.5, color: colors.ink },
+  dayChipText: {
+    fontFamily: fontFamilies.mono[600],
+    fontSize: 11.5,
+    color: colors.ink,
+  },
   dayChipTextActive: { color: colors.paper },
   memberList: { gap: 8 },
   memberRow: {
@@ -347,8 +458,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     gap: 8,
   },
-  memberRowActive: { borderColor: colors.pine, backgroundColor: colors.pineSoft },
-  memberRowName: { flex: 1, fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  memberRowActive: {
+    borderColor: colors.pine,
+    backgroundColor: colors.pineSoft,
+  },
+  memberRowName: {
+    flex: 1,
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   memberRowNameActive: { color: colors.pineDeep },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: {
@@ -359,7 +478,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  cancelText: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
+  cancelText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
   submitBtn: {
     flex: 2,
     backgroundColor: colors.pine,
@@ -368,5 +491,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitBtnDisabled: { backgroundColor: colors.disabledBg },
-  submitText: { fontFamily: fontFamilies.body[700], fontSize: 12.5, color: colors.paper },
+  submitText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
 });

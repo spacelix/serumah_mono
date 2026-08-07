@@ -80,8 +80,9 @@ No feature is complete until it is testable.
 ## Verification & Per-Item Commits (mandatory)
 
 1. **Verify before done.** Every item (feature, endpoint, refactor, fix) is **not** complete until it is verified: run its `build`, `lint`, `typecheck`, and tests (`turbo run build lint typecheck test --filter=<pkg>`) and confirm they pass. Never mark an item done or start the next item on unverified work.
-2. **Commit per item.** Commit changes **after each completed (and verified) item**, never as one bundled WIP commit. One commit = one logical item, message in the repo style and scoped to that item. Cross-cutting files (e.g. `bun.lock`) go with the item they belong to.
-3. **Update docs with the item.** `context/progress/progress-tracker.md` (and any affected context) is updated in the same commit as its item — never a separate later catch-up.
+2. **Never run build/typecheck/lint/test in the agent — hand the command to the user.** The agent writes the exact verification commands and gives them to the user to run (WSL sandbox has known hangs on this repo, e.g. BullMQ require on the 9p mount). The user runs them and reports the result. The agent only proceeds once the user confirms green.
+3. **Commit per item.** Commit changes **after each completed (and verified) item**, never as one bundled WIP commit. One commit = one logical item, message in the repo style and scoped to that item. Cross-cutting files (e.g. `bun.lock`) go with the item they belong to.
+4. **Update docs with the item.** `context/progress/progress-tracker.md` (and any affected context) is updated in the same commit as its item — never a separate later catch-up.
 
 ---
 
@@ -89,22 +90,22 @@ No feature is complete until it is testable.
 
 Core Serumah features:
 
-* Register & Login (email + password, JWT)
-* Onboarding: profile setup, create rumah (admin), join rumah (invite code)
-* Automatic round-robin schedule: weekday Senin/Rabu/Jumat (every other day) + dynamic weekend
-* Weekend status toggle (Di kos / Pulang)
-* Daily piket execution with before/after photo evidence per room
-* Per-room checklist (jenis_piket) — no per-item fine amount
-* PJ Kos approval per submission (all-or-nothing) with auto fine generation
-* Auto-fine flat for missed deadline (20:00) — amount from `rumah.nominal_denda`
-* Swap requests — all-or-nothing full day transfer
-* Fine payment via QRIS (PJ uploads QRIS; member scans + uploads proof; PJ confirms)
-* Monthly iuran (kos/wifi/listrik wajib) — total cost auto-split, payment proof, PJ confirmation, pelunasan
-* Additional electricity self-record — auto-split, adjust next month's bill, no approval
-* Galon rotation widget + "Sudah Beli" (no reimbursement)
-* Profile page (name, photo, emergency contact, address)
-* Rumah Management (member list, edit costs, rekening, QRIS, invite code — admin only)
-* In-app non-store update via GitHub Releases (`version.json` + APK)
+- Register & Login (email + password, JWT)
+- Onboarding: profile setup, create rumah (admin), join rumah (invite code)
+- Automatic round-robin schedule: weekday Senin/Rabu/Jumat (every other day) + dynamic weekend
+- Weekend status toggle (Di kos / Pulang)
+- Daily piket execution with before/after photo evidence per room
+- Per-room checklist (jenis_piket) — no per-item fine amount
+- PJ Kos approval per submission (all-or-nothing) with auto fine generation
+- Auto-fine flat for missed deadline (20:00) — amount from `rumah.nominal_denda`
+- Swap requests — all-or-nothing full day transfer
+- Fine payment via QRIS (PJ uploads QRIS; member scans + uploads proof; PJ confirms)
+- Monthly iuran (kos/wifi/listrik wajib) — total cost auto-split, payment proof, PJ confirmation, pelunasan
+- Additional electricity self-record — auto-split, adjust next month's bill, no approval
+- Galon rotation widget + "Sudah Beli" (no reimbursement)
+- Profile page (name, photo, emergency contact, address)
+- Rumah Management (member list, edit costs, rekening, QRIS, invite code — admin only)
+- In-app non-store update via GitHub Releases (`version.json` + APK)
 
 ---
 
@@ -112,17 +113,17 @@ Core Serumah features:
 
 ## Stack
 
-| Layer            | Tool                  | Purpose                              |
-|------------------|-----------------------|--------------------------------------|
-| Framework        | React Native (Expo)   | Mobile app (Android/iOS)             |
-| Language         | TypeScript            | Strict mode                          |
-| State Mgmt       | React Query + Zustand | Server state + auth/UI state         |
-| Backend          | NestJS                | REST API + cron jobs                 |
-| Database         | PostgreSQL + Prisma   | Source of truth                      |
+| Layer            | Tool                  | Purpose                                    |
+| ---------------- | --------------------- | ------------------------------------------ |
+| Framework        | React Native (Expo)   | Mobile app (Android/iOS)                   |
+| Language         | TypeScript            | Strict mode                                |
+| State Mgmt       | React Query + Zustand | Server state + auth/UI state               |
+| Backend          | NestJS                | REST API + cron jobs                       |
+| Database         | PostgreSQL + Prisma   | Source of truth                            |
 | Storage          | MinIO / local disk    | Piket photos, avatar, QRIS, payment proofs |
-| Auth             | NestJS + JWT (bcrypt) | Email + password                     |
-| Routing (mobile) | Expo Router           | File-based routing                   |
-| Icons            | Lucide (React)        | Consistent icon system               |
+| Auth             | NestJS + JWT (bcrypt) | Email + password                           |
+| Routing (mobile) | Expo Router           | File-based routing                         |
+| Icons            | Lucide (React)        | Consistent icon system                     |
 
 ## Data flow pattern
 
@@ -144,20 +145,24 @@ The migration abandons the "serverless only" principle from the Flutter+Supabase
 # Rules That Never Change
 
 ## Language
+
 - **Bahasa Indonesia** for all UI text, labels, error messages. Never English for user-facing text.
 - API errors return human-readable Indonesian messages — not raw stack traces/exceptions.
 
 ## Data & Database
+
 - PostgreSQL via Prisma is the single source of truth.
 - All queries scoped to `rumah_id`.
 - Sensitive mutations (iuran/denda/schedule status transitions) are validated **server-side** in NestJS services — never trust client-provided status.
 - Prisma models are defined once in `packages/db` — do not duplicate the schema.
 
 ## Auth
+
 - JWT (access token). Passwords hashed with bcrypt.
 - Every user belongs to exactly one rumah (`rumah_id` in the anggota table).
 
 ## Storage
+
 - Piket photos: `photos/{submission_id}/{room_id}_{type}_{timestamp}.jpg` (type = before/after)
 - Avatar: `profiles/{anggota_id}/avatar.jpg`
 - Fine payment proof: `photos/denda_bukti/{denda_id}_{ts}.jpg`
@@ -168,15 +173,18 @@ The migration abandons the "serverless only" principle from the Flutter+Supabase
 - Never store images locally beyond cache.
 
 ## State Management (React Native)
+
 - **React Query** for all server state (fetch, cache, invalidate, mutation).
 - **Zustand** for auth state + local UI state.
 - Forbidden: Redux (unless explicitly decided), business logic in components.
 
 ## Navigation (React Native)
+
 - Expo Router (file-based). Auth stack (Splash, Login, Register, Onboarding) separated from `(tabs)` with 4 tabs.
 - **Fixed 4 bottom tabs:** Beranda, Piket, Tagihan, Swap — no top navbar.
 
 ## UI
+
 - Design tokens from `context/core/ui-tokens.md` — never hardcode hex in components.
 - Stamp (rotated -4° stamp) ONLY for status: Lunas, Ditolak, Pending, Approved.
 - Money amounts always mono font (JetBrains Mono) — not body font.
@@ -184,12 +192,14 @@ The migration abandons the "serverless only" principle from the Flutter+Supabase
 - Photo before → checklist → photo after — linear, never mixed.
 
 ## Schedule Logic
+
 - Weekday piket: Senin, Rabu, Jumat (every other day). Selasa+Kamis off.
 - Round-robin cycle across weeks. No back-to-back (one person never gets 2 consecutive days — automatically satisfied because of the Selasa/Kamis gap).
 - Weekend: generated from members with "Di kos" status. All "Pulang" → Free day (no fine).
 - Weekend status freeze: Friday 20:00 (configurable). No update → default to last week's status.
 
 ## Role
+
 - **Admin (creator/PJ Kos):** approve/reject piket, confirm fine payments, upload QRIS, edit rumah costs, manage members, reset invite code, upload pelunasan.
 - **Anggota:** piket, upload photos, pay fines, swap, view rumah info.
 - The PJ/Admin's own fines are **auto-paid** when proof is uploaded (no self-confirmation).
@@ -209,6 +219,7 @@ The migration abandons the "serverless only" principle from the Flutter+Supabase
 # Progress Tracking
 
 After every completed feature, update `context/progress/progress-tracker.md`:
+
 - Current Status (phase)
 - Last Completed
 - Next Feature
@@ -222,7 +233,7 @@ Also update completed checkboxes.
 Only work on the current active phase. Never start the next phase without approval.
 
 The active phase is recorded in `context/progress/progress-tracker.md`.
-When a phase is complete → stop & ask: *"Phase X done. Proceed to Phase Y?"*
+When a phase is complete → stop & ask: _"Phase X done. Proceed to Phase Y?"_
 
 ---
 
@@ -237,22 +248,22 @@ After confirmation → move the decision into the feature file + `progress-track
 
 # Invariants Summary
 
-| Rule | Description |
-|---|---|
-| Language | Bahasa Indonesia for all UI text |
-| Colors | Design tokens only — no hex in components |
-| Fonts | Mono (JetBrains) for amounts, body Inter, display Space Grotesk |
-| Stamp | Status only — never decorative |
-| Kos scope | Every DB query must filter rumah_id |
-| Business logic | In NestJS service / React Query — never in components |
-| Fine display | Always visible at decision points (checklist, bill card) |
-| Photo flow | Before → checklist → After — linear |
-| Schedule | Weekday Sen/Rab/Jum; Sel+Kamis off |
-| No back-to-back | One person never 2 consecutive days |
-| Role | Admin (PJ) = edit costs, manage members, reset invite, approve/reject, confirm payment |
-| Onboarding | Required: profile → create/join rumah before accessing the main app |
-| Data source | PostgreSQL/Prisma via NestJS — RN app never accesses DB directly |
-| Anti-hallucination | Unlocked TBC → stop & ask; never invent scope |
+| Rule               | Description                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| Language           | Bahasa Indonesia for all UI text                                                       |
+| Colors             | Design tokens only — no hex in components                                              |
+| Fonts              | Mono (JetBrains) for amounts, body Inter, display Space Grotesk                        |
+| Stamp              | Status only — never decorative                                                         |
+| Kos scope          | Every DB query must filter rumah_id                                                    |
+| Business logic     | In NestJS service / React Query — never in components                                  |
+| Fine display       | Always visible at decision points (checklist, bill card)                               |
+| Photo flow         | Before → checklist → After — linear                                                    |
+| Schedule           | Weekday Sen/Rab/Jum; Sel+Kamis off                                                     |
+| No back-to-back    | One person never 2 consecutive days                                                    |
+| Role               | Admin (PJ) = edit costs, manage members, reset invite, approve/reject, confirm payment |
+| Onboarding         | Required: profile → create/join rumah before accessing the main app                    |
+| Data source        | PostgreSQL/Prisma via NestJS — RN app never accesses DB directly                       |
+| Anti-hallucination | Unlocked TBC → stop & ask; never invent scope                                          |
 
 ---
 

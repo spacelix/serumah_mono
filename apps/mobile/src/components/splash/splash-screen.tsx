@@ -51,7 +51,8 @@ export function SplashScreen() {
             opacity: rise,
             transform: [{ translateY: riseTranslate }],
           },
-        ]}>
+        ]}
+      >
         <SerumahLogo size={112} />
       </Animated.View>
       <Animated.View
@@ -61,7 +62,8 @@ export function SplashScreen() {
             opacity: word,
             transform: [{ translateY: wordTranslate }],
           },
-        ]}>
+        ]}
+      >
         <Text style={styles.wordmark}>Serumah</Text>
         <Text style={styles.kicker}>Piket · Iuran · Galon</Text>
       </Animated.View>

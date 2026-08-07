@@ -48,8 +48,13 @@ export interface JoinPreview {
   anggotaCount: number;
 }
 
-export async function apiUpdateProfile(input: UpdateProfileInput): Promise<UpdateProfileResponse> {
-  const response = await apiClient.put<UpdateProfileResponse>('/anggota/me/profile', input);
+export async function apiUpdateProfile(
+  input: UpdateProfileInput,
+): Promise<UpdateProfileResponse> {
+  const response = await apiClient.put<UpdateProfileResponse>(
+    '/anggota/me/profile',
+    input,
+  );
   return response.data;
 }
 
@@ -61,8 +66,12 @@ export async function apiCreateRumah(input: {
   return response.data;
 }
 
-export async function apiJoinRumah(inviteCode: string): Promise<JoinRumahResponse> {
-  const response = await apiClient.post<JoinRumahResponse>('/rumah/join', { inviteCode });
+export async function apiJoinRumah(
+  inviteCode: string,
+): Promise<JoinRumahResponse> {
+  const response = await apiClient.post<JoinRumahResponse>('/rumah/join', {
+    inviteCode,
+  });
   return response.data;
 }
 
@@ -82,8 +91,12 @@ export async function uploadAvatar(uri: string): Promise<string> {
     type: 'image/jpeg',
   } as unknown as Blob);
 
-  const response = await apiClient.post<{ url: string; key: string }>('/storage/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await apiClient.post<{ url: string; key: string }>(
+    '/storage/avatar',
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  );
   return response.data.url;
 }

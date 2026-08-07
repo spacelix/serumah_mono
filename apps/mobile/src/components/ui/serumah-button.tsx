@@ -45,9 +45,13 @@ export function SerumahButton({
         isDisabled && variant === 'outline' && styles.disabledOutline,
         pressed && !isDisabled && variant === 'primary' && styles.pressedInk,
         pressed && !isDisabled && variant === 'forest' && styles.pressedForest,
-        pressed && !isDisabled && variant === 'outline' && styles.pressedOutline,
+        pressed &&
+          !isDisabled &&
+          variant === 'outline' &&
+          styles.pressedOutline,
       ]}
-      {...rest}>
+      {...rest}
+    >
       <Text
         style={[
           styles.label,
@@ -55,8 +59,11 @@ export function SerumahButton({
           variant === 'forest' && styles.labelOnDark,
           variant === 'outline' && styles.labelOutline,
           variant === 'link' && styles.labelLink,
-          isDisabled && (variant === 'primary' || variant === 'forest') && styles.labelDisabled,
-        ]}>
+          isDisabled &&
+            (variant === 'primary' || variant === 'forest') &&
+            styles.labelDisabled,
+        ]}
+      >
         {title}
       </Text>
     </Pressable>

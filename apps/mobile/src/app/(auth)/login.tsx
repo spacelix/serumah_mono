@@ -1,6 +1,12 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
@@ -23,7 +29,11 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.');
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan. Coba lagi.',
+      );
     }
   };
 
@@ -31,7 +41,8 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.logoChip}>

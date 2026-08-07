@@ -26,7 +26,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       start={{ x: 0, y: 1 }}
       end={{ x: 0, y: 0 }}
       style={[styles.gradient, { paddingBottom: insets.bottom + 22 }]}
-      pointerEvents="box-none">
+      pointerEvents="box-none"
+    >
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
           const tab = TABS[index] ?? TABS[0];
@@ -50,7 +51,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityLabel={`Tab ${tab.label}`}
               accessibilityState={focused ? { selected: true } : {}}
               onPress={onPress}
-              style={[styles.tab, focused && styles.tabActive]}>
+              style={[styles.tab, focused && styles.tabActive]}
+            >
               <View style={styles.iconWrap}>
                 <TabIcon
                   name={tab.icon}
@@ -62,7 +64,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                 style={[
                   styles.label,
                   focused ? styles.labelActive : styles.labelInactive,
-                ]}>
+                ]}
+              >
                 {tab.label}
               </Text>
             </Pressable>
@@ -89,7 +92,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{ headerShown: false, tabBarShowLabel: false }}
-      tabBar={(props) => <CustomTabBar {...props} />}>
+      tabBar={(props) => <CustomTabBar {...props} />}
+    >
       <Tabs.Screen name="index" options={{ title: 'Beranda' }} />
       <Tabs.Screen name="piket" options={{ title: 'Piket' }} />
       <Tabs.Screen name="tagihan" options={{ title: 'Tagihan' }} />

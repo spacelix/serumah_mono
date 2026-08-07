@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { CacheService } from '../redis/cache.service';
 
 @Injectable()
 export class GalonService {
@@ -16,12 +17,19 @@ export class GalonService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly cache: CacheService,
   ) {}
 
   async current(payload: CurrentUserPayload) {
     const anggota = await this.scope.requireAnggota(payload.userId);
-    if (!anggota.rumahId)
+    return this.currentFromAnggota(anggota);
+  }
+
+  /** Read the current galon turn for a known anggota (shared by dashboard). */
+  async currentFromAnggota(anggota: { id: string; rumahId: string | null }) {
+    if (!anggota.rumahId) {
       return { giliran: null, namaAnggota: null, isMine: false };
+    }
 
     const giliran = await this.prisma.giliranGalon.findFirst({
       where: { rumahId: anggota.rumahId, status: 'menunggu' },
@@ -79,6 +87,7 @@ export class GalonService {
     this.logger.log(
       `[GalonService] Giliran ${giliran.id} selesai, next ${next.id}`,
     );
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { next };
   }
 

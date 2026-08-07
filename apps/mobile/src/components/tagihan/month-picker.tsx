@@ -14,11 +14,17 @@ export function MonthPicker({
 }) {
   return (
     <View style={styles.row}>
-      <Pressable onPress={() => onChange(shift(value, -1))} style={styles.navBtn}>
+      <Pressable
+        onPress={() => onChange(shift(value, -1))}
+        style={styles.navBtn}
+      >
         <ChevronLeft color={colors.ink} size={16} strokeWidth={2.4} />
       </Pressable>
       <Text style={styles.label}>{formatMonthLabel(value)}</Text>
-      <Pressable onPress={() => onChange(shift(value, 1))} style={styles.navBtn}>
+      <Pressable
+        onPress={() => onChange(shift(value, 1))}
+        style={styles.navBtn}
+      >
         <ChevronRight color={colors.ink} size={16} strokeWidth={2.4} />
       </Pressable>
     </View>
@@ -49,5 +55,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontFamily: fontFamilies.display[600], fontSize: 14.5, color: colors.ink },
+  label: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 14.5,
+    color: colors.ink,
+  },
 });

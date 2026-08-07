@@ -34,7 +34,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     context: ExecutionContext,
   ): TUser {
     if (err || !user) {
-      const auth = this.getRequest(context)?.headers?.authorization;
+      const request = this.getRequest(context) as
+        { headers?: Record<string, string | string[] | undefined> } | undefined;
+      const authHeader = request?.headers?.authorization;
+      const auth = typeof authHeader === 'string' ? authHeader : '';
       this.logger.error(
         `[JwtAuthGuard] 401 — reason=${String((err as Error | undefined)?.message ?? 'no-user')} ` +
           `hasAuthHeader=${Boolean(auth) && auth.startsWith('Bearer')}`,

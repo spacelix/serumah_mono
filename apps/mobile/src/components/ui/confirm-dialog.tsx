@@ -102,10 +102,16 @@ export function ConfirmDialog({
             {
               opacity: rise,
               transform: [
-                { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) },
+                {
+                  translateY: rise.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-18, 0],
+                  }),
+                },
               ],
             },
-          ]}>
+          ]}
+        >
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
 
@@ -114,7 +120,8 @@ export function ConfirmDialog({
               <Pressable
                 onPress={onCancel}
                 disabled={busy}
-                style={[styles.button, styles.buttonCancel]}>
+                style={[styles.button, styles.buttonCancel]}
+              >
                 <Text style={styles.buttonCancelText}>{cancelText}</Text>
               </Pressable>
             )}
@@ -123,10 +130,23 @@ export function ConfirmDialog({
               disabled={busy}
               style={[
                 styles.button,
-                single ? styles.buttonPrimary : danger ? styles.buttonDanger : styles.buttonPrimary,
+                single
+                  ? styles.buttonPrimary
+                  : danger
+                    ? styles.buttonDanger
+                    : styles.buttonPrimary,
                 busy && styles.buttonBusy,
-              ]}>
-              <Text style={single ? styles.buttonPrimaryText : danger ? styles.buttonDangerText : styles.buttonPrimaryText}>
+              ]}
+            >
+              <Text
+                style={
+                  single
+                    ? styles.buttonPrimaryText
+                    : danger
+                      ? styles.buttonDangerText
+                      : styles.buttonPrimaryText
+                }
+              >
                 {busy ? 'Memproses…' : confirmText}
               </Text>
             </Pressable>

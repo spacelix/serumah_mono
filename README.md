@@ -1,6 +1,6 @@
 # Serumah — Papan Piket Digital (Piket Kos App)
 
-**Serumah** is a mobile app that digitizes the physical *piket schedule* — the weekly cleaning rota pinned to the kitchen wall of an Indonesian boarding house (*kos-kosan*). It manages who is on cleaning duty, tracks photo evidence, automatically splits monthly bills, collects and confirms fines (denda), water-gallon turns, and electricity costs — all in one app.
+**Serumah** is a mobile app that digitizes the physical _piket schedule_ — the weekly cleaning rota pinned to the kitchen wall of an Indonesian boarding house (_kos-kosan_). It manages who is on cleaning duty, tracks photo evidence, automatically splits monthly bills, collects and confirms fines (denda), water-gallon turns, and electricity costs — all in one app.
 
 The signature design element is the **stamp / cap motif** (rotated -4°) used exclusively to mark payment & review statuses, echoing the official rubber stamps used on printed kos documents.
 
@@ -29,7 +29,7 @@ The signature design element is the **stamp / cap motif** (rotated -4°) used ex
 
 ## Highlights
 
-- **Round-robin cleaning schedule** — weekday piket on *Senin / Rabu / Jumat* (every other day) with auto-generated dynamic weekend duty based on members' weekend status.
+- **Round-robin cleaning schedule** — weekday piket on _Senin / Rabu / Jumat_ (every other day) with auto-generated dynamic weekend duty based on members' weekend status.
 - **Photo-verified piket** — before → checklist → after photos per room, all stored in MinIO.
 - **Auto-fines** — flat fine for missed deadline (20:00), paid via QRIS with PJ confirmation.
 - **Auto-split monthly bills** — kos rent, WiFi, and mandatory electricity split equally across members.
@@ -41,40 +41,40 @@ The signature design element is the **stamp / cap motif** (rotated -4°) used ex
 
 ## Features
 
-| Area | Feature | Description |
-|---|---|---|
-| **Auth** | Register & Login | Email + password, bcrypt hashes, JWT access tokens. Hoped: every user belongs to exactly one rumah. |
-| **Onboarding** | Profile → rumah | Set up profile, then create a rumah (becomes admin) or join one via 6-digit invite code. |
-| **Schedule** | Round-robin rota | Weekday Sen/Rab/Jum (Sel/Kam off), no back-to-back, weekend schedule from "Di kos / Pulang" status. |
-| **Dashboard** | Beranda | Weekend status toggle, galon widget, billing summary, weekly schedule list. |
-| **Piket** | Daily execution | Per-room `before → checklist → after` photos, submit proof. |
-| **Verifikasi** | Review | PJ/anggota approval per submission (all-or-nothing), reject → auto flat fine. |
-| **Denda** | Fines & QRIS | Pay fine, upload proof, PJ confirms; PJ's own fine auto-paid. |
-| **Iuran** | Monthly bills | Total cost auto-split, payment proof, PJ confirmation, pelunasan (settlement to pemilik). |
-| **Listrik** | Extra electricity | Self-record token purchases, auto-split, adjusts next month's bill. |
-| **Swap** | Day exchange | All-or-nothing full-day transfer between members. |
-| **Galon** | Water rotation | Galon turn widget + "Sudah Beli" (no reimbursement). |
-| **Profile** | My profile | Name, photo, emergency contact, address; role badge. |
-| **Rumah** | Management | Members, costs, rekening, QRIS, invite code reset, rooms & jenis_piket (admin). |
-| **Update** | In-app update | Non-store update via GitHub Releases (`version.json` + APK). |
+| Area           | Feature           | Description                                                                                         |
+| -------------- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| **Auth**       | Register & Login  | Email + password, bcrypt hashes, JWT access tokens. Hoped: every user belongs to exactly one rumah. |
+| **Onboarding** | Profile → rumah   | Set up profile, then create a rumah (becomes admin) or join one via 6-digit invite code.            |
+| **Schedule**   | Round-robin rota  | Weekday Sen/Rab/Jum (Sel/Kam off), no back-to-back, weekend schedule from "Di kos / Pulang" status. |
+| **Dashboard**  | Beranda           | Weekend status toggle, galon widget, billing summary, weekly schedule list.                         |
+| **Piket**      | Daily execution   | Per-room `before → checklist → after` photos, submit proof.                                         |
+| **Verifikasi** | Review            | PJ/anggota approval per submission (all-or-nothing), reject → auto flat fine.                       |
+| **Denda**      | Fines & QRIS      | Pay fine, upload proof, PJ confirms; PJ's own fine auto-paid.                                       |
+| **Iuran**      | Monthly bills     | Total cost auto-split, payment proof, PJ confirmation, pelunasan (settlement to pemilik).           |
+| **Listrik**    | Extra electricity | Self-record token purchases, auto-split, adjusts next month's bill.                                 |
+| **Swap**       | Day exchange      | All-or-nothing full-day transfer between members.                                                   |
+| **Galon**      | Water rotation    | Galon turn widget + "Sudah Beli" (no reimbursement).                                                |
+| **Profile**    | My profile        | Name, photo, emergency contact, address; role badge.                                                |
+| **Rumah**      | Management        | Members, costs, rekening, QRIS, invite code reset, rooms & jenis_piket (admin).                     |
+| **Update**     | In-app update     | Non-store update via GitHub Releases (`version.json` + APK).                                        |
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool | Purpose |
-|---|---|---|
-| Mobile framework | **React Native (Expo)** | Android/iOS app |
-| Language | **TypeScript** (strict) | Whole monorepo |
-| State (server) | **React Query** | Fetch, cache, invalidate, mutations |
-| State (auth/UI) | **Zustand** | Auth session + local UI state |
-| Backend | **NestJS** | REST API + cron jobs |
-| Database | **PostgreSQL + Prisma** | Single source of truth |
-| Storage | **MinIO** (S3-compatible) | Piket photos, avatars, QRIS, payment proofs |
-| Auth | **NestJS + JWT (bcrypt)** | Email + password |
-| Routing | **Expo Router** | File-based routing |
-| Icons | **Lucide (React)** | Consistent icon system |
-| Package manager | **Bun** | Mono-repo workspaces + scripts |
+| Layer            | Tool                      | Purpose                                     |
+| ---------------- | ------------------------- | ------------------------------------------- |
+| Mobile framework | **React Native (Expo)**   | Android/iOS app                             |
+| Language         | **TypeScript** (strict)   | Whole monorepo                              |
+| State (server)   | **React Query**           | Fetch, cache, invalidate, mutations         |
+| State (auth/UI)  | **Zustand**               | Auth session + local UI state               |
+| Backend          | **NestJS**                | REST API + cron jobs                        |
+| Database         | **PostgreSQL + Prisma**   | Single source of truth                      |
+| Storage          | **MinIO** (S3-compatible) | Piket photos, avatars, QRIS, payment proofs |
+| Auth             | **NestJS + JWT (bcrypt)** | Email + password                            |
+| Routing          | **Expo Router**           | File-based routing                          |
+| Icons            | **Lucide (React)**        | Consistent icon system                      |
+| Package manager  | **Bun**                   | Mono-repo workspaces + scripts              |
 
 ---
 
@@ -217,13 +217,13 @@ erDiagram
 
 ### Key state machines
 
-| Entity | Transition |
-|---|---|
-| `PiketSubmission` | `menunggu → approved \| rejected (→ flat fine) \| bolong (auto, no submit)` |
-| `Denda` | `belum_bayar → menunggu_konfirmasi → lunas`; PJ's own fine is auto-`lunas` on proof |
-| `IuranBulanan` | `belum_bayar → menunggu_konfirmasi → lunas`; PJ auto-`lunas` |
-| `SwapRequest` | `diajukan → diterima (schedule moves) \| ditolak (stays)` |
-| `GiliranGalon` | `menunggu → sudah_dibeli → rotate to next member (no nominal)` |
+| Entity            | Transition                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `PiketSubmission` | `menunggu → approved \| rejected (→ flat fine) \| bolong (auto, no submit)`         |
+| `Denda`           | `belum_bayar → menunggu_konfirmasi → lunas`; PJ's own fine is auto-`lunas` on proof |
+| `IuranBulanan`    | `belum_bayar → menunggu_konfirmasi → lunas`; PJ auto-`lunas`                        |
+| `SwapRequest`     | `diajukan → diterima (schedule moves) \| ditolak (stays)`                           |
+| `GiliranGalon`    | `menunggu → sudah_dibeli → rotate to next member (no nominal)`                      |
 
 ---
 
@@ -233,20 +233,20 @@ The **Papan Piket Digital** identity — kept and mapped to React Native tokens.
 
 ### Palette
 
-| Family | Tokens |
-|---|---|
+| Family           | Tokens                                                                 |
+| ---------------- | ---------------------------------------------------------------------- |
 | Paper & neutrals | `paperCanvas #DCD6C8`, `paper #EFEAE0`, `card #FBF9F4`, `line #D9D2C0` |
-| Ink | `ink #1E2A24`, `inkSoft #5B6862`, `inkMuted #8B8474` |
-| Green (primary) | `pine #3D6B5C`, `pineDeep #2B4E43`, `pineSoft #D7E6DF` |
-| Red (danger) | `brick #B33F3F`, `brickDeep #8F2F2F`, `brickSoft #F1DAD5` |
-| Gold (accent) | `mustard #C9A227`, `mustardSoft #F4E9C8`, `olive #9A8A3A` |
+| Ink              | `ink #1E2A24`, `inkSoft #5B6862`, `inkMuted #8B8474`                   |
+| Green (primary)  | `pine #3D6B5C`, `pineDeep #2B4E43`, `pineSoft #D7E6DF`                 |
+| Red (danger)     | `brick #B33F3F`, `brickDeep #8F2F2F`, `brickSoft #F1DAD5`              |
+| Gold (accent)    | `mustard #C9A227`, `mustardSoft #F4E9C8`, `olive #9A8A3A`              |
 
 ### Typography
 
-| Role | Font | Usage |
-|---|---|---|
-| Display | **Space Grotesk** (600/700) | Headings, stamp caps |
-| Body | **Inter** (400/500/600) | Body text, labels |
+| Role        | Font                         | Usage                          |
+| ----------- | ---------------------------- | ------------------------------ |
+| Display     | **Space Grotesk** (600/700)  | Headings, stamp caps           |
+| Body        | **Inter** (400/500/600)      | Body text, labels              |
 | Data / mono | **JetBrains Mono** (400–700) | Rupiah amounts, dates, kickers |
 
 ### Signature element: the Stamp
@@ -307,14 +307,14 @@ Set the API base URL via `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` (e.g. `http
 
 ### Available scripts
 
-| Script | Where | Purpose |
-|---|---|---|
-| `bun run start:dev` | `apps/api` | Run NestJS API in watch mode |
-| `bun run test` | `apps/api`, `apps/mobile` | Run unit tests |
-| `bun run build` | `apps/api` | Build the API for production |
-| `bun run lint` | `apps/mobile` | Lint the RN app |
-| `bun run start` | `apps/mobile` | Start Expo dev server |
-| `bunx prisma migrate dev` | `packages/db` | Run migrations |
+| Script                    | Where                     | Purpose                      |
+| ------------------------- | ------------------------- | ---------------------------- |
+| `bun run start:dev`       | `apps/api`                | Run NestJS API in watch mode |
+| `bun run test`            | `apps/api`, `apps/mobile` | Run unit tests               |
+| `bun run build`           | `apps/api`                | Build the API for production |
+| `bun run lint`            | `apps/mobile`             | Lint the RN app              |
+| `bun run start`           | `apps/mobile`             | Start Expo dev server        |
+| `bunx prisma migrate dev` | `packages/db`             | Run migrations               |
 
 ---
 
@@ -341,12 +341,12 @@ docker build -t serumah-api . # or use the provided Dockerfile / compose overrid
 
 Set these env vars in production:
 
-| Var | Purpose |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret for signing access tokens |
-| `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | Object storage config |
-| `EXPO_PUBLIC_UPDATE_MANIFEST_URL` | (mobile build-time) GitHub raw `version.json` URL |
+| Var                                                                         | Purpose                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------------- |
+| `DATABASE_URL`                                                              | PostgreSQL connection string                      |
+| `JWT_SECRET`                                                                | Secret for signing access tokens                  |
+| `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | Object storage config                             |
+| `EXPO_PUBLIC_UPDATE_MANIFEST_URL`                                           | (mobile build-time) GitHub raw `version.json` URL |
 
 Run scheduled jobs (auto-fine at 20:00, weekend freeze Friday 20:00) with cron inside the container.
 
@@ -419,7 +419,7 @@ Rules that always hold:
 
 1. **Docs-first** — update `context/features/<feature>/context.md` before writing code.
 2. **No backend integration before UI approval.**
-3. **Anti-hallucination:** 1 feature = 1 context; never read other features' specs; unlocked **TBC** → *stop & ask* the user.
+3. **Anti-hallucination:** 1 feature = 1 context; never read other features' specs; unlocked **TBC** → _stop & ask_ the user.
 4. **Data model must not drift** — Prisma schema lives in one place; update `data-model.md` first.
 5. **Phase gating** — only the active phase is worked on; when a phase completes → stop & ask to proceed.
 6. When documentation conflicts with implementation — **documentation wins**.
@@ -443,32 +443,32 @@ flowchart TD
 
 ### Context files
 
-| Path | Contents |
-|---|---|
-| `context/core/AGENTS-ROUTING.md` | Feature → context map & routing rules |
-| `context/core/ui-tokens.md` | Design tokens (colors, type, radius, spacing, stamp) |
-| `context/core/ui-rules.md` | UI rules & invariants |
-| `context/core/code-standards.md` | NestJS + React Native conventions |
-| `context/architecture/data-model.md` | Full Prisma schema + state machines + drift notes |
-| `context/features/<feature>/context.md` | 14 self-contained specs |
-| `context/designs/*.html` | Visual prototypes |
-| `context/progress/build-plan.md` | Phased roadmap |
-| `context/progress/progress-tracker.md` | Current status |
-| `context/progress/to-be-confirmed.md` | Unlocked decisions |
+| Path                                    | Contents                                             |
+| --------------------------------------- | ---------------------------------------------------- |
+| `context/core/AGENTS-ROUTING.md`        | Feature → context map & routing rules                |
+| `context/core/ui-tokens.md`             | Design tokens (colors, type, radius, spacing, stamp) |
+| `context/core/ui-rules.md`              | UI rules & invariants                                |
+| `context/core/code-standards.md`        | NestJS + React Native conventions                    |
+| `context/architecture/data-model.md`    | Full Prisma schema + state machines + drift notes    |
+| `context/features/<feature>/context.md` | 14 self-contained specs                              |
+| `context/designs/*.html`                | Visual prototypes                                    |
+| `context/progress/build-plan.md`        | Phased roadmap                                       |
+| `context/progress/progress-tracker.md`  | Current status                                       |
+| `context/progress/to-be-confirmed.md`   | Unlocked decisions                                   |
 
 ---
 
 ## Status & Roadmap
 
-| Phase | Scope | Status |
-|---|---|---|
-| **M0** | Documentation & foundation (docs-first context split) | ✅ M0.1 done · ⏳ M0.2 scaffold |
-| **M1** | Release & in-app update pipeline (**first** — testable APKs throughout development) | ⏳ pending |
-| **M2** | Backend core (auth, profile, rumah, storage, seed) | ⏳ pending |
-| **M3** | Backend features (rooms, schedule, piket, fines, iuran, listrik, swap, galon, cron, update) | ⏳ pending |
-| **M4** | Mobile: auth & onboarding | ⏳ pending |
-| **M5** | Mobile: main tabs (Beranda, Piket, Tagihan, Swap) + profile/rumah | ⏳ pending |
-| **M6** | Final release & E2E (via the update pipeline) | ⏳ pending |
+| Phase  | Scope                                                                                       | Status                          |
+| ------ | ------------------------------------------------------------------------------------------- | ------------------------------- |
+| **M0** | Documentation & foundation (docs-first context split)                                       | ✅ M0.1 done · ⏳ M0.2 scaffold |
+| **M1** | Release & in-app update pipeline (**first** — testable APKs throughout development)         | ⏳ pending                      |
+| **M2** | Backend core (auth, profile, rumah, storage, seed)                                          | ⏳ pending                      |
+| **M3** | Backend features (rooms, schedule, piket, fines, iuran, listrik, swap, galon, cron, update) | ⏳ pending                      |
+| **M4** | Mobile: auth & onboarding                                                                   | ⏳ pending                      |
+| **M5** | Mobile: main tabs (Beranda, Piket, Tagihan, Swap) + profile/rumah                           | ⏳ pending                      |
+| **M6** | Final release & E2E (via the update pipeline)                                               | ⏳ pending                      |
 
 > **Release-first (user decision):** the update pipeline is built right after the scaffold so in-app updates can be tested and monitored continuously while the rest of the app is developed — every phase ships an APK that updates in-app.
 
@@ -480,13 +480,13 @@ flowchart TD
 
 Unlocked decisions that must be confirmed by the user before their feature is implemented — see `context/progress/to-be-confirmed.md` for full details:
 
-| # | Feature | Open question |
-|---|---|---|
-| TBC-1 | verifikasi | Rejected piket: auto-fine (design) vs allow revision & resubmit |
-| TBC-2 | verifikasi | **Who may approve/reject** — any member vs admin only |
-| TBC-3 | piket/denda | Storage URLs: permanent public vs signed + expiry |
-| TBC-4 | verifikasi | Show submission history always vs hidden on off-days |
-| TBC-5 | verifikasi | History visible to all members vs restricted |
+| #     | Feature     | Open question                                                   |
+| ----- | ----------- | --------------------------------------------------------------- |
+| TBC-1 | verifikasi  | Rejected piket: auto-fine (design) vs allow revision & resubmit |
+| TBC-2 | verifikasi  | **Who may approve/reject** — any member vs admin only           |
+| TBC-3 | piket/denda | Storage URLs: permanent public vs signed + expiry               |
+| TBC-4 | verifikasi  | Show submission history always vs hidden on off-days            |
+| TBC-5 | verifikasi  | History visible to all members vs restricted                    |
 
 ---
 

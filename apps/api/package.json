@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.5",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -29,8 +30,10 @@
     "@nestjs/schedule": "^6.0.0",
     "@serumah/db": "workspace:*",
     "bcrypt": "^6.0.0",
+    "bullmq": "^6.0.9",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "ioredis": "^6.0.0",
     "minio": "^8.0.5",
     "multer": "^2.0.1",
     "passport": "^0.7.0",

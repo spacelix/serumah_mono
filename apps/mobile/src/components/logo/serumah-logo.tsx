@@ -20,7 +20,11 @@ interface SerumahLogoProps {
  * - onboarding/login headers: single roof (stroke 26)
  * Door and badge/check are intentionally omitted from every logo mark.
  */
-export function SerumahLogo({ size = 118, variant = 'full', roofColor = colors.logoRoof }: SerumahLogoProps) {
+export function SerumahLogo({
+  size = 118,
+  variant = 'full',
+  roofColor = colors.logoRoof,
+}: SerumahLogoProps) {
   const viewBox = variant === 'full' ? '0 102 512 211' : '0 115 512 160';
   const [, , vbW, vbH] = viewBox.split(' ').map(Number);
   const height = (size * vbH) / vbW;

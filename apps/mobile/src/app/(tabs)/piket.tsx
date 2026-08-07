@@ -1,6 +1,13 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Check, X } from 'lucide-react-native';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -23,7 +30,8 @@ export default function PiketScreen() {
       <ScreenHeader title="Piket" />
       <ScrollView
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading || data == null ? (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Memuat…</Text>
@@ -32,7 +40,10 @@ export default function PiketScreen() {
           <EmptyState />
         ) : (
           <View style={styles.body}>
-            <ScheduleHeader nama={data.jadwal.anggota.nama} tanggal={data.jadwal.tanggal} />
+            <ScheduleHeader
+              nama={data.jadwal.anggota.nama}
+              tanggal={data.jadwal.tanggal}
+            />
             {data.ruangan.map((room, index) => (
               <RuanganPiketCard
                 key={room.id}
@@ -42,7 +53,10 @@ export default function PiketScreen() {
                 jenis={data.jenisByRuangan[room.id] ?? []}
               />
             ))}
-            <BottomBar total={data.ruangan.length} hasExisting={data.existingSubmission != null} />
+            <BottomBar
+              total={data.ruangan.length}
+              hasExisting={data.existingSubmission != null}
+            />
           </View>
         )}
       </ScrollView>
@@ -124,11 +138,16 @@ function RuanganPiketCard({
             <Pressable
               key={j.id}
               onPress={() => toggleJenis(roomId, j.id)}
-              style={styles.checkRow}>
+              style={styles.checkRow}
+            >
               <View style={[styles.checkbox, checked && styles.checkboxActive]}>
-                {checked && <Check color={colors.paper} size={13} strokeWidth={3} />}
+                {checked && (
+                  <Check color={colors.paper} size={13} strokeWidth={3} />
+                )}
               </View>
-              <Text style={[styles.checkLabel, checked && styles.checkLabelActive]}>
+              <Text
+                style={[styles.checkLabel, checked && styles.checkLabelActive]}
+              >
                 {j.nama}
               </Text>
             </Pressable>
@@ -146,7 +165,10 @@ async function pickPhoto(
 ) {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Izin kamera', 'Izinkan akses kamera untuk memotret bukti piket.');
+    Alert.alert(
+      'Izin kamera',
+      'Izinkan akses kamera untuk memotret bukti piket.',
+    );
     return;
   }
   const result = await ImagePicker.launchCameraAsync({
@@ -169,7 +191,10 @@ function PhotoSlot({
   onPick: () => void;
 }) {
   return (
-    <Pressable onPress={onPick} style={[styles.photoSlot, uri && styles.photoSlotFilled]}>
+    <Pressable
+      onPress={onPick}
+      style={[styles.photoSlot, uri && styles.photoSlotFilled]}
+    >
       {uri ? (
         <View style={styles.photoIconRow}>
           <Check color={colors.pine} size={16} strokeWidth={3} />
@@ -179,7 +204,9 @@ function PhotoSlot({
           <Camera color={colors.inkSoft} size={16} strokeWidth={2} />
         </View>
       )}
-      <Text style={[styles.photoLabel, uri && styles.photoLabelFilled]}>{label}</Text>
+      <Text style={[styles.photoLabel, uri && styles.photoLabelFilled]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -195,7 +222,8 @@ function BottomBar({
   const create = useCreateSubmission();
   const { data } = usePiketToday();
 
-  const allComplete = total > 0 && Object.values(drafts).filter(isDraftComplete).length === total;
+  const allComplete =
+    total > 0 && Object.values(drafts).filter(isDraftComplete).length === total;
   const loading = Object.values(drafts).some((d) => d.uploading);
 
   const onSubmit = async () => {
@@ -220,7 +248,10 @@ function BottomBar({
           Alert.alert('Terkirim', 'Piket berhasil dikirim untuk diverifikasi.');
         },
         onError: (error) =>
-          Alert.alert('Gagal', error instanceof Error ? error.message : 'Terjadi kesalahan.'),
+          Alert.alert(
+            'Gagal',
+            error instanceof Error ? error.message : 'Terjadi kesalahan.',
+          ),
       },
     );
   };
@@ -237,8 +268,11 @@ function BottomBar({
           styles.submitBtn,
           !canSubmit && styles.submitBtnDisabled,
           pressed && styles.submitBtnPressed,
-        ]}>
-        <Text style={[styles.submitText, !canSubmit && styles.submitTextDisabled]}>
+        ]}
+      >
+        <Text
+          style={[styles.submitText, !canSubmit && styles.submitTextDisabled]}
+        >
           {hasExisting
             ? 'Sudah dikirim'
             : loading
@@ -285,7 +319,12 @@ function isDraftComplete(draft?: RoomDraft): boolean {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
-  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 108, gap: 12 },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 108,
+    gap: 12,
+  },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   empty: {
@@ -302,7 +341,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: { fontFamily: fontFamilies.display[600], fontSize: 16, color: colors.ink, textAlign: 'center' },
+  emptyTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 16,
+    color: colors.ink,
+    textAlign: 'center',
+  },
   emptySub: { ...type.body, color: colors.inkSoft, textAlign: 'center' },
   body: { gap: 12 },
   scheduleHeader: {
@@ -312,8 +356,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scheduleKicker: { ...type.kicker, color: colors.paper },
-  scheduleName: { fontFamily: fontFamilies.display[600], fontSize: 18, color: colors.paper },
-  scheduleDate: { fontFamily: fontFamilies.mono[500], fontSize: 12, color: colors.paper60 },
+  scheduleName: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 18,
+    color: colors.paper,
+  },
+  scheduleDate: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 12,
+    color: colors.paper60,
+  },
   roomCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -332,8 +384,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roomBadgeText: { fontFamily: fontFamilies.mono[700], fontSize: 12, color: colors.paper },
-  roomName: { fontFamily: fontFamilies.body[600], fontSize: 15, color: colors.ink },
+  roomBadgeText: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 12,
+    color: colors.paper,
+  },
+  roomName: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 15,
+    color: colors.ink,
+  },
   photoRow: { flexDirection: 'row', gap: 10 },
   photoSlot: {
     flex: 1,
@@ -347,15 +407,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  photoSlotFilled: { borderStyle: 'solid', borderColor: colors.pineSoft, backgroundColor: colors.pineSoft },
+  photoSlotFilled: {
+    borderStyle: 'solid',
+    borderColor: colors.pineSoft,
+    backgroundColor: colors.pineSoft,
+  },
   photoIconRow: { alignItems: 'center', justifyContent: 'center' },
-  photoLabel: { fontFamily: fontFamilies.body[500], fontSize: 10.5, color: colors.inkSoft },
+  photoLabel: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
   photoLabelFilled: { color: colors.pineDeep },
-  checklistTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  checklistTitle: { fontFamily: fontFamilies.body[600], fontSize: 12.5, color: colors.ink },
-  checklistHint: { fontFamily: fontFamilies.body[400], fontSize: 10, color: colors.inkMuted },
+  checklistTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  checklistTitle: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  checklistHint: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10,
+    color: colors.inkMuted,
+  },
   checklist: { gap: 4 },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 7,
+  },
   checkbox: {
     width: 22,
     height: 22,
@@ -366,8 +451,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: { backgroundColor: colors.pine, borderColor: colors.pine },
-  checkLabel: { fontFamily: fontFamilies.body[400], fontSize: 13, color: colors.ink },
-  checkLabelActive: { fontFamily: fontFamilies.body[600], color: colors.pineDeep },
+  checkLabel: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 13,
+    color: colors.ink,
+  },
+  checkLabelActive: {
+    fontFamily: fontFamilies.body[600],
+    color: colors.pineDeep,
+  },
   bottom: { gap: 10, marginTop: 2 },
   riskBanner: {
     backgroundColor: colors.brickSoft,
@@ -376,7 +468,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   riskBannerOk: { backgroundColor: colors.pineSoft },
-  riskText: { fontFamily: fontFamilies.body[600], fontSize: 12, color: colors.brick, textAlign: 'center' },
+  riskText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.brick,
+    textAlign: 'center',
+  },
   riskTextOk: { color: colors.pineDeep },
   submitBtn: {
     backgroundColor: colors.ink,
@@ -386,6 +483,10 @@ const styles = StyleSheet.create({
   },
   submitBtnPressed: { backgroundColor: colors.pineDeep },
   submitBtnDisabled: { backgroundColor: colors.paperDeep },
-  submitText: { fontFamily: fontFamilies.body[700], fontSize: 14, color: colors.paper },
+  submitText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 14,
+    color: colors.paper,
+  },
   submitTextDisabled: { color: colors.inkMuted },
 });

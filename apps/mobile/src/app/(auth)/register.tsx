@@ -1,6 +1,12 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SerumahButton } from '@/components/ui/serumah-button';
@@ -16,7 +22,9 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<{ title: string; message: string } | null>(null);
+  const [error, setError] = useState<{ title: string; message: string } | null>(
+    null,
+  );
 
   const handleSubmit = async () => {
     if (password !== confirmPassword) {
@@ -32,7 +40,10 @@ export default function RegisterScreen() {
     } catch (error) {
       setError({
         title: 'Gagal mendaftar',
-        message: error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Terjadi kesalahan. Coba lagi.',
       });
     }
   };
@@ -41,7 +52,8 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.kicker}>Langkah 1 dari 1</Text>
@@ -83,7 +95,12 @@ export default function RegisterScreen() {
             <View style={styles.actions}>
               <SerumahButton
                 title={loading ? 'Memproses…' : 'Daftar'}
-                disabled={loading || email.trim() === '' || password === '' || confirmPassword === ''}
+                disabled={
+                  loading ||
+                  email.trim() === '' ||
+                  password === '' ||
+                  confirmPassword === ''
+                }
                 onPress={handleSubmit}
               />
             </View>

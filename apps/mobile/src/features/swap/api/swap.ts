@@ -38,12 +38,16 @@ export async function apiCreateSwap(
   return response.data;
 }
 
-export async function apiAcceptSwap(id: string): Promise<{ swapRequest: SwapRequest }> {
+export async function apiAcceptSwap(
+  id: string,
+): Promise<{ swapRequest: SwapRequest }> {
   const response = await apiClient.post(`/swap/${id}/accept`);
   return response.data;
 }
 
-export async function apiRejectSwap(id: string): Promise<{ swapRequest: SwapRequest }> {
+export async function apiRejectSwap(
+  id: string,
+): Promise<{ swapRequest: SwapRequest }> {
   const response = await apiClient.post(`/swap/${id}/reject`);
   return response.data;
 }
@@ -73,8 +77,13 @@ export function useSwapMutations() {
     void queryClient.invalidateQueries({ queryKey: swapKeys.list });
   };
   const create = useMutation({
-    mutationFn: ({ tanggal, keAnggotaId }: { tanggal: string; keAnggotaId: string }) =>
-      apiCreateSwap(tanggal, keAnggotaId),
+    mutationFn: ({
+      tanggal,
+      keAnggotaId,
+    }: {
+      tanggal: string;
+      keAnggotaId: string;
+    }) => apiCreateSwap(tanggal, keAnggotaId),
     onSuccess: () => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: swapKeys.available });

@@ -13,9 +13,11 @@ Update after every completed feature. Any agent reading this should immediately 
 
 **Next:** Phase M6 (deferred).
 
+**Log Viewer & Stats (implemented 2026-08-07):** new feature `features/logviewer` — global `LoggerInterceptor` buffers each request to Redis (`RPUSH log:buffer`), a BullMQ repeatable job flushes every 5 min (`RENAME` claim → `createMany` → restore on failure, `attempts: 3` + exponential backoff) into the new `LogEntry` Postgres table (migration `20260807072819_add_log_entries`); `AdminModule` (`GET /admin` HTML page, `GET /admin/stats`, `GET /admin/logs`) — fully public (`@Public`); same Redis is a **read-cache** (`CacheService`: `dashboard:{rumahId}` + `profile` scopes, TTL 60s, invalidated on galon/schedule/profile mutations, `SCAN`-based invalidation). Requires `REDIS_URL` in `.env` (existing Redis; compose redis intentionally not added). **Review fixes applied:** error status via `instanceof HttpException` (was logging unhandled 500s as 200), admin page HTML-escapes user data (XSS), circular import fixed via `redis.constants.ts`. API build/test/prettier green.
+
 **Session 2026-08-07 (committed):** **Beranda redesigned** to match `Serumah.html` — weekend card (custom pine bg, deadline badge, active Di kos = paper pill, "anggota lain" horizontal scroll, brick warning), galon card (custom droplet SVG `M7.4 13h9.2`, "Giliran: Nama (lo)" via `isMine`, ink pill "Sudah Beli"), billing card (kicker "Tagihan bulan ini", mono amount, "Lihat detail →" → Tagihan), jadwal card (header + week range `27 Jul – 2 Agu`, `formatDayNumber`, `Libur` dashed cards, chips `SEN`/abbrev). API wiring: `getAnggotaLain`/`anggotaId`, `GalonService.current().isMine`, `getScheduleWeek.isMine` + `submissionTag(null)='LIBUR'`, `getBilling` returns `{total,lunas,bulan}`. **Login/Register** use custom `ConfirmDialog` `single` mode instead of `Alert` (demo error for password mismatch too). **Custom bottom nav** (`(tabs)/_layout.tsx`): absolute overlay gradient `paper→transparent`, active = ink pill, icons rendered from **exact design SVG paths** (`components/ui/tab-icon.tsx`) via `react-native-svg` — not lucide. **Kelola Rumah**: leaving after adding a jenis piket shows confirm dialog → `/schedule/refresh-future-rooms` (admin) refreshes `ruangan[]` of future Jadwal rows only. **Docker deploy**: `apps/api/Dockerfile` (multi-stage `oven/bun:1-alpine` → `node:22-alpine`, `bun install --frozen-lockfile --filter @serumah/api`, copies ws set), `docker-compose.yml` (traefik, host `api-serumah.spacelix.qzz.io`, port 3000, no postgres/minio — uses existing DB+MinIO), `.dockerignore` (excludes mobile source but keeps `apps/mobile/package.json`). **All committed & build verified on server.**
 
-> **Deployment notes:** backend deployed to VPS `43.129.40.34` via traefik; `apps/api/.env` on server must be pointed at the existing DB/MinIO (repo `.env` uses `localhost`); `traefik-public` network must exist (`docker network create traefik-public`).
+> **Deployment notes:** backend deployed to VPS `43.129.40.34` via traefik; `apps/api/.env` on server must be pointed at the existing DB/MinIO and now **`REDIS_URL`** (existing Redis — the compose redis service was intentionally removed, user uses an existing instance; point it at that, e.g. `redis://<host>:6379`); `traefik-public` network must exist (`docker network create traefik-public`).
 
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
@@ -87,17 +89,17 @@ Update after every completed feature. Any agent reading this should immediately 
 
 ## Locked Migration Decisions
 
-| # | Decision | Detail |
-|---|---|---|
-| Mig-1 | Stack | RN (Expo) + NestJS + PostgreSQL/Prisma + MinIO, React Query + Zustand. |
-| Mig-2 | Location | Monorepo in `/mnt/d/Source/House`. Old Flutter repo `/mnt/d/Source/serumah` kept as reference. |
-| Mig-3 | Data | Full re-seed from scratch — no supabase data export (project not live). Passwords not an issue (argon2→bcrypt). |
-| Mig-4 | Design | The "Papan Piket Digital" design system + Bahasa Indonesia fully preserved (tokens → RN theme). |
-| Mig-5 | Context | 1 file per feature (API+UI combined), 8-part template; single shared data-model file. Unlocked TBCs marked explicitly → agent stops & asks. |
-| Mig-6 | Server | Self-hosted NestJS (VPS/Docker) — abandons the "serverless only" principle. |
-| Mig-7 | App update | Keep the GitHub Releases flow (`version.json` + APK) for in-app updates. |
-| Mig-8 | Tooling | Use **Bun** for project creation & package management; create projects via generators, never hand-write `package.json`. |
-| Mig-9 | Docs language | All documentation (AGENTS.md + context/) is in **English**. Only the app UI is in Bahasa Indonesia. |
+| #     | Decision      | Detail                                                                                                                                      |
+| ----- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mig-1 | Stack         | RN (Expo) + NestJS + PostgreSQL/Prisma + MinIO, React Query + Zustand.                                                                      |
+| Mig-2 | Location      | Monorepo in `/mnt/d/Source/House`. Old Flutter repo `/mnt/d/Source/serumah` kept as reference.                                              |
+| Mig-3 | Data          | Full re-seed from scratch — no supabase data export (project not live). Passwords not an issue (argon2→bcrypt).                             |
+| Mig-4 | Design        | The "Papan Piket Digital" design system + Bahasa Indonesia fully preserved (tokens → RN theme).                                             |
+| Mig-5 | Context       | 1 file per feature (API+UI combined), 8-part template; single shared data-model file. Unlocked TBCs marked explicitly → agent stops & asks. |
+| Mig-6 | Server        | Self-hosted NestJS (VPS/Docker) — abandons the "serverless only" principle.                                                                 |
+| Mig-7 | App update    | Keep the GitHub Releases flow (`version.json` + APK) for in-app updates.                                                                    |
+| Mig-8 | Tooling       | Use **Bun** for project creation & package management; create projects via generators, never hand-write `package.json`.                     |
+| Mig-9 | Docs language | All documentation (AGENTS.md + context/) is in **English**. Only the app UI is in Bahasa Indonesia.                                         |
 
 ---
 

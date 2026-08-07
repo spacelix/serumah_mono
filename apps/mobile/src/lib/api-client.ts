@@ -20,7 +20,9 @@ export const UPLOAD_TIMEOUT_MS = 45_000;
  * the API origin. Legacy absolute MinIO/S3 URLs are rewritten to the backend
  * stream endpoint so the app never talks to object storage directly.
  */
-export function resolveMediaUrl(url: string | null | undefined): string | undefined {
+export function resolveMediaUrl(
+  url: string | null | undefined,
+): string | undefined {
   if (!url) return undefined;
   const origin = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
   if (url.startsWith('/')) {
@@ -76,7 +78,10 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
+    if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes('/auth/login')
+    ) {
       void useAuthStore.getState().clear();
     }
     const message =

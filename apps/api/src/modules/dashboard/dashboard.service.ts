@@ -6,7 +6,8 @@ import { CacheService } from '../redis/cache.service';
 import { GalonService } from '../galon/galon.service';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
-const FREEZE_HOUR = 20;
+const FREEZE_HOUR = 20; // Jumat 20:00 WIB
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 const DOW_FULL = [
   'Minggu',
   'Senin',
@@ -172,23 +173,20 @@ export class DashboardService {
   }
 
   private isFrozen(monday: Date): boolean {
+    // Freeze = Friday 20:00 WIB. monday is UTC-midnight; add 4 days then shift
+    // wall-clock 20:00 WIB to an absolute instant (UTC+7, no DST).
+    const fridayUtc = this.addDays(monday, 4);
     const freezeAt = new Date(
-      monday.getFullYear(),
-      monday.getMonth(),
-      monday.getDate() + 4, // Jumat
-      FREEZE_HOUR,
-      0,
-      0,
+      fridayUtc.getTime() + FREEZE_HOUR * 60 * 60 * 1000 - WIB_OFFSET_MS,
     );
     return new Date() > freezeAt;
   }
 
   // ── BILLING (user only) ─────────────────────────────────────────────
   private async getBilling(anggotaId: string) {
-    const firstOfMonth = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth(),
-      1,
+    const now = new Date();
+    const firstOfMonth = this.toDay(
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
     );
 
     const [iuran, denda] = await Promise.all([
@@ -255,7 +253,7 @@ export class DashboardService {
       cursor <= sunday;
       cursor = this.addDays(cursor, 1)
     ) {
-      const dow = cursor.getDay();
+      const dow = cursor.getUTCDay();
       if (PIKET_WEEKDAYS.includes(dow)) {
         if (!scheduledDays.has(this.key(cursor))) return true;
       } else if (dow === 6 || dow === 0) {
@@ -307,7 +305,7 @@ export class DashboardService {
     const rows: ScheduleRow[] = [];
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
-      const dowIndex = day.getDay();
+      const dowIndex = day.getUTCDay();
       const record = jadwalByDate.get(this.key(day));
       const isWeekend = dowIndex === 0 || dowIndex === 6;
 
@@ -358,19 +356,30 @@ export class DashboardService {
     return this.isSameDay(day, today) ? 'Hari ini' : 'Terjadwal';
   }
 
-  // ── HELPERS ─────────────────────────────────────────────────────────
+  // ── HELPERS (UTC-based, matches @db.Date storage) ─────────────────────
   private mondayOf(date: Date): Date {
     const d = this.toDay(date);
-    const offset = d.getDay() === 0 ? -6 : 1 - d.getDay();
+    const offset = d.getUTCDay() === 0 ? -6 : 1 - d.getUTCDay();
     return this.addDays(d, offset);
   }
 
   private addDays(date: Date, days: number): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    return new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate() + days,
+      ),
+    );
   }
 
   private toDay(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    // Resolve the WIB calendar day of the input, then canonicalize it as
+    // UTC-midnight so @db.Date storage, comparisons, and getUTCDay() agree.
+    const wib = new Date(date.getTime() + WIB_OFFSET_MS);
+    return new Date(
+      Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate()),
+    );
   }
 
   private isSameDay(a: Date, b: Date): boolean {
@@ -379,6 +388,6 @@ export class DashboardService {
 
   private key(date: Date): string {
     const d = this.toDay(date);
-    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
   }
 }

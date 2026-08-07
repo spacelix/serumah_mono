@@ -16,8 +16,9 @@ const WEEKEND_HARI: Record<number, 'sabtu' | 'minggu'> = {
   0: 'minggu',
   6: 'sabtu',
 };
-const FREEZE_HOUR = 20; // Jumat 20:00
-const FINE_DEADLINE_HOUR = 20;
+const FREEZE_HOUR = 20; // Jumat 20:00 WIB
+const FINE_DEADLINE_HOUR = 20; // 20:00 WIB
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 
 @Injectable()
 export class ScheduleService {
@@ -29,33 +30,48 @@ export class ScheduleService {
     private readonly cache: CacheService,
   ) {}
 
-  // ── DATE HELPERS (local, date-only) ─────────────────────────────────
+  // ── DATE HELPERS (UTC-based so @db.Date matches Postgres `date` columns) ──
+  // Prisma stores `@db.Date` as a date string derived from the UTC components
+  // of the JS Date. Building dates via `new Date(y, m, d)` uses the server's
+  // LOCAL timezone (e.g. WIB), which shifts the stored day by one. All calendar
+  // math here therefore runs in UTC; "today" is resolved to UTC-midnight.
   private toDate(date: Date | string): Date {
+    // Resolve the WIB calendar day of the input, then canonicalize it as
+    // UTC-midnight so @db.Date storage, comparisons, and getUTCDay() all agree.
     const d = new Date(date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const wib = new Date(d.getTime() + WIB_OFFSET_MS);
+    return new Date(
+      Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate()),
+    );
   }
 
   private addDays(date: Date, days: number): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    return new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate() + days,
+      ),
+    );
   }
 
   private mondayOf(date: Date): Date {
-    const day = date.getDay();
+    const day = date.getUTCDay();
     const offset = day === 0 ? -6 : 1 - day;
     return this.addDays(date, offset);
   }
 
   private isPiketDay(date: Date): boolean {
-    return PIKET_WEEKDAYS.includes(date.getDay());
+    return PIKET_WEEKDAYS.includes(date.getUTCDay());
   }
 
   private isWeekendDay(date: Date): boolean {
-    return date.getDay() === 0 || date.getDay() === 6;
+    return date.getUTCDay() === 0 || date.getUTCDay() === 6;
   }
 
   /** Global 0-based round-robin counter for piket days since a fixed epoch. */
   private weekdayOrdinal(date: Date): number {
-    const epoch = new Date(2024, 0, 1); // Monday
+    const epoch = this.toDate(new Date(Date.UTC(2024, 0, 1))); // Monday
     let counter = 0;
     let cursor = this.toDate(epoch);
     const target = this.toDate(date);
@@ -68,7 +84,7 @@ export class ScheduleService {
 
   /** Global 0-based counter of weekend days since a fixed epoch. */
   private weekendOrdinal(date: Date): number {
-    const epoch = new Date(2024, 0, 6); // Saturday
+    const epoch = this.toDate(new Date(Date.UTC(2024, 0, 6))); // Saturday
     let counter = 0;
     let cursor = this.toDate(epoch);
     const target = this.toDate(date);
@@ -86,6 +102,27 @@ export class ScheduleService {
     });
   }
 
+  /**
+   * IDs of members who hold a WEEKEND Jadwal row (Sabtu/Minggu) in the week
+   * whose Monday is `monday`. These members are free from weekday piket that
+   * same week (locked decision 2026-08-08).
+   */
+  private async weekendAssigneeIds(
+    rumahId: string,
+    monday: Date,
+  ): Promise<string[]> {
+    const rows = await this.prisma.jadwal.findMany({
+      where: {
+        rumahId,
+        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
+      },
+      select: { anggotaId: true, tanggal: true },
+    });
+    return rows
+      .filter((r) => this.isWeekendDay(r.tanggal))
+      .map((r) => r.anggotaId);
+  }
+
   // ── WEEKDAY GENERATION (MONDAY) ─────────────────────────────────────
   private async ensureWeekday(rumahId: string, date: Date): Promise<boolean> {
     const day = this.toDate(date);
@@ -99,8 +136,16 @@ export class ScheduleService {
     const memberList = await this.members(rumahId);
     if (memberList.length === 0) return false;
 
-    const index = this.weekdayOrdinal(day) % memberList.length;
-    const member = memberList[index];
+    // Members already holding a weekend piket this week are free from weekday.
+    const weekendIds = await this.weekendAssigneeIds(
+      rumahId,
+      this.mondayOf(day),
+    );
+    const pool = memberList.filter((m) => !weekendIds.includes(m.id));
+    if (pool.length === 0) return false;
+
+    const index = this.weekdayOrdinal(day) % pool.length;
+    const member = pool[index];
     const rooms = await this.activeRoomNames(rumahId);
 
     await this.prisma.jadwal.create({
@@ -139,7 +184,7 @@ export class ScheduleService {
     if (!this.isWeekendDay(day)) return false;
 
     const monday = this.mondayOf(day);
-    const hari = WEEKEND_HARI[day.getDay()];
+    const hari = WEEKEND_HARI[day.getUTCDay()];
 
     const existing = await this.prisma.jadwal.findFirst({
       where: { rumahId, tanggal: day },
@@ -246,6 +291,17 @@ export class ScheduleService {
     const sunday = this.addDays(this.mondayOf(today), 6);
 
     let count = 0;
+    // Weekend first (so weekend piket assignees are excluded from weekday
+    // generation below), then weekday piket days.
+    for (
+      let cursor = today;
+      cursor <= sunday;
+      cursor = this.addDays(cursor, 1)
+    ) {
+      if (this.isWeekendDay(cursor)) {
+        if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
+      }
+    }
     for (
       let cursor = today;
       cursor <= sunday;
@@ -253,8 +309,6 @@ export class ScheduleService {
     ) {
       if (this.isPiketDay(cursor)) {
         if (await this.ensureWeekday(anggota.rumahId!, cursor)) count += 1;
-      } else if (this.isWeekendDay(cursor)) {
-        if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
       }
     }
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
@@ -328,6 +382,18 @@ export class ScheduleService {
       },
     });
 
+    if (dto.status === 'di_kos') {
+      // Locked decision (2026-08-08): choosing Di kos immediately generates
+      // that weekend day's Jadwal so the UI shows who piket right away.
+      const offset = dto.hari === 'sabtu' ? 5 : 6;
+      await this.ensureWeekend(anggota.rumahId, this.addDays(monday, offset));
+    }
+
+    // Locked decision (2026-08-08): members assigned a weekend piket this week
+    // are free from weekday piket the same week — regenerate any affected
+    // weekday rows so the weekend assignee is swapped out of the round-robin.
+    await this.reconcileWeekdayForWeekend(anggota.rumahId, monday);
+
     this.logger.log(
       `[ScheduleService] ${anggota.nama} ${dto.hari} → ${dto.status}`,
     );
@@ -335,14 +401,47 @@ export class ScheduleService {
     return { hari: dto.hari, status: dto.status };
   }
 
+  /**
+   * After a weekend piket is assigned (Di kos), the assignee must not appear on
+   * weekday piket that same week. Regenerate this week's weekday rows, picking
+   * from the pool that EXCLUDES every member who holds a weekend Jadwal row.
+   */
+  private async reconcileWeekdayForWeekend(
+    rumahId: string,
+    monday: Date,
+  ): Promise<void> {
+    const weekendAssignees = await this.weekendAssigneeIds(rumahId, monday);
+    if (weekendAssignees.length === 0) return;
+
+    const weekDays = await this.prisma.jadwal.findMany({
+      where: {
+        rumahId,
+        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
+      },
+      select: { id: true, tanggal: true, anggotaId: true },
+    });
+
+    let regenerated = 0;
+    for (const row of weekDays) {
+      if (!this.isPiketDay(row.tanggal)) continue;
+      if (!weekendAssignees.includes(row.anggotaId)) continue;
+      await this.prisma.jadwal.delete({ where: { id: row.id } });
+      if (await this.ensureWeekday(rumahId, row.tanggal)) regenerated += 1;
+    }
+
+    if (regenerated > 0) {
+      this.logger.log(
+        `[ScheduleService] Reconcile weekday (${regenerated}) setelah piket weekend`,
+      );
+    }
+  }
+
   private assertNotFrozen(monday: Date): void {
+    // Freeze = Friday 20:00 WIB. monday is UTC-midnight; add 4 days then shift
+    // the wall-clock 20:00 WIB to an absolute instant (UTC+7, no DST).
+    const fridayUtc = this.addDays(monday, 4);
     const freezeAt = new Date(
-      monday.getFullYear(),
-      monday.getMonth(),
-      monday.getDate() + 4, // Jumat
-      FREEZE_HOUR,
-      0,
-      0,
+      fridayUtc.getTime() + FREEZE_HOUR * 60 * 60 * 1000 - WIB_OFFSET_MS,
     );
     if (new Date() > freezeAt) {
       throw new ForbiddenException(
@@ -467,13 +566,10 @@ export class ScheduleService {
   }
 
   private deadline(date: Date): Date {
+    // Fine deadline = 20:00 WIB on the scheduled day. date is UTC-midnight;
+    // shift wall-clock 20:00 WIB to an absolute instant (UTC+7, no DST).
     return new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      FINE_DEADLINE_HOUR,
-      0,
-      0,
+      date.getTime() + FINE_DEADLINE_HOUR * 60 * 60 * 1000 - WIB_OFFSET_MS,
     );
   }
 

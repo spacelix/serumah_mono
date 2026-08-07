@@ -35,6 +35,12 @@ export class ScheduleController {
     return this.scheduleService.generateWeekend(payload);
   }
 
+  @Post('refresh-future-rooms')
+  @Roles('admin')
+  refreshFutureRooms(@CurrentUser() payload: CurrentUserPayload) {
+    return this.scheduleService.refreshFutureRooms(payload);
+  }
+
   @Put('weekend-status')
   setWeekendStatus(
     @CurrentUser() payload: CurrentUserPayload,

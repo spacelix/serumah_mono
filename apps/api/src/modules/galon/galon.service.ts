@@ -20,7 +20,8 @@ export class GalonService {
 
   async current(payload: CurrentUserPayload) {
     const anggota = await this.scope.requireAnggota(payload.userId);
-    if (!anggota.rumahId) return { giliran: null, namaAnggota: null };
+    if (!anggota.rumahId)
+      return { giliran: null, namaAnggota: null, isMine: false };
 
     const giliran = await this.prisma.giliranGalon.findFirst({
       where: { rumahId: anggota.rumahId, status: 'menunggu' },
@@ -48,6 +49,7 @@ export class GalonService {
           }
         : null,
       namaAnggota: active?.anggota.nama ?? null,
+      isMine: active?.anggota.id === anggota.id,
     };
   }
 

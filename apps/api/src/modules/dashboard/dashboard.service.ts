@@ -23,6 +23,7 @@ export interface ScheduleRow {
   tanggal: Date;
   dow: string;
   anggota: { id: string; nama: string } | null;
+  isMine: boolean;
   ruangan: string[];
   statusTag: StatusTag;
 }
@@ -39,9 +40,20 @@ export class DashboardService {
     const anggota = await this.scope.requireAnggota(payload.userId);
     if (!anggota.rumahId) {
       return {
-        weekend: { saturday: null, sunday: null, frozen: false, anggotaLain: [] },
-        galon: { giliran: null, namaAnggota: null },
-        billing: { totalUnpaid: 0, countUnpaid: 0, bulan: null },
+        weekend: {
+          saturday: null,
+          sunday: null,
+          frozen: false,
+          anggotaLain: [],
+        },
+        galon: { giliran: null, namaAnggota: null, isMine: false },
+        billing: {
+          total: 0,
+          lunas: 0,
+          totalUnpaid: 0,
+          countUnpaid: 0,
+          bulan: null,
+        },
         scheduleWeek: [],
         scheduleIncomplete: false,
         isAdmin: anggota.role === 'admin',
@@ -49,15 +61,21 @@ export class DashboardService {
       };
     }
 
-    const [galon, weekend, anggotaLain, billing, scheduleWeek, scheduleIncomplete] =
-      await Promise.all([
-        this.galonService.current(payload),
-        this.getWeekend(payload.userId),
-        this.getAnggotaLain(anggota.rumahId, anggota.id),
-        this.getBilling(anggota.id),
-        this.getScheduleWeek(anggota.rumahId),
-        this.isWeekIncomplete(anggota.rumahId),
-      ]);
+    const [
+      galon,
+      weekend,
+      anggotaLain,
+      billing,
+      scheduleWeek,
+      scheduleIncomplete,
+    ] = await Promise.all([
+      this.galonService.current(payload),
+      this.getWeekend(payload.userId),
+      this.getAnggotaLain(anggota.rumahId, anggota.id),
+      this.getBilling(anggota.id),
+      this.getScheduleWeek(anggota.rumahId, anggota.id),
+      this.isWeekIncomplete(anggota.rumahId),
+    ]);
 
     return {
       weekend: { ...weekend, anggotaLain },
@@ -113,7 +131,8 @@ export class DashboardService {
         const sabtu = mine.find((r) => r.hari === 'sabtu')?.status;
         const minggu = mine.find((r) => r.hari === 'minggu')?.status;
         let status = 'Belum pilih';
-        if (sabtu === 'di_kos' || minggu === 'di_kos') status = 'Di kos weekend';
+        if (sabtu === 'di_kos' || minggu === 'di_kos')
+          status = 'Di kos weekend';
         else if (sabtu === 'pulang' && minggu === 'pulang') status = 'Pulang';
         return { id: m.id, nama: m.nama, status };
       });
@@ -154,7 +173,14 @@ export class DashboardService {
     const unpaidIuran = iuran.filter((i) => i.status !== 'lunas');
     const unpaidDenda = denda.filter((d) => d.status !== 'lunas');
 
+    const total = iuran.reduce((s, i) => s + i.nominal, 0);
+    const lunas = iuran
+      .filter((i) => i.status === 'lunas')
+      .reduce((s, i) => s + i.nominal, 0);
+
     return {
+      total,
+      lunas,
       totalUnpaid:
         unpaidIuran.reduce((s, i) => s + i.nominal, 0) +
         unpaidDenda.reduce((s, d) => s + d.nominal, 0),
@@ -191,7 +217,11 @@ export class DashboardService {
       weekendRows.filter((r) => r.status === 'di_kos').map((r) => r.hari),
     );
 
-    for (let cursor = today; cursor <= sunday; cursor = this.addDays(cursor, 1)) {
+    for (
+      let cursor = today;
+      cursor <= sunday;
+      cursor = this.addDays(cursor, 1)
+    ) {
       const dow = cursor.getDay();
       if (PIKET_WEEKDAYS.includes(dow)) {
         if (!scheduledDays.has(this.key(cursor))) return true;
@@ -206,7 +236,10 @@ export class DashboardService {
   }
 
   // ── SCHEDULE WEEK ───────────────────────────────────────────────────
-  private async getScheduleWeek(rumahId: string): Promise<ScheduleRow[]> {
+  private async getScheduleWeek(
+    rumahId: string,
+    currentAnggotaId?: string,
+  ): Promise<ScheduleRow[]> {
     const monday = this.mondayOf(new Date());
     const sunday = this.addDays(monday, 6);
     const today = this.toDay(new Date());
@@ -263,6 +296,7 @@ export class DashboardService {
         tanggal: day,
         dow: DOW_FULL[dowIndex],
         anggota: record?.anggota ?? null,
+        isMine: record?.anggota.id === currentAnggotaId,
         ruangan: record?.ruangan ?? [],
         statusTag,
       });
@@ -283,7 +317,7 @@ export class DashboardService {
     today: Date,
   ): StatusTag {
     if (record == null) {
-      return this.isSameDay(day, today) ? 'Hari ini' : 'Terjadwal';
+      return 'LIBUR';
     }
     const status = record.submissions[0]?.status;
     if (status === 'approved') return 'Selesai';

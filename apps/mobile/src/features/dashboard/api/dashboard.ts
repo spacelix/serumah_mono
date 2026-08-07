@@ -14,9 +14,12 @@ export interface WeekendInfo {
 export interface GalonInfo {
   giliran: { id: string; periodeMulai: string; status: string } | null;
   namaAnggota: string | null;
+  isMine: boolean;
 }
 
 export interface BillingInfo {
+  total: number;
+  lunas: number;
   totalUnpaid: number;
   countUnpaid: number;
   bulan: string | null;
@@ -34,6 +37,7 @@ export interface ScheduleRow {
   tanggal: string;
   dow: string;
   anggota: { id: string; nama: string } | null;
+  isMine: boolean;
   ruangan: string[];
   statusTag: ScheduleTag;
 }
@@ -54,6 +58,7 @@ interface ApiScheduleRow {
   statusTag: ScheduleTag;
   ruangan: string[];
   anggota: { id: string; nama: string } | null;
+  isMine: boolean;
 }
 
 interface ApiDashboard {
@@ -126,6 +131,13 @@ export function useGenerateRestOfWeek() {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
   });
+}
+
+export async function apiRefreshFutureRooms(): Promise<{ updated: number }> {
+  const response = await apiClient.post<{ updated: number }>(
+    '/schedule/refresh-future-rooms',
+  );
+  return response.data;
 }
 
 /** Type-level re-export so screens import one name. */

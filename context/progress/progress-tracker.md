@@ -13,6 +13,8 @@ Update after every completed feature. Any agent reading this should immediately 
 
 **Next:** Phase M6 (deferred).
 
+**Schedule refresh after jenis piket (uncommitted):** when an admin adds a jenis piket in Kelola Rumah and **leaves** the page, a confirm dialog (`/schedule/refresh-future-rooms`, admin-only) refreshes only the `ruangan[]` snapshot of **future** Jadwal rows (days after today) so only rooms with an active jenis piket appear — member assignment preserved, past days untouched. Tracked via `addedJenis` flag + `apiRefreshFutureRooms`. API + mobile typecheck green.
+
 > **Phase order (user decision):** Release/update pipeline is **M1 — FIRST**, right after scaffold, so in-app updates can be tested & monitored throughout development. After M1, every phase ships an APK through the same update pipeline. Phase sequence: M1 → M3 (backend features) → M4/M5 → M6.
 
 > Migration from **Flutter + Supabase + Riverpod** → **React Native (Expo) + NestJS + PostgreSQL/Prisma + MinIO (React Query + Zustand)**. Locked decisions: monorepo in `/mnt/d/Source/House`, full re-seed from scratch (no supabase data migration, project not live), in-app update stays via GitHub Releases. The old Flutter repo `/mnt/d/Source/serumah` is kept as reference (not the code base).

@@ -1,16 +1,11 @@
 import { TriangleAlert } from 'lucide-react-native';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   useConfirmGalon,
@@ -91,13 +86,11 @@ function ScheduleReminderBanner({ data }: { data: DashboardData }) {
 
 function WeekendCard({ data }: { data: DashboardData }) {
   const setStatus = useSetWeekendStatus();
+  const [frozenVisible, setFrozenVisible] = useState(false);
 
   const set = (hari: WeekDayKey, status: WeekendChoice) => {
     if (data.weekend.frozen) {
-      Alert.alert(
-        'Status dibekukan',
-        'Status akhir pekan sudah dibekukan (Jumat 20:00).',
-      );
+      setFrozenVisible(true);
       return;
     }
     setStatus.mutate({ hari, status });
@@ -136,13 +129,11 @@ function WeekendCard({ data }: { data: DashboardData }) {
         <WeekendDayRow
           label={formatWeekdayDate(sabtuDate)}
           value={data.weekend.saturday}
-          frozen={data.weekend.frozen}
           onPick={(status) => set('sabtu', status)}
         />
         <WeekendDayRow
           label={formatWeekdayDate(mingguDate)}
           value={data.weekend.sunday}
-          frozen={data.weekend.frozen}
           onPick={(status) => set('minggu', status)}
         />
       </View>
@@ -174,6 +165,16 @@ function WeekendCard({ data }: { data: DashboardData }) {
           ))}
         </ScrollView>
       )}
+
+      <ConfirmDialog
+        visible={frozenVisible}
+        title="Status dibekukan"
+        message="Status akhir pekan sudah dibekukan (Jumat 20:00)."
+        confirmText="Tutup"
+        single
+        onConfirm={() => setFrozenVisible(false)}
+        onCancel={() => setFrozenVisible(false)}
+      />
     </View>
   );
 }
@@ -192,31 +193,18 @@ function weekendDate(dowOffset: number): string {
 function WeekendDayRow({
   label,
   value,
-  frozen,
   onPick,
 }: {
   label: string;
   value: WeekendChoice | null;
-  frozen: boolean;
   onPick: (status: WeekendChoice) => void;
 }) {
-  const pick = (status: WeekendChoice) => {
-    if (frozen) {
-      Alert.alert(
-        'Status dibekukan',
-        'Status akhir pekan sudah dibekukan (Jumat 20:00).',
-      );
-      return;
-    }
-    onPick(status);
-  };
-
   return (
     <View style={styles.weekendDayRow}>
       <Text style={styles.weekendDayLabel}>{label}</Text>
       <View style={styles.weekendDayBtns}>
         <Pressable
-          onPress={() => pick('di_kos')}
+          onPress={() => onPick('di_kos')}
           style={[
             styles.weekendDayBtn,
             value === 'di_kos' && styles.weekendDayBtnActive,
@@ -232,7 +220,7 @@ function WeekendDayRow({
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => pick('pulang')}
+          onPress={() => onPick('pulang')}
           style={[
             styles.weekendDayBtn,
             value === 'pulang' && styles.weekendDayBtnActive,
@@ -255,17 +243,24 @@ function WeekendDayRow({
 function GalonWidget({ data }: { data: DashboardData }) {
   const confirm = useConfirmGalon();
   const giliran = data.galon;
+  const [error, setError] = useState<string | null>(null);
+  const [nudged, setNudged] = useState(false);
+  const [justBought, setJustBought] = useState(false);
 
   const onBuy = () => {
     if (giliran.giliran == null) return;
+    setJustBought(true);
     confirm.mutate(giliran.giliran.id, {
-      onError: (error) =>
-        Alert.alert(
-          'Gagal',
-          error instanceof Error ? error.message : 'Terjadi kesalahan.',
-        ),
+      onError: (e) => {
+        setJustBought(false);
+        setError(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+      },
     });
   };
+
+  const onNudge = () => setNudged(true);
+
+  const hasTurn = giliran.namaAnggota != null;
 
   return (
     <View style={styles.galonCard}>
@@ -282,24 +277,73 @@ function GalonWidget({ data }: { data: DashboardData }) {
         <View style={styles.galonText}>
           <Text style={styles.galonKicker}>Beli galon</Text>
           <Text style={styles.galonName}>
-            {giliran.namaAnggota
+            {hasTurn
               ? `Giliran: ${giliran.namaAnggota}${giliran.isMine ? ' (lo)' : ''}`
               : 'Belum ada giliran'}
           </Text>
         </View>
-        <Pressable
-          onPress={onBuy}
-          disabled={giliran.giliran == null || confirm.isPending}
-          style={({ pressed }) => [
-            styles.galonBtn,
-            pressed && styles.galonBtnPressed,
-          ]}
-        >
-          <Text style={styles.galonBtnText}>
-            {confirm.isPending ? 'Memproses…' : 'Sudah Beli'}
-          </Text>
-        </Pressable>
+        {giliran.isMine ? (
+          <Pressable
+            onPress={onBuy}
+            disabled={giliran.giliran == null || confirm.isPending}
+            style={({ pressed }) => [
+              styles.galonBtn,
+              pressed && styles.galonBtnPressed,
+            ]}
+          >
+            <Text style={styles.galonBtnText}>
+              {confirm.isPending ? 'Memproses…' : 'Sudah Beli'}
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={onNudge}
+            accessibilityLabel={`Kirim notif ke ${giliran.namaAnggota ?? ''}`}
+            style={({ pressed }) => [
+              styles.galonNudgeBtn,
+              nudged && styles.galonNudgeBtnNudged,
+              pressed && styles.galonNudgeBtnPressed,
+            ]}
+          >
+            <Svg
+              width={17}
+              height={17}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={nudged ? colors.mustard : colors.inkSoft}
+              strokeWidth={1.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <Path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4.5 18h15L18 15.5zM10 21h4" />
+            </Svg>
+          </Pressable>
+        )}
       </View>
+      {hasTurn && !giliran.isMine && (
+        <Text style={[styles.galonNote, nudged && styles.galonNoteNudged]}>
+          {nudged
+            ? `Notif sudah dikirim ke ${giliran.namaAnggota}`
+            : 'Galon habis? colek dia biar segera beli'}
+        </Text>
+      )}
+      {justBought && hasTurn && (
+        <View style={styles.galonDoneChip}>
+          <Text style={styles.galonDoneChipText}>
+            Tercatat. Giliran maju ke {giliran.namaAnggota} · notif terkirim.
+          </Text>
+        </View>
+      )}
+
+      <ConfirmDialog
+        visible={error != null}
+        title="Gagal"
+        message={error ?? ''}
+        confirmText="Tutup"
+        single
+        onConfirm={() => setError(null)}
+        onCancel={() => setError(null)}
+      />
     </View>
   );
 }
@@ -681,6 +725,43 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body[600],
     fontSize: 11.5,
     color: colors.paper,
+  },
+  galonNudgeBtn: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galonNudgeBtnNudged: { backgroundColor: colors.mustardSoft },
+  galonNudgeBtnPressed: { opacity: 0.7 },
+  galonNote: {
+    marginTop: 11,
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: colors.inkSoft,
+  },
+  galonNoteNudged: {
+    fontFamily: fontFamilies.body[500],
+    color: colors.pine,
+  },
+  galonDoneChip: {
+    marginTop: 11,
+    width: '100%',
+    backgroundColor: colors.pineSoft,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+  },
+  galonDoneChipText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: colors.pine,
   },
   billingCard: {
     backgroundColor: colors.card,

@@ -1,0 +1,15 @@
+{
+  "extends": "@serumah/typescript-config/base.json",
+  "include": [
+    "**/*.ts",
+    "prisma.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "generated"
+  ],
+  "compilerOptions": {
+    "strictNullChecks": true
+  }
+}

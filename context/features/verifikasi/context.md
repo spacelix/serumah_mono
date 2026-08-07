@@ -22,9 +22,15 @@ Module: `piket` (approval part).
 Locked decisions:
 - **Approval per submission, not per room/jenis** — all or nothing.
 - Reject → auto flat fine `rumah.nominal_denda` (not per jenis).
-- Who may review: **TBC-2 not locked** — options (a) any member of the rumah except the sender, or (b) only admin/PJ. **MUST ask the user before implementing.**
+- Who may review: **only Admin/PJ Kos** (TBC-2 locked). Other members are read-only; the sender never reviews their own.
 - Reviewer cannot approve their own submission (server-side).
 - Bolong (auto-fine) is not part of the review UI — only appears as history.
+- **Verifikasi tab always visible**, even on non-piket days (TBC-4 locked).
+- **History visible to all members** of the rumah (TBC-5 locked).
+
+Locked data decisions (shared with denda/piket):
+- **TBC-1**: reject sets status `rejected` + creates flat fine. No resubmission/revision.
+- **TBC-3**: MinIO photo bucket is **public** — DB stores permanent public URLs (no signed/expiry).
 
 ## 5. UI Spec (React Native)
 Tab **Verifikasi** (can be a section/tab inside the Piket tab). Component: `SubmissionReviewCard`.
@@ -36,12 +42,13 @@ Tab **Verifikasi** (can be a section/tab inside the Piket tab). Component: `Subm
 - "Bukti per ruangan" section: per-room card — BEFORE/AFTER slots (68px) + checked jenis chips.
 
 ## 6. Constraints / Prohibited
-- TBC-2 (who may review) — do not guess; ask the user.
+- Review is **Admin/PJ only** (locked TBC-2) — server enforces role; anggota are read-only.
 - Never allow reviewing submissions from another rumah.
 - Reject = instant fine, no confirmation dialog (deliberate action).
+- No revision flow (locked TBC-1) — reject is final, fine is created.
 
 ## 7. Dependencies
 - Required read: `features/piket/context.md`, `features/denda/context.md`.
 
 ## 8. Status
-Not yet implemented. **TBC-2 pending user confirmation.**
+Not yet implemented. **TBC-1, TBC-2, TBC-4, TBC-5 locked; TBC-3 locked (public URLs) on 2026-08-06.**

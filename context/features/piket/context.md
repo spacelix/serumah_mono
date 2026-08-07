@@ -26,6 +26,7 @@ Locked decisions:
 - Status: `menunggu` after submit → `approved`/`rejected`/`bolong`.
 - Fine is NOT shown per checklist item (flat per submission) — the amount lives in the risk banner.
 - Off days (Selasa/Kamis) or no assigned schedule → empty state, cannot submit.
+- **Locked (TBC-1): rejected submission is final — no revision/resubmission; a flat fine is created.**
 
 ## 5. UI Spec (React Native)
 Screen: `app/(tabs)/piket.tsx`. Components: `RuanganPiketCard`, `PhotoSlot`, `PiketChecklist`, `SubmitButton`.

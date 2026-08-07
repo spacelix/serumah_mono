@@ -8,13 +8,19 @@ Decisions & behaviors **not yet locked** by the user — must be confirmed befor
 
 ## Open (pending confirmation)
 
-| # | Feature | Item | Current State | Options / Question | Priority |
-|---|---|---|---|---|---|
-| TBC-1 | verifikasi | Rejected piket flow: revision vs auto-fine | **Auto-fine** — reject sets status `rejected`, creates flat fine. No resubmission. Matches design: "rejected → flat fine, not per jenis". | (a) Keep auto-fine (design), or (b) add revision: "Ajukan ulang" button → status `menunggu`, fine deleted, photos can be retaken. | High |
-| TBC-2 | verifikasi | Who may review (approve/reject) | Design says "Nunggu diverifikasi — siapa pun anggota bisa" (except sender). | Confirm: any member of the rumah, or locked to admin/PJ only? | High |
-| TBC-3 | piket/denda | Photo URL visibility (storage) | Supabase era: `photos` bucket made `public=true` (permanent URLs in DB). MinIO similar. | Confirm: permanent public URLs, or signed URLs + expiry (more private but more complex)? | Medium |
-| TBC-4 | verifikasi | Verifikasi tab without today's schedule | Plan: always visible so PJ can review even on non-piket days. | Confirm: always visible, or hidden on off days? | Low |
-| TBC-5 | verifikasi | Submission history (approved/rejected) for whom | Plan: all members of the rumah see everyone's history. | Confirm: all see, or restricted (only sender / admin)? | Low |
+None currently open. All TBC-1..TBC-5 (verifikasi/denda) were locked on 2026-08-06.
+
+---
+
+## Resolved (for the record)
+
+| # | Feature | Item | Locked Decision | Date |
+|---|---|---|---|---|
+| TBC-1 | verifikasi | Rejected piket flow | **Auto-fine** — reject sets `rejected`, creates flat fine. No resubmission. | 2026-08-06 |
+| TBC-2 | verifikasi | Who may review | **Admin/PJ only.** Anggota are read-only; sender never reviews own. | 2026-08-06 |
+| TBC-3 | piket/denda | Photo URL visibility | **Permanent public URLs** (MinIO bucket public; DB stores permanent URLs). | 2026-08-06 |
+| TBC-4 | verifikasi | Verifikasi tab visibility | **Always visible**, even on non-piket days. | 2026-08-06 |
+| TBC-5 | verifikasi | Submission history visibility | **All members** of the rumah see everyone's history. | 2026-08-06 |
 
 ---
 

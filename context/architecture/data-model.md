@@ -76,7 +76,6 @@ model Anggota {
   rumahId      String?  @map("rumah_id") @db.Uuid
   nama         String
   fotoProfil   String?  @map("foto_profil")     // Storage URL
-  kamar        String?
   kontakDarurat String? @map("kontak_darurat")
   alamat       String?
   role         String   @default("anggota")     // 'admin' | 'anggota'
@@ -317,11 +316,13 @@ model SwapRequest {
 
 model GiliranGalon {
   id          String    @id @default(uuid()) @db.Uuid
+  rumahId     String    @map("rumah_id") @db.Uuid
   anggotaId   String    @map("anggota_id") @db.Uuid
   periodeMulai DateTime @map("periode_mulai") @db.Date
   status      String    @default("menunggu") // 'menunggu' | 'sudah_dibeli'
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz
 
+  rumah   Rumah   @relation(fields: [rumahId], references: [id])
   anggota Anggota @relation(fields: [anggotaId], references: [id])
 
   @@map("giliran_galon")
@@ -367,6 +368,7 @@ model FcmToken {
 5. **`giliran_galon` without `nominal`** — reimbursement column removed (locked decision item 25).
 6. **`iuran_bulanan` without `bayar_ke_anggota_id`** — paid to the kos rekening; `bukti_bayar` per user (1 total proof per month). Categories only `sewa`/`wifi`/`listrik_wajib`.
 7. **All sensitive mutations via NestJS services** (replaces SECURITY DEFINER RPC) — role + status validation in service, not client.
+8. **`anggota.kamar` removed** — no room number on the member profile. A person can be responsible for more than one room; which rooms to clean is set via `Ruangan`/`JenisPiket` (schedule), not a profile field.
 
 ---
 

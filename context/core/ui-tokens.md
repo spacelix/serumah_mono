@@ -60,13 +60,25 @@ color: '#3D6B5C',
 ### Gold · Accent
 
 | Token | Hex | CSS Name | Usage |
-|---|---|---|---|
-| `mustard` | `#C9A227` | `--gold-600` | "today" accent, date emphasis |
-| `mustardSoft` | `#F4E9C8` | `--gold-100` | "today" tag tint background |
+|---|---|---|
+| `mustard` | `#C9A227` | `--gold-600` | "today" accent, date emphasis, progress fill |
+| `mustardSoft` | `#F4E9C8` | `--gold-100` | "today" tag tint, iuran/approval bank surface |
 | `mustardBorder` | `#E4D3A0` | `--gold-border` | Gold-accented card border |
 | `mustardInk` | `#7D6C1F` | `--gold-ink` | Text on gold 100 background |
+| `mustardText` | `#6B6135` | `--gold-text` | Body text on gold 100 (bank info, approvals) |
 | `mustardInkStrong` | `#241F08` | `--gold-ink-strong` | "today" date chip text |
 | `olive` | `#9A8A3A` | `--olive-600` | "waiting confirmation" status |
+
+### Brand / Device
+
+| Token | Hex | CSS Name | Usage |
+|---|---|---|
+| `splashGreen` | `#3F6F61` | `--brand-splash` | Splash & onboarding background, logo chip |
+| `frameRing` | `#43514A` | `--device-ring` | Outer device frame ring (11px) |
+| `logoDoor` | `#27463D` | `--brand-door` | Logo door fill |
+| `goldCheck` | `#F0B529` | `--brand-gold` | Logo badge stroke/check |
+| `textureA` | `#DDD6C6` | `--texture-a` | Photo/thumbnail diagonal stripe A |
+| `textureB` | `#E7E1D2` | `--texture-b` | Photo/thumbnail diagonal stripe B |
 
 ### Stamp Colors
 
@@ -92,7 +104,7 @@ color: '#3D6B5C',
 
 | Role | Spec | Sample Size |
 |---|---|---|
-| Display / H1 | Space Grotesk 600 · 25px/1.1 · -0.02em | 25px |
+| Display / H1 | Space Grotesk 600 · 25px/1.1 · -0.02em | 25px | (screen title header, see `Serumah.html` header)
 | Section heading | Space Grotesk 600 · 13–14.5px | 14px |
 | Large amount | JetBrains Mono 700 · 21–26px · -0.02em | 22px |
 | Medium amount | JetBrains Mono 700 · 14–18px | 16px |
@@ -157,20 +169,20 @@ textTransform: uppercase
 
 | Variant | Properties |
 |---|---|
-| Primary · Ink | bg `ink`, fg white, radius **14px**, padding 12×18, Inter 600 12.5px. Pressed → `pine` |
-| Primary · Forest | bg `pine`, fg white, radius **11px**, padding 11×16, Inter 600 12px. Pressed → `pineDeep` |
-| Secondary · Outline | transparent, border `line` 1px, fg `ink`, radius **11px**, padding 11×16, Inter 600 12px |
-| Disabled | bg `disabledBg`, fg `disabledFg`, radius **14px**, padding 13×18, Inter 600 13px |
-| On dark | bg `paper`, fg `ink`, radius **11px**, padding 12×18, Inter 600 12.5px |
-| Dashed CTA | bg `paperDeep`, dashed border `lineDash`, fg `pine`, radius **18px**, padding 16, Inter 600 13px |
+| Primary · Ink | bg `ink`, fg `paper`, radius **14px**, padding 15 (h), Inter 600 14px. Pressed → `pine` |
+| Primary · Forest | bg `pine`, fg `paper`, radius **11px**, padding 12×13, Inter 600 12.5px. Pressed → `pineDeep` |
+| Secondary · Outline | transparent, border `line` 1px, fg `ink`, radius **11px**, padding 11×13, Inter 600 12.5px |
+| Disabled | bg `disabledBg`, fg `disabledFg`, radius **14px**, padding 15, Inter 600 14px |
+| On dark | bg `paper`, fg `ink`, radius **12px**, padding 13, Inter 600 12.5px |
+| Dashed CTA | bg `paperDeep`, dashed border `lineDash`, fg `pine`, radius **11px**, padding 14, Inter 600 12.5px |
 
 ### Cards
 
 | Variant | Properties |
 |---|---|
 | Standard (tap) | bg `card`, border `line` 1px, radius **16px**, padding 14×15 |
-| Hero · Forest | bg `pine`, fg white, radius **20px**, padding 17 |
-| Gold accent | bg `card`, border `line` 1px + left `mustard` 4px, radius **16px**, padding 14×15 |
+| Hero · Forest | bg `pine`, fg white, radius **20px**, padding 16×16 (bottom 14) |
+| Gold accent | bg `card`, border `line` 1px + left `mustard` 4px, radius **16px**, padding 14×13 |
 | Dark (swap) | bg `ink`, fg white, radius **20px**, padding 17 |
 
 ### Segmented Control
@@ -185,32 +197,46 @@ inactive: transparent, fg inkSoft
 ### Bottom Navigation
 
 ```
-track bg: paper, border line 1px, radius 20px, padding 8px
-item: radius 14px, flex column center, gap 5px
-item icon: 19×19, stroke 2px
-item label: Inter 600 9.5px
-active: bg ink, fg white
+position: absolute, left/right 0, bottom 0
+padding: 8px 14px 22px
+background: linear-gradient(to top, paper, transparent 62%)
+item: flex 1, radius 14px, padding 9px 4px 8px, column center, gap 5px
+item icon: 21×21, stroke 2px
+item label: Inter 600 9.5px, letter-spacing .02em
+active: bg ink, fg paper
 inactive: bg transparent, fg inkSoft
 ```
 
 ### Schedule Row
 
 ```
-bg: card, border line 1px, radius 16px, padding 12×14
-date chip: radius 11px, 42×46px, flex column center
+bg: card (today/plan/wait) or paperDeep (free), border line 1px, radius 16px, padding 11×13
+date chip: radius 11px, 40×44px, flex column center
   "today": bg mustard, fg mustardInkStrong
   normal: bg paper, fg ink
-dow: JetBrains Mono 500 8.5px
+  free: transparent, fg inkMuted
+  wait: bg paper, fg inkSoft
+dow: JetBrains Mono 500 8.5px, letter-spacing .06em
 date: JetBrains Mono 700 16px
 ```
+
+### Tags (schedule)
+
+| Variant | Properties |
+|---|---|
+| Today | bg `mustardSoft`, fg `mustardInk`, pill; row border `mustardBorder` |
+| Planned / Scheduled | transparent, border `line` 1px, fg `inkSoft`, pill |
+| Free | transparent, dashed border `lineDash`, fg `inkMuted`, pill; row bg `paperDeep` |
+| Waiting | transparent, dashed border `lineDash`, fg `inkMuted`, pill |
+| Done / Selesai | bg `pineSoft`, fg `pineDeep`, pill |
 
 ### Bill Row
 
 ```
-bg: card, border line 1px, radius 18px, padding 14×15
-reason: Inter 600 13px, ink
-meta: JetBrains Mono 400 10.5px, inkSoft
-amount: JetBrains Mono 700 24px, brick, -0.02em
+bg: card, border line 1px, radius 18px, padding 14
+reason: Space Grotesk 600 14px, ink, -0.01em
+meta: Inter 400 11px, inkSoft
+amount: JetBrains Mono 700 26px, brick, -0.02em
 ```
 
 ### Checkbox
@@ -223,15 +249,6 @@ denda safe: pine
 denda risk: brick
 ```
 
-### Tags (schedule)
-
-| Variant | Properties |
-|---|---|
-| Today | bg `mustardSoft`, fg `mustardInk`, pill |
-| Planned / Scheduled | transparent, border `line` 1px, fg `inkSoft`, pill |
-| Free | transparent, dashed border `lineDash`, fg `inkMuted`, pill |
-| Done | bg `pineSoft`, fg `pineDeep`, pill |
-
 ### Nominal Input
 
 ```
@@ -243,15 +260,16 @@ value: JetBrains Mono 700 15px, ink
 ### Photo Placeholder
 
 ```
-empty: dashed border lineDash 1.5px, radius 16px, bg paperDeep, h 80px
-filled: solid border line 1px, radius 16px, texture bg (striped), h 80px
+empty: dashed border lineDash 1.5px, radius 11px, bg paperDeep, h 72px
+filled: solid border line 1px, radius 11px, texture bg (diagonal stripes #DDD6C6/#E7E1D2), h 104px
+label: empty "+ ambil foto" / filled "foto terpasang · ketuk buat ganti"
 ```
 
 ### Avatar Chip
 
 ```
-bg: card, border line 1px, radius pill, padding 5×10
-circle: 26×26px, radius 50%, bg pine, fg paper, Space Grotesk 600 11px
+bg: card, border line 1px, radius 20px, padding 5px 9px 5px 5px
+circle: 24×24px, radius 50%, bg pine, fg paper, Space Grotesk 600 11px
 name: Inter 600 11.5px, ink
 ```
 
@@ -259,19 +277,109 @@ name: Inter 600 11.5px, ink
 
 ```
 bg: pineSoft (safe) / brickSoft (risk)
-radius: 11px, padding 10×13
+radius: 11px, padding 11×13
 label: Inter 500 11.5px
-amount: JetBrains Mono 700 14px
+amount: JetBrains Mono 700 15px
+```
+
+### Stat Card (rumah/profil)
+
+```
+bg: card, border line 1px, radius 16px, padding 13
+label: JetBrains Mono 500 9.5px, uppercase, letter-spacing .1em, inkSoft
+value: JetBrains Mono 700 22px (pine) / 18px (brick), -0.02em
+```
+
+### Section Kicker (screen header + list headers)
+
+```
+font: JetBrains Mono 500 9.5–10.5px
+textTransform: uppercase
+letterSpacing: .1–.14em
+color: inkSoft (on paper) / rgba(paper,.5–.55) (on pine/ink)
+```
+
+### Tagihan · Monthly Item Card
+
+```
+bg: card, border line 1px, radius 11px, padding 14, gap 11
+icon chip: 34×34 radius 10, tint mustardSoft/kos-wifi (paperDeep), icon stroke pine 1.9px
+label: Inter 600 13.5px, ink, -0.01em
+amount: JetBrains Mono 700 19px (inkSoft when lunas, else ink)
+sub: Inter 400 10px, inkMuted
+stamp: rotated -4deg, top-right (see Stamp)
+button: forest full-width (Upload Bukti Bayar) OR outline (Lihat Detail), radius 11px, Inter 600 12.5px
+```
+
+### Tagihan · Summary Row
+
+```
+container: card, border line, radius 11px, padding 14×16
+kicker: JetBrains Mono 500 10.5px uppercase, .1em, inkSoft
+sub: Inter 400 11px, inkSoft
+value: JetBrains Mono 700 22px (unpaid brick / income ink)
+```
+
+### Bank Info (iuran)
+
+```
+bg: mustardSoft, border mustardBorder, radius 11px, padding 12×13
+icon: 17px stroke pine... (mustardInk 1.9px)
+text: Inter 500 11.5px, #6b6135
+```
+
+### Listrik Split Note
+
+```
+bg: pineSoft, radius 11px, padding 12×13
+text: Inter 400 11px, pineDeep
+```
+
+### Progress Bar (listrik budget)
+
+```
+track height 7px, radius 20px, bg rgba(mustardInk,.18)
+fill: mustard, radius 20px, transition width .3s
+```
+
+### Approval / Need-confirmation Card (PJ)
+
+```
+bg: mustardSoft, border mustardBorder, radius 11–18px, padding 14
+count: JetBrains Mono 500 10px, #6b6135
+member row: avatar 30px pine, name Inter 600 12.5px, label Inter 400 10px, amount mono 700 12px
+proof thumb 38×38 radius 9 (striped texture), confirm button forest radius 10px Inter 600 11.5px
+```
+
+### Modal / Bottom Sheet
+
+```
+backdrop: rgba(ink, .5)
+sheet: bg paper, radius 22px (top corners only), padding 18 20 26
+drag / close: × button, bg rgba(paper,.12) on dark / rgba(ink,.08) on light, 26–28px circle
 ```
 
 ---
 
 ## Motion
 
-| Name | Duration | Easing | Transform |
-|---|---|---|---|
-| `stampIn` | 0.42s | cubic-bezier(.2,1.4,.4,1) | rotate -14°→-4°, scale 1.6→0.96→1 |
-| `riseIn` | 0.26s | ease | translateY 8px→0, opacity 0→1 |
+Exactly two keyframe animations in the design — no others.
+
+| Name | Duration | Timing | Keyframes | Used on |
+|---|---|---|---|---|
+| `stampIn` | 0.42s | cubic-bezier(.2,1.4,.4,1), `both` | 0%: opacity 0, rotate -14°, scale 1.6 → 60%: opacity 1, rotate -4°, scale .96 → 100%: opacity 1, rotate -4°, scale 1 | Stamp elements (status change) |
+| `riseIn` | 0.22–0.5s | ease (default), `both` | from: opacity 0, translateY 8px → to: opacity 1, none | Cards/sheets/forms appearing. Variants: .22 (inline notes), .24 (toasts/notes), .26 (forms/sheets), .28 (cards/banners), .3 (bill/approval/swap cards), .32 (onboarding step), .5 (—) |
+
+### Transitions (interaction feedback)
+
+| Property | Duration | Used on |
+|---|---|---|
+| background | .16s | Button hover/press color shifts |
+| all | .16s | Segmented-control & tab pills (bg/color swap) |
+| height | .2s | Photo slot expand (72→104px) |
+| width | .3s | Listrik progress bar fill |
+| all | .22s | Onboarding dot pills |
+| all | .14s | PIN entry dots |
 
 ---
 
@@ -283,3 +391,7 @@ amount: JetBrains Mono 700 14px
 - All fine/denda amounts use JetBrains Mono — not Inter or Space Grotesk.
 - Stamp rotation is always -4deg.
 - Icons: thin stroke, 1.9–2.2px, round cap/join, 24×24 viewBox.
+- Amount values: JetBrains Mono 700, letter-spacing -0.02em.
+- Section kickers/labels always uppercase mono with .1–.14em tracking.
+- Accent brand green `#3F6F61` only for splash/onboarding/logo — never cards.
+- Device frame: radius 42px, outer ring `ink` 10px + `frameRing` 11px on `paperCanvas`.

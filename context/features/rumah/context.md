@@ -44,7 +44,7 @@ Locked decisions:
 Screen: `app/rumah/manage.tsx` (+ room management inline, not a separate page).
 
 - **"Kelola Rumah" card** (ONE card): header name (Space Grotesk 600 15px) + address + Edit button; invite code box (bg paper radius 13) + **"Copy kode"** (Clipboard); **Biaya Rumah** section (4 rows bg paper radius 10 — Biaya Kos, WiFi, Listrik Wajib mono 12px + **Denda Piket** "Rp X / submission" mono brick); **Rekening Kos** section (mustardSoft box radius 10 — "Bank · Nomor" mono 700 13px + "a.n. Nama").
-- **Member list**: 36px avatar circle + name + kamar + role pill + remove icon (brick) admin only.
+- **Member list**: 36px avatar circle + name + role pill + remove icon (brick) admin only.
 - **Kelola Ruangan** (below member list): per-room card — up/down arrows (wire reorder), name (inline edit), jenis chips, inline add-jenis input, **"Tambah Ruangan"** button. Non-admin read-only.
 - **Edit form**: cost inputs (currency format), denda amount, rekening (bank/number/name), QRIS upload.
 

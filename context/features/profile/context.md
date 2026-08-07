@@ -4,7 +4,7 @@
 View & edit the user's profile: name, photo, role badge, address, emergency contact. Shows rumah info (read-only) + link to Rumah Management (admin only).
 
 ## 2. Data Model
-- `Anggota`: `nama`, `fotoProfil`, `kamar`, `kontakDarurat`, `alamat`, `role`, `rumahId`.
+- `Anggota`: `nama`, `fotoProfil`, `kontakDarurat`, `alamat`, `role`, `rumahId`.
 - `Rumah` (name, address — read-only).
 
 ## 3. API Contract (NestJS)
@@ -26,7 +26,9 @@ Locked decisions:
 Screen: `app/profile.tsx` (from the avatar chip on Beranda).
 
 - Header: avatar (100px circle + camera overlay), name, role badge (`tag-done` for admin / `tag-plan` for member).
-- Form: name, address, emergency contact (+ kamar if present).
+- Form: name, emergency contact, address. Email shown read-only.
+- Edit as an inline "Update profil" card (replaces the profile card while editing; close = revert to view).
+- Change password: inline "Ganti password" card (same rise-in/replace pattern), requires old password.
 - Rumah info: kos name + address (read-only card).
 - **"Simpan"** button.
 - **"Kelola Kos"** link → Rumah Management (admin only).

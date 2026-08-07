@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - ./apps/api/.env
+    restart: unless-stopped
+    networks:
+      - traefik-public
+      - default
+    volumes:
+      - ./logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.serumah-backend.rule=Host(`api-serumah.spacelix.qzz.io`)"
+      - "traefik.http.routers.serumah-backend.entrypoints=websecure"
+      - "traefik.http.routers.serumah-backend.tls=true"
+      - "traefik.http.services.serumah-backend.loadbalancer.server.port=3000"
+
+networks:
+  traefik-public:
+    external: true
+  default:
+    driver: bridge

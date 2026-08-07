@@ -15,13 +15,15 @@ Module: `dashboard` (aggregate) or existing endpoints.
 
 | Method | Path | Response | Notes |
 |---|---|---|---|
-| GET | `/dashboard` | `{ weekend, galon, billing, scheduleWeek }` | Aggregate in one call for one screen. |
+| GET | `/dashboard` | `{ weekend, galon, billing, scheduleWeek, scheduleIncomplete, isAdmin }` | Aggregate in one call for one screen. |
 
 Payload composition:
 - `weekend`: saturday & sunday status for the current week (`WeekendStatus`).
 - `galon`: active turn (`GiliranGalon` + member name).
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
 - `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag }`.
+- `scheduleIncomplete`: true when an upcoming piket day this week (today→Sunday) is not yet scheduled (weekday without Jadwal, or weekend with Di kos members without Jadwal).
+- `isAdmin`: whether the caller is the PJ (`role='admin'`).
 
 ## 4. Business Rules & State Machine
 Locked decisions:
@@ -39,11 +41,12 @@ Screen: `app/(tabs)/index.tsx`. Components: `WeekendCard`, `GalonWidget`, `Billi
 - **BillingSummary**: concise total unpaid + **"Lihat detail"** → navigate to Tagihan tab.
 - **ScheduleList**: 7 rows (Senin–Minggu). Each: date chip (mono, mustard if today), member name, room names, status tag. LIBUR dashed.
 - Header: avatar chip (tap → Profile).
+- **ScheduleReminderBanner (admin only, not in design):** brick-soft banner shown when `scheduleIncomplete`. Tap → `/rumah/manage?scrollTo=generate`.
 
 ## 6. Constraints / Prohibited
 - Do not recompute splits in the UI — read from the API.
 - Do not show denda/iuran detail on Beranda (only summary + link to Tagihan).
-- No generate-schedule button here (lives in Rumah Management).
+- No generate-schedule button here; the banner is a *link* to Rumah Management (where the button lives).
 
 ## 7. Dependencies
 - Required read: `features/schedule/context.md`, `features/galon/context.md`, `features/iuran/context.md`, `features/denda/context.md`.

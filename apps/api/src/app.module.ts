@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
@@ -9,7 +9,10 @@ import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
+import { LoggerInterceptor } from './common/interceptors/logger.interceptor';
+import { RedisModule } from './modules/redis/redis.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { LogViewerModule } from './modules/logviewer/logviewer.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { RumahModule } from './modules/rumah/rumah.module';
@@ -41,6 +44,8 @@ import { AppService } from './app.service';
       }),
     }),
     StorageModule,
+    RedisModule,
+    LogViewerModule,
     AuthModule,
     ProfileModule,
     RumahModule,
@@ -66,6 +71,10 @@ import { AppService } from './app.service';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggerInterceptor,
     },
   ],
 })

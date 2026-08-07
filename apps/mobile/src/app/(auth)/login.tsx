@@ -1,11 +1,12 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
@@ -15,13 +16,14 @@ export default function LoginScreen() {
   const loading = useAuthStore((s) => s.loading);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
+    setError(null);
     try {
       await login(email.trim(), password);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.';
-      Alert.alert('Gagal masuk', message);
+      setError(error instanceof Error ? error.message : 'Terjadi kesalahan. Coba lagi.');
     }
   };
 
@@ -81,6 +83,16 @@ export default function LoginScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={error != null}
+        title="Gagal masuk"
+        message={error ?? ''}
+        confirmText="Tutup"
+        single
+        onConfirm={() => setError(null)}
+        onCancel={() => setError(null)}
+      />
     </SafeAreaView>
   );
 }

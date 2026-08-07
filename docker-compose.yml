@@ -1,4 +1,13 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - default
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
   backend:
     build:
       context: .
@@ -6,6 +15,8 @@ services:
     env_file:
       - ./apps/api/.env
     restart: unless-stopped
+    depends_on:
+      - redis
     networks:
       - traefik-public
       - default
@@ -23,3 +34,7 @@ networks:
     external: true
   default:
     driver: bridge
+
+volumes:
+  redis-data:
+

@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1-alpine AS base
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -20,6 +20,7 @@ RUN bun run --filter @serumah/db generate \
   && bun run --filter @serumah/api build
 
 FROM node:22-alpine AS runner
+RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder /app/package.json ./package.json

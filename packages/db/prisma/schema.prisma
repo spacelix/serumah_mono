@@ -67,12 +67,14 @@ model Anggota {
   jadwal            Jadwal[]
   weekendStatus     WeekendStatus[]
   submissions       PiketSubmission[]
+  reviewed          PiketSubmission[]  @relation("SubmissionReviewer")
   denda             Denda[]
   iuran             IuranBulanan[]
   pembayaranListrik PembayaranListrik[]
   giliranGalon      GiliranGalon[]
   swapDari          SwapRequest[]     @relation("SwapDari")
   swapKe            SwapRequest[]     @relation("SwapKe")
+  approvals         PiketApproval[]
 
   @@index([rumahId])
   @@map("anggota")
@@ -157,9 +159,11 @@ model PiketSubmission {
   anggotaId   String    @map("anggota_id") @db.Uuid
   status      String    @default("menunggu")
   submittedAt DateTime? @map("submitted_at") @db.Timestamptz
+  reviewerId  String?   @map("reviewer_id") @db.Uuid // assigned reviewer
 
   jadwal    Jadwal         @relation(fields: [jadwalId], references: [id])
   anggota   Anggota        @relation(fields: [anggotaId], references: [id])
+  reviewer  Anggota?       @relation("SubmissionReviewer", fields: [reviewerId], references: [id])
   proofs    RuanganProof[]
   approvals PiketApproval[]
   denda     Denda[]
@@ -191,6 +195,7 @@ model PiketApproval {
   reviewedAt   DateTime @default(now()) @map("reviewed_at") @db.Timestamptz
 
   submission PiketSubmission @relation(fields: [submissionId], references: [id])
+  reviewer   Anggota         @relation(fields: [reviewerId], references: [id])
 
   @@index([submissionId])
   @@map("piket_approval")

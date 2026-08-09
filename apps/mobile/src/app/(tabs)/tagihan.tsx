@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { MonthPicker } from '@/components/tagihan/month-picker';
 import { Stamp } from '@/components/ui/stamp';
 import { formatCurrency, formatShortDate } from '@/lib/format';
@@ -165,7 +166,13 @@ function DendaView({ bulan }: { bulan: string }) {
       </View>
 
       {myDenda.length === 0 && pending.length === 0 ? (
-        <Empty text={`Tidak ada denda untuk ${bulan}`} />
+        <EmptyState
+          icon={
+            <ReceiptText color={colors.inkSoft} size={22} strokeWidth={2} />
+          }
+          title={`Tidak ada denda untuk ${bulan}`}
+          sub="Piket yang nggak dikerjain atau ditolak otomatis jadi tagihan denda di sini."
+        />
       ) : (
         <>
           {myDenda.map((d) => (
@@ -573,7 +580,15 @@ function ListrikView({ bulan }: { bulan: string }) {
         <ListrikRecordCard key={r.id} record={r} />
       ))}
       {data.records.length === 0 && !showForm && (
-        <Empty text="Belum ada beli listrik bulan ini" />
+        <EmptyState
+          icon={<Plus color={colors.inkSoft} size={22} strokeWidth={2} />}
+          title="Belum ada beli listrik bulan ini"
+          sub="Catat pembelian token listrik tambahan biar tagihannya keitung rata."
+          action={{
+            label: 'Tambah Record',
+            onPress: () => setShowForm(true),
+          }}
+        />
       )}
     </View>
   );
@@ -651,14 +666,6 @@ function Loading() {
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyText}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   segments: {
@@ -687,8 +694,6 @@ const styles = StyleSheet.create({
   section: { gap: 12 },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
-  empty: { paddingVertical: 48, alignItems: 'center' },
-  emptyText: { ...type.body, color: colors.inkMuted, textAlign: 'center' },
 
   summaryCard: {
     backgroundColor: colors.brickSoft,

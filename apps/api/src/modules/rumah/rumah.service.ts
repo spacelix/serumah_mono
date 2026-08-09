@@ -117,6 +117,8 @@ export class RumahService {
           fotoProfil: true,
           role: true,
           createdAt: true,
+          kontakDarurat: true,
+          alamat: true,
         },
       }),
     ]);

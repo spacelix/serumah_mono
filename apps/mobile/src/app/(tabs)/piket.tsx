@@ -261,8 +261,8 @@ function ReviewSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.sheetBackdrop}>
-        <View style={styles.sheet}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
           <View style={styles.sheetHandle} />
           {submission && (
             <>
@@ -319,7 +319,7 @@ function ReviewSheet({
             </>
           )}
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }

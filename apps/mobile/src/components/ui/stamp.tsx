@@ -69,10 +69,17 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
   const key = statusKey(status);
   const s = STATUS_STYLE[key];
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
+  const settled = status === 'lunas' || status === 'approved';
   const stamp = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const prevStatus = useRef(status);
 
   useEffect(() => {
-    if (!animate) return;
+    // stampIn dipicu saat stamp "lunas"/"approved" baru tercapai (transisi
+    // status) atau saat diminta eksplisit via `animate` — pola Serumah.html.
+    const becameSettled = settled && prevStatus.current !== status;
+    prevStatus.current = status;
+    if (!animate && !becameSettled) return;
+    stamp.setValue(0);
     // stampIn keyframes: 0% (opacity 0, rotate -14°, scale 1.6) → 60%
     // (opacity 1, rotate -4°, scale .96) → 100% (rotate -4°, scale 1).
     Animated.sequence([
@@ -89,7 +96,7 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
         useNativeDriver: true,
       }),
     ]).start();
-  }, [animate, stamp]);
+  }, [animate, settled, stamp, status]);
 
   return (
     <Animated.View

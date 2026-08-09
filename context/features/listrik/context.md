@@ -36,7 +36,7 @@ Locked decisions:
 
 Tab **Tagihan → Listrik** (segment 3). Components: `ListrikRecordCard`, `ListrikFormSheet`.
 
-- Month picker in header (shares `selectedMonth` with Denda/Iuran).
+- Month picker (`MonthPicker`, shared across Denda/Iuran): pill trigger below the segments — tap opens the "Pilih bulan" bottom sheet.
 - Summary: "total belanja listrik tambahan" + progress bar ("RpX dibeli lo · sisanya anggota lain").
 - Split note: "Listrik tambahan RpX dibagi rata: tagihan lo **+RpY** bulan depan" (pine) / credit (brick).
 - Record list: avatar + name + date + amount + proof thumbnail. Tap → detail sheet (split `RpX ÷ N orang = RpY/orang`, next-month effect, full proof).

@@ -12,11 +12,12 @@ User fine bills, QRIS payment to PJ/Admin, proof upload, and confirmation. Inclu
 
 ## 3. API Contract (NestJS)
 
-Module: `denda`.
+Module: `denda`. Shared month-list endpoint lives in `tagihan` module.
 
 | Method | Path                      | Request        | Response                                     | Notes                                                                                                                                                                            |
 | ------ | ------------------------- | -------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/denda?bulan=YYYY-MM`    | —              | `{ qrisUrl, denda: Denda[] }` + member names | Month filter. `qrisUrl` from `rumah.qrisUrl` for the "Show QRIS" button.                                                                                                         |
+| GET    | `/denda?bulan=YYYY-MM`    | —              | `{ qrisUrl, denda: Denda[] }` + member names | Month filter. Each `Denda` adds `origin` (`auto`/`partial`/`rejected`), `reviewerNama`, `tanggal` (jadwal submission), dan `detail: { ruanganNama, fotoBefore, fotoAfter, jenisSelesai[], jenisList[] }[]` — per-room cause for the sheet. `qrisUrl` from `rumah.qrisUrl`. |
+| GET    | `/tagihan/months`         | —              | `{ months: string[] }`                       | Distinct WIB months having any tagihan data (piket schedule, denda, iuran, listrik) — descending. Backs the month filter bottom sheet.                                            |
 | POST   | `/denda/:id/upload-bukti` | `{ buktiUrl }` | `{ status, receiverId }`                     | Validate owner + status `belum_bayar`. **PJ/Admin → status directly `lunas`** (receiverId = self). Member → `menunggu_konfirmasi` + `bayarKeAnggotaId` = active PJ of the rumah. |
 | POST   | `/denda/:id/approve`      | — (admin)      | `{ denda }`                                  | Insert `PembayaranApproval` approved + `lunas`.                                                                                                                                  |
 | POST   | `/denda/:id/reject`       | — (admin)      | `{ denda }`                                  | Insert approval rejected + reset `belum_bayar`, `bayarKeAnggotaId` null, `buktiBayar` null.                                                                                      |
@@ -31,26 +32,30 @@ Locked decisions:
 - **PJ/Admin's own fine → proof upload directly `lunas`** (no self-confirmation).
 - Payment ALWAYS goes to the PJ/Admin of the rumah (not peer approval — locked decision item 27).
 - **Fine amount is proportional (locked 2026-08-09):** `denda = rumah.nominal_denda × (unworkedItems / totalActiveItems)`, rounded — set when the submission is rejected (PiketService). `nominal_denda` is the "full" fine (nothing worked). Auto-fine (bolong, no submission) still charges the full `nominal_denda`.
-- Month filter: dropdown default current month, can view history.
+- Month filter = shared `MonthPicker` (bottom sheet "Pilih bulan", see UI spec 5) showing only months with data — default current month, history visible.
 - Approver auto = PJ/Admin — only the PJ sees the "Perlu konfirmasi dari lo" section.
 
 ## 5. UI Spec (React Native)
 
 Tab **Tagihan → Denda** (segment 1). Components: `BillCard`, `Stamp`.
 
-- Month picker in header (`‹ bulan ›`).
+- Month filter (`MonthPicker`, shared across segments): pill trigger showing the active month; tap opens a **bottom sheet "Pilih bulan"** (riseIn 0.24s) listing **only months that have data** (piket schedule/denda/iuran/listrik, from `GET /tagihan/months`) + the current month. Rows show month name + status label mono uppercase: `Bulan ini` / `Riwayat` / `Belum jalan`. Active month = ink bg + paper text.
 - Summary card: "Belum lunas / {n} tagihan aktif / **Rp X**" (brick, mono).
-- Fine card (`BillCard`): reason, meta (date), status stamp (Lunas pine / Belum Bayar brick / Menunggu olive dashed), amount mono brick 26px.
-  - `belum_bayar`: 2 buttons — **"Show QRIS"** (show `rumah.qrisUrl`) + **"Upload Bukti"**.
+- Fine card (`BillCard`): title `Denda piket`, meta line **origin-driven**, status stamp (Lunas pine / Belum Bayar brick / Menunggu olive dashed), amount mono brick 26px.
+  - Meta line (`dendaNote`, format `Rab, 22 Agu · <asal>`):
+    - `origin == 'auto'` (piket tak dikerjakan, auto-fine): `· auto-denda deadline 20:00`.
+    - `origin == 'partial'` (approve tapi ada jenis_piket tak dicentang): `· direview {reviewerNama}`.
+    - `origin == 'rejected'` (direject PJ): `· direject {reviewerNama}`.
+  - **Ketuk card denda milik sendiri → bottom sheet `DendaDetailSheet`** (animationType slide): header (Denda piket + meta), amount mono brick 28px, **penyebab** card (auto → "Piket nggak dikerjain"; rejected → "Piket ditolak {reviewer}"; partial → "Piket di-approve · sisa {reviewer}") + per-room cards (`ruanganNama` + `{jenisSelesai}/{jenisList}` + jenis chips ✓ pine / × brick dari `denda.detail`), lalu **QRIS di atas sheet** (`rumah.qrisUrl`, `mediaSource`+token) + hint, dan **tombol "Upload Bukti Bayar" di bawah sheet** (kamera → `uploadProof('denda-bukti')` → `POST /denda/:id/upload-bukti`).
+  - `belum_bayar`: **QRIS-only** — card tidak punya tombol inline; hint "Ketuk buat lihat penyebab & bayar QRIS" → buka sheet di atas. No "bayar ke teman" dan **no "Sudah Bayar Cash"** — peer payment tidak ada, pembayaran hanya via QRIS (locked decision item 27).
   - `menunggu_konfirmasi`: MENUNGGU KONFIRMASI stamp, note "nunggu konfirmasi PJ".
   - `lunas`: LUNAS stamp.
-- Approval section (mustard-soft bg) "Perlu konfirmasi dari lo" — for PJ: claim card `{nama} bayar Rp X` + **Approve**/**Reject** buttons + tap to view proof.
+- Approval section (mustard-soft bg) "Konfirmasi bayar" — for PJ: card `{nama} udah bayar` (bukti transfer QRIS) + **Approve**/**Reject** buttons + tap to view proof. No cash claims.
 - Empty state: "Tidak ada denda untuk {bulan}".
 
 ## 6. Constraints / Prohibited
 
 - No peer approval — only PJ/Admin.
-- Fine detail (bottom sheet) is NOT used (locked decision) — card shows status + payment button directly.
 - Never trust client status — transitions go through the service.
 - **Timezone (locked 2026-08-08):** the `?bulan=YYYY-MM` filter is a **WIB calendar month** over `createdAt` (timestamptz). Range built from UTC-midnight − 7h (`Date.UTC(y,m,1) − 7h` … `Date.UTC(y,m+1,1) − 7h`). Same WIB/UTC rule as schedule/iuran.
 

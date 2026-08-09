@@ -35,13 +35,13 @@ Locked decisions:
 - Only PJ confirms lunas (no peer approval).
 - **Extra electricity** (previous month): buyer gets credit (`nominal − share`), non-buyer increased (`share = floor(nominal/n)`), clamp ≥ 0, processed even when base cost is 0 as long as records exist.
 - `ensure-bulan` updates nominal ONLY while still `belum_bayar`.
-- Month filter: dropdown default current month.
+- Month filter = shared `MonthPicker` (bottom sheet "Pilih bulan", only months with data via `GET /tagihan/months`) — default current month.
 
 ## 5. UI Spec (React Native)
 
 Tab **Tagihan → Iuran Bulanan** (segment 2). Components: `IuranTotalCard`, `Stamp`.
 
-- Month picker in header.
+- Month picker (`MonthPicker`, shared across Denda/Listrik): pill trigger below the segments — tap opens the "Pilih bulan" bottom sheet.
 - **1 total card** (deviation from prototype, locked decision): header receipt icon + "Iuran Bulanan — {bulan}" + total of all the user's categories (mono 22px; brick when any unpaid, inkSoft when paid) + sub "Rp {total semua kategori} ÷ {n} anggota aktif" + combined stamp + chevron expand.
   - Expanded → per-category detail: icon (home/wifi/bolt), label, amount, small stamp, action (Lihat Detail / pending note).
 - **"Upload Bukti Bayar"** button (pine) below the card — only if any category is `belum_bayar`.

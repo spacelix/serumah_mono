@@ -57,7 +57,7 @@ function labelOf(status: string): string {
     case 'belum_bayar':
       return 'BELUM BAYAR';
     case 'menunggu_konfirmasi':
-      return 'MENUNGGU KONFIRMASI';
+      return 'MENUNGGU\nKONFIRMASI';
     case 'ditolak':
       return 'DITOLAK';
     default:
@@ -68,6 +68,7 @@ function labelOf(status: string): string {
 export function Stamp({ status, animate }: { status: string; animate?: boolean }) {
   const key = statusKey(status);
   const s = STATUS_STYLE[key];
+  const label = labelOf(status);
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
   const settled = status === 'lunas' || status === 'approved';
   const stamp = useRef(new Animated.Value(animate ? 0 : 1)).current;
@@ -126,7 +127,15 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
         },
       ]}
     >
-      <Text style={[styles.text, { color: s.color }]}>{labelOf(status)}</Text>
+      <Text
+        style={[
+          styles.text,
+          { color: s.color },
+          label.includes('\n') && styles.textMultiline,
+        ]}
+      >
+        {label}
+      </Text>
     </Animated.View>
   );
 }
@@ -145,5 +154,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.display[700],
     fontSize: 10,
     letterSpacing: 0.8,
+  },
+  textMultiline: {
+    maxWidth: 82,
+    textAlign: 'center',
+    fontSize: 8.5,
+    lineHeight: 11,
   },
 });

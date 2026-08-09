@@ -874,10 +874,10 @@ function RoomsSection({
   const totalJenis =
     ruangan?.reduce((acc, r) => acc + r.jenisPiket.length, 0) ?? 0;
 
-  const move = async (index: number, dir: 'down') => {
+  const move = async (index: number, dir: 'up' | 'down') => {
     if (!ruangan) return;
-    const target = index + 1;
-    if (target >= ruangan.length) return;
+    const target = dir === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= ruangan.length) return;
     const next = [...ruangan];
     [next[index], next[target]] = [next[target], next[index]];
     setBusy(true);
@@ -1052,6 +1052,23 @@ function RoomsSection({
                           size={11}
                           strokeWidth={2.1}
                         />
+                      </Pressable>
+                    )}
+                    {isAdmin && (
+                      <Pressable
+                        onPress={() => void move(index, 'up')}
+                        disabled={busy || index === 0}
+                        style={styles.iconBtn}
+                        hitSlop={4}
+                      >
+                        <Text
+                          style={[
+                            styles.moveUp,
+                            index === 0 && styles.moveUpDisabled,
+                          ]}
+                        >
+                          ↑
+                        </Text>
                       </Pressable>
                     )}
                     {isAdmin && (
@@ -1911,6 +1928,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moveUp: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11,
+    lineHeight: 11,
+    color: colors.inkSoft,
+  },
+  moveUpDisabled: { opacity: 0.35 },
   moveDown: {
     fontFamily: fontFamilies.body[600],
     fontSize: 11,

@@ -1,4 +1,4 @@
-import { CalendarDays, TriangleAlert } from 'lucide-react-native';
+import { CalendarDays } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,7 +44,6 @@ export default function BerandaScreen() {
           </View>
         ) : (
           <>
-            <ScheduleReminderBanner data={data} />
             <WeekendCard data={data} />
             <GalonWidget data={data} />
             <BillingSummary data={data} />
@@ -53,35 +52,6 @@ export default function BerandaScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function ScheduleReminderBanner({ data }: { data: DashboardData }) {
-  const router = useRouter();
-
-  if (!data.isAdmin || !data.scheduleIncomplete) return null;
-
-  return (
-    <Pressable
-      onPress={() => router.push('/rumah/manage?scrollTo=generate')}
-      style={({ pressed }) => [
-        styles.reminderBanner,
-        pressed && styles.reminderBannerPressed,
-      ]}
-    >
-      <View style={styles.reminderIcon}>
-        <TriangleAlert color={colors.brickDeep} size={16} strokeWidth={2.2} />
-      </View>
-      <View style={styles.reminderText}>
-        <Text style={styles.reminderTitle}>
-          Jadwal piket pekan ini belum dibuat
-        </Text>
-        <Text style={styles.reminderSub}>
-          Klik buat generate sisa pekan ini — pekan depannya otomatis.
-        </Text>
-      </View>
-      <Text style={styles.reminderCta}>Kelola</Text>
-    </Pressable>
   );
 }
 
@@ -586,43 +556,6 @@ const styles = StyleSheet.create({
   },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
-  reminderBanner: {
-    backgroundColor: colors.brickSoft,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.brickSoft,
-    padding: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  reminderBannerPressed: { backgroundColor: colors.paperDeep },
-  reminderIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reminderText: { flex: 1, gap: 2 },
-  reminderTitle: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12,
-    color: colors.brickDeep,
-  },
-  reminderSub: {
-    fontFamily: fontFamilies.body[400],
-    fontSize: 10,
-    lineHeight: 14,
-    color: colors.brickDeep,
-  },
-  reminderCta: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 11.5,
-    color: colors.brickDeep,
-    textDecorationLine: 'underline',
-  },
   weekendCard: {
     backgroundColor: colors.pine,
     borderRadius: radius['3xl'],

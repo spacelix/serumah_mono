@@ -35,6 +35,7 @@ Locked decisions (from the old phase, preserved):
 - Sort members by `created_at`. Cycle across weeks: A→B→C→D→A…
 - No back-to-back automatically satisfied (Selasa/Kamis gap).
 - New member joins: continue the cycle from where it left off without reset. Member leaves: skip from the cycle, regenerated schedules are rebuilt.
+- **Cron (locked 2026-08-10):** `pregenerateWeek` Sabtu 06:00 → generate **minggu depan** (Senin+7). **`selfHealWeek` harian 06:00** → ensure **minggu ini** (today→Minggu, tidak pernah hari lampau) — self-heal kalau cron Sabtu terlewat (server down), Senin pagi tetap tergenerate. Keduanya idempoten via `ensureWeekday` (skip baris yang sudah ada). **Independen dari `refreshFutureRooms`** (jenis piket): self-heal hanya membuat baris baru, `refreshFutureRooms` hanya update snapshot `ruangan[]` pada baris masa depan — tidak saling menimpa.
 
 **Weekend:**
 

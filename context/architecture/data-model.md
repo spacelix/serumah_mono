@@ -304,7 +304,8 @@ model SwapRequest {
   id          String   @id @default(uuid()) @db.Uuid
   dariAnggotaId String @map("dari_anggota_id") @db.Uuid
   keAnggotaId   String @map("ke_anggota_id") @db.Uuid
-  tanggal     DateTime @db.Date          // day being swapped
+  tanggal     DateTime @db.Date          // hari piket si pengaju (dari)
+  tanggalKe   DateTime @db.Date          // hari piket si penerima (ke) yang ditukar (mutual, locked 2026-08-10)
   status      String   @default("diajukan") // 'diajukan' | 'diterima' | 'ditolak'
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 

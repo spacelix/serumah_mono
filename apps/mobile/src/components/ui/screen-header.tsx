@@ -14,7 +14,9 @@ import { fontFamilies, type } from '@/theme/typography';
 /**
  * Screen header: mono kicker (rumah) + Space Grotesk H1 title on the left,
  * avatar chip (→ /profile) on the right. Sub-screens pass `onBack` to render
- * a back button row BELOW the header (with optional `backLabel`).
+ * a back button row BELOW the header (with optional `backLabel`). The avatar
+ * chip is hidden on sub-screens (`onBack` present) unless `showAvatar` is
+ * explicitly forced on.
  */
 export function ScreenHeader({
   title,
@@ -22,7 +24,7 @@ export function ScreenHeader({
   onBack,
   backLabel = 'Kembali',
   right,
-  showAvatar = true,
+  showAvatar,
 }: {
   title: string;
   kicker?: string;
@@ -43,6 +45,8 @@ export function ScreenHeader({
         ? `Papan piket · ${rumahNama}`
         : 'Papan piket');
 
+  const showChip = showAvatar ?? onBack == null;
+
   return (
     <View>
       <View style={styles.header}>
@@ -55,7 +59,7 @@ export function ScreenHeader({
           </Text>
         </View>
         {right ??
-          (showAvatar ? (
+          (showChip ? (
             <AvatarChip
               nama={nama}
               fotoProfil={data?.anggota?.fotoProfil ?? null}

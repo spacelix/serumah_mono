@@ -126,6 +126,12 @@ export default function PiketScreen() {
             title="Hari ini bukan giliran piket"
             sub="Piket hanya dijadwalkan pada hari piket sesuai Papan Piket."
           />
+        ) : !data.jadwal.isMine ? (
+          <EmptyState
+            icon={<X color={colors.inkSoft} size={22} strokeWidth={2} />}
+            title={`Hari ini giliran ${data.jadwal.anggota.nama}`}
+            sub="Giliran lo di hari piket lain. Piket hari ini dipegang anggota lain."
+          />
         ) : (
           <View style={styles.body}>
             {data.existingSubmission != null && (
@@ -1064,34 +1070,14 @@ function isComplete(jenis: { id: string }[], draft?: RoomDraft): boolean {
 
 /**
  * Shown after a successful submit (per Serumah.html): title + note on the
- * left, "MENUNGGU VERIFIKASI" stamp on the right with a stampIn animation.
+ * left, static "MENUNGGU VERIFIKASI" stamp on the right (stampIn animation
+ * hanya untuk status approve/reject).
  */
 function SubmissionSuccessCard({
   reviewerName,
 }: {
   reviewerName: string | null;
 }) {
-  const stamp = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // stampIn keyframes: 0% (opacity 0, rotate -14°, scale 1.6) → 60%
-    // (opacity 1, rotate -4°, scale .96) → 100% (rotate -4°, scale 1).
-    Animated.sequence([
-      Animated.timing(stamp, {
-        toValue: 0.6,
-        duration: 252,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(stamp, {
-        toValue: 1,
-        duration: 168,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [stamp]);
-
   return (
     <View style={styles.submitSuccessCard}>
       <View style={styles.submitSuccessText}>
@@ -1102,33 +1088,9 @@ function SubmissionSuccessCard({
             : 'Nunggu verifikasi bukti before/after tiap ruangan.'}
         </Text>
       </View>
-      <Animated.View
-        style={[
-          styles.submitStamp,
-          {
-            opacity: stamp.interpolate({
-              inputRange: [0, 0.6, 1],
-              outputRange: [0, 1, 1],
-            }),
-            transform: [
-              {
-                rotate: stamp.interpolate({
-                  inputRange: [0, 0.6, 1],
-                  outputRange: ['-14deg', '-4deg', '-4deg'],
-                }),
-              },
-              {
-                scale: stamp.interpolate({
-                  inputRange: [0, 0.6, 1],
-                  outputRange: [1.6, 0.96, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <View style={styles.submitStamp}>
         <Text style={styles.submitStampText}>MENUNGGU VERIFIKASI</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 }

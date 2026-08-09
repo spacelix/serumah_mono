@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { Check, Pencil, Plus, X } from 'lucide-react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Pressable,
   ScrollView,
@@ -18,7 +20,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/stores/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { mediaSource } from '@/lib/api-client';
+import { apiClient, mediaSource } from '@/lib/api-client';
 import {
   apiRefreshFutureRooms,
   useGenerateRestOfWeek,
@@ -32,6 +34,7 @@ import {
   apiGetRumahMe,
   apiRemoveAnggota,
   apiReorderRuangan,
+  apiSetQris,
   apiUpdateRumah,
   apiUpdateRuangan,
   ruanganKeys,
@@ -129,6 +132,11 @@ export default function ManageRumahScreen() {
           isAdmin={data.currentRole === 'admin'}
           onChange={() => invalidate()}
         />
+        <QrisSection
+          isAdmin={data.currentRole === 'admin'}
+          qrisUrl={data.rumah.qrisUrl}
+          onChange={() => invalidate()}
+        />
         <MembersSection
           members={data.anggotaList}
           isAdmin={data.currentRole === 'admin'}
@@ -205,18 +213,20 @@ function RumahCard({
         )}
       </View>
 
-      <View style={styles.inviteRow}>
-        <View style={styles.inviteCol}>
-          <Text style={styles.inviteLabel}>Kode invite</Text>
-          <Text style={styles.inviteCode}>{rumah.inviteCode}</Text>
+      {isAdmin && (
+        <View style={styles.inviteRow}>
+          <View style={styles.inviteCol}>
+            <Text style={styles.inviteLabel}>Kode invite</Text>
+            <Text style={styles.inviteCode}>{rumah.inviteCode}</Text>
+          </View>
+          <Pressable
+            onPress={() => copyInvite(rumah.inviteCode)}
+            style={styles.copyBtn}
+          >
+            <Text style={styles.copyBtnText}>Copy kode</Text>
+          </Pressable>
         </View>
-        <Pressable
-          onPress={() => copyInvite(rumah.inviteCode)}
-          style={styles.copyBtn}
-        >
-          <Text style={styles.copyBtnText}>Copy kode</Text>
-        </Pressable>
-      </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Biaya Rumah</Text>
@@ -446,6 +456,101 @@ function EditRumahCard({
       </View>
     </Animated.View>
   );
+}
+
+/* ================= QRIS (PJ) ================= */
+
+function QrisSection({
+  isAdmin,
+  qrisUrl,
+  onChange,
+}: {
+  isAdmin: boolean;
+  qrisUrl: string | null;
+  onChange: () => void;
+}) {
+  const token = useAuthStore((s) => s.token);
+  const [busy, setBusy] = useState(false);
+
+  const pickAndUpload = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Izin galeri', 'Izinkan akses galeri untuk pilih gambar QRIS.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    setBusy(true);
+    try {
+      const url = await uploadQris(result.assets[0].uri);
+      await apiSetQris(url);
+      onChange();
+      toast.success('QRIS pembayaran berhasil dipasang.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal mengunggah QRIS.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHead}>
+        <View style={styles.cardHeadText}>
+          <Text style={styles.rumahNama}>QRIS pembayaran</Text>
+          <Text style={styles.rumahAlamat}>
+            Anggota scan QRIS ini buat bayar denda.
+          </Text>
+        </View>
+      </View>
+
+      {qrisUrl && (
+        <ExpoImage
+          source={mediaSource(qrisUrl, token)}
+          style={styles.qrisPreview}
+          contentFit="contain"
+        />
+      )}
+
+      {isAdmin && (
+        <Pressable
+          onPress={() => void pickAndUpload()}
+          disabled={busy}
+          style={[styles.qrisUploadBtn, busy && styles.qrisUploadBtnDisabled]}
+        >
+          <Text style={styles.qrisUploadText}>
+            {busy
+              ? 'Mengunggah…'
+              : qrisUrl
+                ? 'Ganti QRIS'
+                : 'Upload QRIS'}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+async function uploadQris(uri: string): Promise<string> {
+  const ts = Date.now();
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    name: `qris_${ts}.jpg`,
+    type: 'image/jpeg',
+  } as unknown as Blob);
+  formData.append('folder', 'qris');
+  formData.append('path', `qris/${ts}.jpg`);
+
+  const response = await apiClient.post<{ url: string; key: string }>(
+    '/storage/upload',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data.url;
 }
 
 /* ================= Generate Jadwal (PJ) ================= */
@@ -736,7 +841,9 @@ function RoomsSection({
     return (
       <View>
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionHeadTitle}>Kelola ruangan</Text>
+          <Text style={styles.sectionHeadTitle}>
+            {isAdmin ? 'Kelola ruangan' : 'Ruangan & jenis piket'}
+          </Text>
         </View>
         <View style={styles.listCard}>
           <Text style={styles.loadingText}>Memuat…</Text>
@@ -749,15 +856,18 @@ function RoomsSection({
     <>
       <View>
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionHeadTitle}>Kelola ruangan</Text>
+          <Text style={styles.sectionHeadTitle}>
+            {isAdmin ? 'Kelola ruangan' : 'Ruangan & jenis piket'}
+          </Text>
           <Text style={styles.sectionHeadMeta}>
             {ruangan.length} ruangan · {totalJenis} jenis piket
           </Text>
         </View>
         <Text style={styles.sectionDesc}>
           Tiap ruangan punya jenis piketnya sendiri. Yang piket wajib ngerjain
-          semua ruangan — foto before, checklist, foto after. Denda flat{' '}
-          {formatCurrency(denda)} per submission, bukan per jenis.
+          semua ruangan — foto before, checklist, foto after. Denda dihitung
+          dari jenis piket yang nggak dikerjain: {formatCurrency(denda)} dibagi
+          rata per jenis, bukan flat per submission.
         </Text>
 
         <View style={styles.roomList}>
@@ -1241,6 +1351,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.inkMuted,
   },
+  qrisUploadBtn: {
+    backgroundColor: colors.pine,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  qrisUploadBtnDisabled: { backgroundColor: colors.disabledBg },
+  qrisUploadText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
+  qrisPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: radius.lg,
+    backgroundColor: colors.paperDeep,
+  },
+
   costRow: {
     flexDirection: 'row',
     alignItems: 'center',

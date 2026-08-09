@@ -43,6 +43,7 @@ Tab **Swap** (`app/(tabs)/swap.tsx`). Component: `SwapRequestCard`.
 - Cannot swap off days (Selasa/Kamis).
 - Cannot swap to a day already scheduled by someone else.
 - No partial-room swap.
+- **Timezone (locked 2026-08-08):** `tanggal` is stored as `@db.Date` (Prisma persists UTC components). Calendar math uses UTC-midnight dates, resolves "today" by shifting +7h (WIB), and off-day check uses `getUTCDay()`. Same WIB/UTC rule as schedule.
 
 ## 7. Dependencies
 

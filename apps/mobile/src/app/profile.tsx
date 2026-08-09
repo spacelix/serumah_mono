@@ -341,14 +341,16 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {isAdmin && (
-          <MenuRow
-            title="Kelola rumah"
-            sub="Anggota, role, nominal wifi & sewa"
-            cta="Buka →"
-            onPress={() => router.push('/rumah/manage')}
-          />
-        )}
+        <MenuRow
+          title="Kelola rumah"
+          sub={
+            isAdmin
+              ? 'Anggota, role, nominal wifi & sewa'
+              : 'Lihat detail rumah, anggota, ruangan & jenis piket'
+          }
+          cta="Buka →"
+          onPress={() => router.push('/rumah/manage')}
+        />
 
         {pwOpen ? (
           <ChangePasswordCard

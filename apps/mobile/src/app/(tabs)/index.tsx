@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react-native';
+import { CalendarDays, TriangleAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import {
   useConfirmGalon,
@@ -380,6 +381,7 @@ function BillingSummary({ data }: { data: DashboardData }) {
 }
 
 function ScheduleList({ data }: { data: DashboardData }) {
+  const router = useRouter();
   const first = data.scheduleWeek[0]?.tanggal;
   const last = data.scheduleWeek[data.scheduleWeek.length - 1]?.tanggal;
   return (
@@ -393,16 +395,25 @@ function ScheduleList({ data }: { data: DashboardData }) {
         )}
       </View>
       {data.scheduleWeek.length === 0 ? (
-        <View style={styles.scheduleEmpty}>
-          <Text style={styles.scheduleEmptyTitle}>
-            Belum ada jadwal pekan ini
-          </Text>
-          <Text style={styles.scheduleEmptySub}>
-            {data.isAdmin
-              ? 'Klik banner di atas buat generate jadwal.'
-              : 'Tunggu PJ Kos membuat jadwal piket pekan ini.'}
-          </Text>
-        </View>
+        <EmptyState
+          icon={
+            <CalendarDays color={colors.inkSoft} size={22} strokeWidth={2} />
+          }
+          title="Belum ada jadwal pekan ini"
+          sub={
+            data.isAdmin
+              ? 'Generate jadwal buat ngisi sisa pekan ini — pekan depannya otomatis.'
+              : 'Tunggu PJ Kos membuat jadwal piket pekan ini.'
+          }
+          action={
+            data.isAdmin
+              ? {
+                  label: 'Generate Jadwal',
+                  onPress: () => router.push('/rumah/manage?scrollTo=generate'),
+                }
+              : undefined
+          }
+        />
       ) : (
         <View style={styles.scheduleList}>
           {data.scheduleWeek.map((row) => (
@@ -428,12 +439,37 @@ function ScheduleRowItem({ row }: { row: ScheduleRow }) {
     : liburSubtitle(isWeekendDay, row.dow);
 
   return (
-    <View style={[styles.scheduleRow, isLibur && styles.scheduleRowFree]}>
-      <View style={[styles.dateChip, isLibur && styles.dateChipFree]}>
-        <Text style={[styles.dow, isLibur && styles.dateChipDim]}>
+    <View
+      style={[
+        styles.scheduleRow,
+        today && styles.scheduleRowToday,
+        isLibur && styles.scheduleRowFree,
+      ]}
+    >
+      <View
+        style={[
+          styles.dateChip,
+          !today && !isLibur && styles.dateChipPlan,
+          !today && isLibur && styles.dateChipFree,
+          today && styles.dateChipToday,
+        ]}
+      >
+        <Text
+          style={[
+            styles.dow,
+            today && styles.dateChipTodayDim,
+            !today && isLibur && styles.dateChipDim,
+          ]}
+        >
           {dowShort(row.dow)}
         </Text>
-        <Text style={[styles.dateNum, isLibur && styles.dateChipDim]}>
+        <Text
+          style={[
+            styles.dateNum,
+            today && styles.dateChipTodayDim,
+            !today && isLibur && styles.dateChipDim,
+          ]}
+        >
           {formatDayNumber(row.tanggal)}
         </Text>
       </View>
@@ -503,6 +539,7 @@ function StatusPill({
         ? 'Weekend'
         : tag;
 
+  const isTodayPill = label === 'Hari ini';
   const freeBuild = isLibur || label === 'Libur';
 
   return (
@@ -512,12 +549,14 @@ function StatusPill({
         done && styles.tagDone,
         bolong && styles.tagBolong,
         freeBuild && styles.tagFree,
+        isTodayPill && styles.tagToday,
       ]}
     >
       <Text
         style={[
           styles.tagText,
-          (freeBuild || label === 'Hari ini') && styles.textMuted,
+          (freeBuild || isTodayPill) && styles.textMuted,
+          isTodayPill && styles.tagTextToday,
           done && styles.tagTextDone,
         ]}
       >
@@ -821,28 +860,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.inkSoft,
   },
-  scheduleEmpty: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderStyle: 'dashed',
-    borderRadius: radius.xl,
-    padding: 18,
-    alignItems: 'center',
-    gap: 5,
-  },
-  scheduleEmptyTitle: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 13,
-    color: colors.ink,
-  },
-  scheduleEmptySub: {
-    fontFamily: fontFamilies.body[400],
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.inkSoft,
-    textAlign: 'center',
-  },
   scheduleList: { gap: 8 },
   scheduleRow: {
     backgroundColor: colors.card,
@@ -856,6 +873,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   scheduleRowFree: { backgroundColor: colors.paperDeep },
+  scheduleRowToday: { borderColor: colors.mustardBorder },
   dateChip: {
     width: 40,
     height: 44,
@@ -865,6 +883,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 1,
   },
+  dateChipToday: { backgroundColor: colors.mustard },
+  dateChipTodayDim: { color: colors.mustardInkStrong },
+  dateChipPlan: { backgroundColor: colors.paperDeep },
   dateChipFree: { backgroundColor: 'transparent' },
   dateChipDim: { color: colors.inkMuted },
   dow: {
@@ -902,6 +923,7 @@ const styles = StyleSheet.create({
   tagFree: { borderStyle: 'dashed', borderColor: colors.lineDash },
   tagDone: { backgroundColor: colors.pineSoft, borderColor: 'transparent' },
   tagBolong: { backgroundColor: colors.brickSoft },
+  tagToday: { backgroundColor: colors.mustardSoft, borderColor: 'transparent' },
   tagText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 10,
@@ -909,5 +931,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.inkSoft,
   },
+  tagTextToday: { color: colors.mustardInk },
   tagTextDone: { color: colors.pineDeep },
 });

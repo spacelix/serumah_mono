@@ -11,6 +11,7 @@ export interface RoomDraft {
 interface PiketDraftState {
   drafts: Record<string, RoomDraft>;
   setPhoto: (ruanganId: string, slot: 'before' | 'after', uri: string) => void;
+  clearPhoto: (ruanganId: string, slot: 'before' | 'after') => void;
   toggleJenis: (ruanganId: string, jenisId: string) => void;
   setUploading: (ruanganId: string, uploading: boolean) => void;
   reset: () => void;
@@ -34,6 +35,20 @@ export const usePiketDraft = create<PiketDraftState>((set) => ({
         },
       },
     })),
+  clearPhoto: (ruanganId, slot) =>
+    set((s) => {
+      const draft = s.drafts[ruanganId];
+      if (!draft) return {};
+      return {
+        drafts: {
+          ...s.drafts,
+          [ruanganId]: {
+            ...draft,
+            [slot === 'before' ? 'fotoBefore' : 'fotoAfter']: null,
+          },
+        },
+      };
+    }),
   toggleJenis: (ruanganId, jenisId) =>
     set((s) => {
       const draft = s.drafts[ruanganId] ?? {

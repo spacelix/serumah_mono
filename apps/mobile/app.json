@@ -2,14 +2,15 @@
   "expo": {
     "name": "Serumah",
     "slug": "serumah",
-    "version": "1.6.10",
+    "version": "1.7.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "serumah",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.serumah.serumah",
-      "versionCode": 9,
+      "versionCode": 11,
+      "backgroundColor": "#EFEAE0",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.RECORD_AUDIO"
@@ -34,6 +35,12 @@
           "backgroundColor": "#3F6F61",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 118
+        }
+      ],
+      [
+        "expo-system-ui",
+        {
+          "backgroundColor": "#EFEAE0"
         }
       ],
       "expo-secure-store",

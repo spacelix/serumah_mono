@@ -176,6 +176,7 @@ model PiketSubmission {
   anggotaId   String    @map("anggota_id") @db.Uuid
   status      String    @default("menunggu") // 'menunggu' | 'approved' | 'rejected' | 'bolong'
   submittedAt DateTime? @map("submitted_at") @db.Timestamptz
+  reviewerId  String?   @map("reviewer_id") @db.Uuid // assigned reviewer (PJ for member subs; round-robin member for PJ subs)
 
   jadwal    Jadwal         @relation(fields: [jadwalId], references: [id])
   anggota   Anggota        @relation(fields: [anggotaId], references: [id])

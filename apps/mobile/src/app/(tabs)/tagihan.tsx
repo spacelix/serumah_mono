@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Plus, ReceiptText } from 'lucide-react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { Camera, Plus, QrCode, ReceiptText, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,9 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { MonthPicker } from '@/components/tagihan/month-picker';
 import { Stamp } from '@/components/ui/stamp';
-import { formatCurrency, formatShortDate } from '@/lib/format';
+import { formatCurrency, formatShortDate, formatWeekdayDate } from '@/lib/format';
+import { mediaSource } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   apiApproveDenda,
   apiConfirmIuranLunas,
@@ -25,6 +30,7 @@ import {
   apiUploadBuktiTotal,
   apiUploadDendaBukti,
   currentMonth,
+  formatMonthLabel,
   tagihanKeys,
   useCurrentMember,
   useTagihanQueries,
@@ -51,8 +57,10 @@ export default function TagihanScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Tagihan" />
-      <MonthPicker value={bulan} onChange={setBulan} />
+      <ScreenHeader
+        title="Tagihan"
+        kicker={`VERIFIKASI SOSIAL · ${formatMonthLabel(bulan)}`}
+      />
       <View style={styles.segments}>
         {SEGMENTS.map((s) => (
           <Pressable
@@ -71,6 +79,7 @@ export default function TagihanScreen() {
           </Pressable>
         ))}
       </View>
+      <MonthPicker value={bulan} onChange={setBulan} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -90,6 +99,7 @@ function DendaView({ bulan }: { bulan: string }) {
   const my = useCurrentMember();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Denda | null>(null);
 
   if (queries.denda.isLoading) return <Loading />;
   const data = queries.denda.data;
@@ -115,6 +125,7 @@ function DendaView({ bulan }: { bulan: string }) {
     try {
       const url = await uploadProof('denda-bukti', uri, d.id);
       await apiUploadDendaBukti(d.id, url);
+      setSelected(null);
       revalidate();
     } catch (e) {
       Alert.alert('Gagal', errMsg(e));
@@ -150,36 +161,40 @@ function DendaView({ bulan }: { bulan: string }) {
   return (
     <View style={styles.section}>
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryKicker}>TAGIHAN DENDA</Text>
-        <Text
-          style={[
-            styles.summaryAmount,
-            unpaid.length === 0 && styles.amountPaid,
-          ]}
-        >
-          {unpaid.length === 0 ? 'Lunas' : formatCurrency(totalUnpaid)}
-        </Text>
-        <Text style={styles.summarySub}>
-          {unpaid.length} tagihan belum bayar
+        <View style={styles.summaryLeft}>
+          <Text style={styles.summaryKicker}>Belum lunas</Text>
+          <Text style={styles.summarySub}>
+            {unpaid.length} tagihan aktif
+          </Text>
+        </View>
+        <Text style={styles.summaryAmount}>
+          {formatCurrency(totalUnpaid)}
         </Text>
       </View>
 
       {myDenda.length === 0 && pending.length === 0 ? (
-        <Empty text={`Tidak ada denda untuk ${bulan}`} />
+        <EmptyState
+          icon={
+            <ReceiptText color={colors.inkSoft} size={22} strokeWidth={2} />
+          }
+          title={`Tidak ada denda untuk ${bulan}`}
+          sub="Piket yang nggak dikerjain atau ditolak otomatis jadi tagihan denda di sini."
+        />
       ) : (
         <>
           {myDenda.map((d) => (
             <BillView
               key={d.id}
               denda={d}
-              qrisUrl={data.qrisUrl}
-              busy={busy === d.id}
-              onUpload={() => void onUpload(d)}
+              onPress={() => setSelected(d)}
             />
           ))}
           {isPj && pending.length > 0 && (
-            <View style={styles.approvalSection}>
-              <Text style={styles.approvalTitle}>Perlu konfirmasi dari lo</Text>
+            <View style={styles.claimSection}>
+              <View style={styles.claimHeader}>
+                <Text style={styles.claimTitle}>Konfirmasi bayar</Text>
+                <Text style={styles.claimCount}>{pending.length} nunggu</Text>
+              </View>
               {pending.map((d) => (
                 <ApprovalCard
                   key={d.id}
@@ -195,63 +210,205 @@ function DendaView({ bulan }: { bulan: string }) {
           )}
         </>
       )}
+      <DendaDetailSheet
+        denda={selected}
+        qrisUrl={data.qrisUrl}
+        busy={selected != null && busy === selected.id}
+        onClose={() => setSelected(null)}
+        onUpload={() => {
+          if (selected) void onUpload(selected);
+        }}
+      />
     </View>
   );
 }
 
 function BillView({
   denda,
-  qrisUrl,
-  busy,
-  onUpload,
+  onPress,
 }: {
   denda: Denda;
-  qrisUrl: string | null;
-  busy: boolean;
-  onUpload: () => void;
+  onPress?: () => void;
 }) {
-  const [showQris, setShowQris] = useState(false);
   return (
-    <View style={styles.billCard}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={styles.billCard}
+    >
       <View style={styles.billTop}>
         <View style={styles.billTexts}>
           <Text style={styles.billReason}>Denda piket</Text>
-          <Text style={styles.billDate}>
-            {formatShortDate(denda.createdAt)}
-          </Text>
+          <Text style={styles.billDate}>{dendaNote(denda)}</Text>
         </View>
-        <Stamp status={denda.status} />
+        <Stamp
+          status={denda.status}
+          animate={denda.status === 'lunas' || denda.origin === 'rejected'}
+        />
       </View>
-      <Text style={styles.billAmount}>{formatCurrency(denda.nominal)}</Text>
-
-      {denda.status === 'belum_bayar' && (
-        <View style={styles.billActions}>
-          <Pressable
-            onPress={() => setShowQris((v) => !v)}
-            disabled={!qrisUrl}
-            style={styles.qrisBtn}
-          >
-            <Text style={styles.qrisBtnText}>Show QRIS</Text>
-          </Pressable>
-          <Pressable onPress={onUpload} disabled={busy} style={styles.payBtn}>
-            <Text style={styles.payBtnText}>
-              {busy ? 'Mengunggah…' : 'Upload Bukti'}
-            </Text>
-          </Pressable>
-        </View>
-      )}
+      <Text style={[styles.billAmount, denda.status === 'lunas' && styles.amountPaid]}>
+        {formatCurrency(denda.nominal)}
+      </Text>
       {denda.status === 'menunggu_konfirmasi' && (
         <Text style={styles.waitNote}>nunggu konfirmasi PJ</Text>
       )}
-      {showQris && qrisUrl != null && (
-        <Pressable
-          onPress={() => showImage(qrisUrl)}
-          style={styles.qrisPreview}
-        >
-          <Text style={styles.qrisPreviewText}>Lihat QRIS pembayaran</Text>
-        </Pressable>
+      {onPress != null && denda.status === 'belum_bayar' && (
+        <View style={styles.billHintRow}>
+          <QrCode color={colors.inkSoft} size={13} strokeWidth={2.2} />
+          <Text style={styles.billHintText}>
+            Ketuk buat lihat penyebab & bayar QRIS
+          </Text>
+        </View>
       )}
-    </View>
+    </Pressable>
+  );
+}
+
+/** Bottom sheet: penyebab denda per ruangan + QRIS di atas + tombol upload bukti. */
+function DendaDetailSheet({
+  denda,
+  qrisUrl,
+  busy,
+  onClose,
+  onUpload,
+}: {
+  denda: Denda | null;
+  qrisUrl: string | null;
+  busy: boolean;
+  onClose: () => void;
+  onUpload: () => void;
+}) {
+  const token = useAuthStore((s) => s.token);
+  const qrisSource = mediaSource(qrisUrl, token);
+
+  return (
+    <Modal
+      visible={denda != null}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.sheetBackdrop}>
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          {denda && (
+            <>
+              <View style={styles.sheetHead}>
+                <View style={styles.sheetHeadText}>
+                  <Text style={styles.sheetTitle}>Denda piket</Text>
+                  <Text style={styles.sheetMeta}>{dendaNote(denda)}</Text>
+                </View>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={8}
+                  style={styles.sheetClose}
+                >
+                  <X color={colors.inkSoft} size={18} strokeWidth={2.4} />
+                </Pressable>
+              </View>
+
+              <Text style={styles.sheetAmount}>
+                {formatCurrency(denda.nominal)}
+              </Text>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={styles.sheetScroll}
+                contentContainerStyle={styles.sheetScrollContent}
+              >
+                {denda.origin === 'auto' ? (
+                  <View style={styles.causeCard}>
+                    <Text style={styles.causeTitle}>Piket nggak dikerjain</Text>
+                    <Text style={styles.causeSub}>
+                      Nggak ada submission piket, jadi auto-denda saat deadline
+                      20:00.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.causeCard}>
+                    <Text style={styles.causeTitle}>
+                      {denda.origin === 'rejected'
+                        ? `Piket ditolak${denda.reviewerNama ? ` ${denda.reviewerNama}` : ''}`
+                        : `Piket di-approve · sisa ${denda.reviewerNama ?? 'PJ'}`}
+                    </Text>
+                    <Text style={styles.causeSub}>
+                      Denda dihitung dari jenis piket yang nggak dikerjain
+                      (dibagi rata per jenis).
+                    </Text>
+                  </View>
+                )}
+
+                {denda.detail.map((room) => (
+                  <View key={room.ruanganNama} style={styles.roomCard}>
+                    <View style={styles.roomHead}>
+                      <Text style={styles.roomName}>{room.ruanganNama}</Text>
+                      <Text style={styles.roomCount}>
+                        {room.jenisSelesai.length}/{room.jenisList.length}
+                      </Text>
+                    </View>
+                    <View style={styles.jenisChips}>
+                      {room.jenisList.map((j) => {
+                        const done = room.jenisSelesai.includes(j);
+                        return (
+                          <View
+                            key={j}
+                            style={[
+                              styles.jenisChip,
+                              !done && styles.jenisChipMissed,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.jenisChipText,
+                                !done && styles.jenisChipTextMissed,
+                              ]}
+                            >
+                              {done ? '✓' : '×'} {j}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+
+                {denda.status === 'belum_bayar' && qrisSource && (
+                  <View style={styles.sheetQrisBlock}>
+                    <Text style={styles.sheetSectionLabel}>
+                      Bayar via QRIS
+                    </Text>
+                    <ExpoImage
+                      source={qrisSource}
+                      style={styles.sheetQris}
+                      contentFit="contain"
+                    />
+                    <Text style={styles.sheetQrisHint}>
+                      Scan QRIS ini buat transfer, lalu pilih bukti transfer
+                      untuk diverifikasi PJ.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+
+              {denda.status === 'belum_bayar' && (
+                <View style={styles.sheetFooter}>
+                  <Pressable
+                    onPress={onUpload}
+                    disabled={busy}
+                    style={[styles.uploadBtn, busy && styles.uploadBtnDisabled]}
+                  >
+                    <Camera color={colors.paper} size={16} strokeWidth={2.2} />
+                    <Text style={styles.uploadBtnText}>
+                      {busy ? 'Mengunggah…' : 'Upload Bukti Bayar'}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -271,22 +428,37 @@ function ApprovalCard({
   onReject: () => void;
 }) {
   return (
-    <View style={styles.approvalCard}>
-      <Pressable onPress={() => bukti && showImage(bukti)}>
-        <Text style={styles.approvalClaim}>
-          {name} bayar {formatCurrency(nominal)}
-        </Text>
-      </Pressable>
-      <View style={styles.approvalActions}>
-        <Pressable onPress={onReject} disabled={busy} style={styles.rejectBtn}>
-          <Text style={styles.rejectText}>Reject</Text>
+    <View style={styles.claimCard}>
+      <View style={styles.claimCardTop}>
+        <Pressable
+          onPress={() => bukti && showImage(bukti)}
+          style={styles.claimTexts}
+        >
+          <Text style={styles.claimName}>{name} udah bayar</Text>
+          <Text style={styles.claimNote}>
+            {bukti
+              ? 'Bayar via QRIS · klik buat lihat bukti transfer'
+              : 'Tanpa bukti'}
+          </Text>
         </Pressable>
+        <Text style={styles.claimAmount}>{formatCurrency(nominal)}</Text>
+      </View>
+      <View style={styles.claimActions}>
         <Pressable
           onPress={onApprove}
           disabled={busy}
-          style={styles.approveBtn}
+          style={styles.claimApproveBtn}
         >
-          <Text style={styles.approveText}>{busy ? '…' : 'Approve'}</Text>
+          <Text style={styles.claimApproveText}>
+            {busy ? '…' : 'Approve'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={onReject}
+          disabled={busy}
+          style={styles.claimRejectBtn}
+        >
+          <Text style={styles.claimRejectText}>Reject</Text>
         </Pressable>
       </View>
     </View>
@@ -492,11 +664,10 @@ function ListrikView({ bulan }: { bulan: string }) {
             style={[
               styles.progressFill,
               {
-                width: `${
-                  data.total > 0
-                    ? Math.round((data.myBought / data.total) * 100)
-                    : 0
-                }%`,
+                width: `${data.total > 0
+                  ? Math.round((data.myBought / data.total) * 100)
+                  : 0
+                  }%`,
               },
             ]}
           />
@@ -573,7 +744,15 @@ function ListrikView({ bulan }: { bulan: string }) {
         <ListrikRecordCard key={r.id} record={r} />
       ))}
       {data.records.length === 0 && !showForm && (
-        <Empty text="Belum ada beli listrik bulan ini" />
+        <EmptyState
+          icon={<Plus color={colors.inkSoft} size={22} strokeWidth={2} />}
+          title="Belum ada beli listrik bulan ini"
+          sub="Catat pembelian token listrik tambahan biar tagihannya keitung rata."
+          action={{
+            label: 'Tambah Record',
+            onPress: () => setShowForm(true),
+          }}
+        />
       )}
     </View>
   );
@@ -604,17 +783,27 @@ function ListrikRecordCard({ record }: { record: ListrikRecord }) {
 
 /* ------------------------------ Shared ------------------------------ */
 
+/** "Rab, 22 Agu · asal denda" — the meta line below the bill reason. */
+function dendaNote(d: Denda): string {
+  const date = formatWeekdayDate(d.createdAt);
+  if (d.origin === 'partial') {
+    return `${date} · direview ${d.reviewerNama ?? 'PJ'}`;
+  }
+  if (d.origin === 'rejected') return `${date} · direject ${d.reviewerNama ?? 'PJ'}`;
+  return `${date} · auto-denda deadline 20:00`;
+}
+
 async function capturePhoto(): Promise<string | null> {
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  const permission =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     Alert.alert(
-      'Izin kamera',
-      'Izinkan kamera untuk memotret bukti pembayaran.',
+      'Izin galeri',
+      'Izinkan akses galeri untuk memilih bukti pembayaran.',
     );
     return null;
   }
-  const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: true,
+  const result = await ImagePicker.launchImageLibraryAsync({
     quality: 0.7,
   });
   if (result.canceled || !result.assets[0]) return null;
@@ -651,14 +840,6 @@ function Loading() {
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyText}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   segments: {
@@ -666,45 +847,56 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 8,
     backgroundColor: colors.paperDeep,
-    borderRadius: radius['2xl'],
+    borderRadius: 13,
     padding: 3,
     gap: 4,
   },
   seg: {
     flex: 1,
-    borderRadius: radius['xl'],
+    borderRadius: 10,
     paddingVertical: 9,
     alignItems: 'center',
   },
-  segActive: { backgroundColor: colors.card },
+  segActive: { backgroundColor: colors.ink },
   segText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12,
     color: colors.inkSoft,
   },
-  segTextActive: { color: colors.ink },
-  content: { paddingHorizontal: 20, paddingBottom: 108, gap: 12 },
+  segTextActive: { color: colors.paper },
+  content: { paddingHorizontal: 20, paddingTop: 13, paddingBottom: 108, gap: 12 },
   section: { gap: 12 },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
-  empty: { paddingVertical: 48, alignItems: 'center' },
-  emptyText: { ...type.body, color: colors.inkMuted, textAlign: 'center' },
 
   summaryCard: {
-    backgroundColor: colors.brickSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
     borderRadius: radius['2xl'],
-    padding: 16,
-    gap: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
-  summaryKicker: { ...type.kicker, fontSize: 9, color: colors.brickDeep },
+  summaryLeft: { gap: 2, flex: 1 },
+  summaryKicker: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 10.5,
+    letterSpacing: 1.05,
+    textTransform: 'uppercase',
+    color: colors.inkSoft,
+  },
+  summarySub: { ...type.body, fontSize: 11, color: colors.inkSoft },
   summaryAmount: {
     fontFamily: fontFamilies.mono[700],
-    fontSize: 26,
+    fontSize: 24,
     letterSpacing: -0.5,
     color: colors.brick,
   },
   amountPaid: { color: colors.pineDeep },
-  summarySub: { ...type.body, fontSize: 11, color: colors.brickDeep },
 
   billCard: {
     backgroundColor: colors.card,
@@ -712,22 +904,23 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: radius['2xl'],
     padding: 14,
-    gap: 10,
+    gap: 11,
   },
   billTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
   },
-  billTexts: { gap: 2 },
+  billTexts: { gap: 3, flex: 1 },
   billReason: {
     fontFamily: fontFamilies.body[600],
-    fontSize: 13,
+    fontSize: 14,
     color: colors.ink,
   },
   billDate: {
     fontFamily: fontFamilies.body[400],
-    fontSize: 10.5,
+    fontSize: 11,
     color: colors.inkSoft,
   },
   billAmount: {
@@ -736,49 +929,177 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     color: colors.brick,
   },
-  billActions: { flexDirection: 'row', gap: 10 },
-  qrisBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 11,
+  billHintRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.paper,
-  },
-  qrisBtnText: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12,
-    color: colors.ink,
-  },
-  payBtn: {
-    flex: 1,
-    backgroundColor: colors.pine,
+    gap: 6,
+    backgroundColor: colors.paperDeep,
     borderRadius: radius.md,
-    paddingVertical: 11,
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  payBtnText: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12,
-    color: colors.paper,
+  billHintText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11,
+    color: colors.inkSoft,
+    flex: 1,
   },
   waitNote: {
     fontFamily: fontFamilies.body[400],
     fontSize: 11,
     color: colors.mustardInk,
   },
-  qrisPreview: {
+
+  /* Bottom sheet: denda detail */
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 42, 36, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: radius['3xl'],
+    borderTopRightRadius: radius['3xl'],
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
+    maxHeight: '85%',
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.paperDeep,
+    marginBottom: 14,
+  },
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  sheetHeadText: { gap: 3, flex: 1 },
+  sheetTitle: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 14,
+    color: colors.ink,
+  },
+  sheetMeta: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
+  sheetClose: {
+    padding: 4,
+  },
+  sheetAmount: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 28,
+    letterSpacing: -0.5,
+    color: colors.brick,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  sheetScroll: { flexGrow: 0 },
+  sheetScrollContent: { gap: 10, paddingBottom: 8 },
+
+  causeCard: {
+    backgroundColor: colors.paperDeep,
+    borderRadius: radius.lg,
+    padding: 13,
+    gap: 3,
+  },
+  causeTitle: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  causeSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.inkSoft,
+  },
+
+  roomCard: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
+    borderRadius: radius.lg,
+    padding: 13,
+    gap: 9,
   },
-  qrisPreviewText: {
+  roomHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  roomName: {
     fontFamily: fontFamilies.body[600],
-    fontSize: 11.5,
+    fontSize: 12.5,
     color: colors.ink,
+    flex: 1,
+  },
+  roomCount: {
+    fontFamily: fontFamilies.mono[600],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
+  jenisChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  jenisChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.pineSoft,
+    borderRadius: radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+  },
+  jenisChipMissed: { backgroundColor: colors.brickSoft },
+  jenisChipText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 10.5,
+    color: colors.pineDeep,
+  },
+  jenisChipTextMissed: { color: colors.brick },
+
+  sheetQrisBlock: { gap: 7, marginTop: 2 },
+  sheetSectionLabel: { ...type.kicker, fontSize: 9.5, color: colors.inkSoft },
+  sheetQris: {
+    width: '100%',
+    height: 170,
+    borderRadius: radius.lg,
+    backgroundColor: colors.paperDeep,
+  },
+  sheetQrisHint: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.inkSoft,
+  },
+
+  sheetFooter: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: 4,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.pine,
+    borderRadius: radius.xl,
+    paddingVertical: 14,
+  },
+  uploadBtnDisabled: { backgroundColor: colors.disabledBg },
+  uploadBtnText: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 13,
+    color: colors.paper,
   },
 
   approvalSection: {
@@ -786,6 +1107,82 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     padding: 14,
     gap: 10,
+  },
+  claimSection: { gap: 10 },
+  claimHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingTop: 6,
+    paddingHorizontal: 2,
+  },
+  claimTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13,
+    color: colors.ink,
+  },
+  claimCount: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 10,
+    color: colors.inkSoft,
+  },
+  claimCard: {
+    backgroundColor: colors.mustardSoft,
+    borderWidth: 1,
+    borderColor: colors.mustardBorder,
+    borderRadius: radius['2xl'],
+    padding: 14,
+    gap: 11,
+  },
+  claimCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  claimTexts: { flex: 1, flexDirection: 'column', gap: 3 },
+  claimName: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13.5,
+    color: colors.ink,
+  },
+  claimNote: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.mustardText,
+  },
+  claimAmount: {
+    flexShrink: 0,
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 15,
+    color: colors.ink,
+  },
+  claimActions: { flexDirection: 'row', gap: 8 },
+  claimApproveBtn: {
+    flex: 1,
+    backgroundColor: colors.pine,
+    borderRadius: 12,
+    padding: 11,
+    alignItems: 'center',
+  },
+  claimApproveText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
+  claimRejectBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.brick,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    padding: 11,
+    alignItems: 'center',
+  },
+  claimRejectText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.brick,
   },
   approvalHeaderRow: {
     flexDirection: 'row',
@@ -808,30 +1205,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.mustardInkStrong,
   },
-  approvalCard: {
+  pendingIuranRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 12,
     gap: 10,
-  },
-  approvalClaim: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12.5,
-    color: colors.ink,
-  },
-  approvalActions: { flexDirection: 'row', gap: 10 },
-  rejectBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  rejectText: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12,
-    color: colors.brick,
   },
   approveBtn: {
     flex: 1,
@@ -844,15 +1225,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body[600],
     fontSize: 12,
     color: colors.paper,
-  },
-  pendingIuranRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: 12,
-    gap: 10,
   },
   pendingIuranText: {
     flex: 1,
@@ -914,17 +1286,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.mono[600],
     fontSize: 13,
     color: colors.ink,
-  },
-  uploadBtn: {
-    backgroundColor: colors.pine,
-    borderRadius: radius.xl,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  uploadBtnText: {
-    fontFamily: fontFamilies.body[700],
-    fontSize: 13,
-    color: colors.paper,
   },
 
   listrikSummary: {

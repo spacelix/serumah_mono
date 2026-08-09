@@ -37,7 +37,7 @@ Screen: `app/profile.tsx` (from the avatar chip on Beranda).
 - Change password: inline "Ganti password" card (same rise-in/replace pattern), requires old password.
 - Rumah info: kos name + address (read-only card).
 - **"Simpan"** button.
-- **"Kelola Kos"** link → Rumah Management (admin only).
+- **"Kelola Kos"** link → Rumah Management. **All members** — admin edits, non-admin view-only (detail rumah, anggota, ruangan & jenis piket).
 - **Logout** (inkSoft text button).
 
 ## 6. Constraints / Prohibited

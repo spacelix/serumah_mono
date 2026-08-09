@@ -93,6 +93,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{ headerShown: false, tabBarShowLabel: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
+      // Keep tab screens mounted when a sub-screen (profile/rumah) is pushed
+      // on top, so popping back doesn't repaint a blank frame.
+      detachInactiveScreens={false}
     >
       <Tabs.Screen name="index" options={{ title: 'Beranda' }} />
       <Tabs.Screen name="piket" options={{ title: 'Piket' }} />

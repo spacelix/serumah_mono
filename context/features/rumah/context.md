@@ -49,10 +49,12 @@ Locked decisions:
 
 Screen: `app/rumah/manage.tsx` (+ room management inline, not a separate page).
 
-- **"Kelola Rumah" card** (ONE card): header name (Space Grotesk 600 15px) + address + Edit button; invite code box (bg paper radius 13) + **"Copy kode"** (Clipboard); **Biaya Rumah** section (4 rows bg paper radius 10 — Biaya Kos, WiFi, Listrik Wajib mono 12px + **Denda Piket** "Rp X / submission" mono brick); **Rekening Kos** section (mustardSoft box radius 10 — "Bank · Nomor" mono 700 13px + "a.n. Nama").
+- **"Kelola Rumah" card** (ONE card): header name (Space Grotesk 600 15px) + address + Edit button; invite code box (bg paper radius 13) + **"Copy kode"** (Clipboard) — **invite row admin-only** (hidden for non-admin); **Biaya Rumah** section (4 rows bg paper radius 10 — Biaya Kos, WiFi, Listrik Wajib mono 12px + **Denda Piket** "Rp X" mono brick); **Rekening Kos** section (mustardSoft box radius 10 — "Bank · Nomor" mono 700 13px + "a.n. Nama").
+- **QRIS pembayaran section** (below Rumah card): thumbnail `rumah.qrisUrl` (admin or not); **"Upload QRIS" / "Ganti QRIS"** button (admin only, kamera → `uploadProof('qris')` → `PUT /rumah/qris`). Non-admin melihat QRIS (buat bayar denda) tanpa tombol.
 - **Member list**: 36px avatar circle + name + role pill + remove icon (brick) admin only.
-- **Kelola Ruangan** (below member list): per-room card — up/down arrows (wire reorder), name (inline edit), jenis chips, inline add-jenis input, **"Tambah Ruangan"** button. Non-admin read-only.
-- **Edit form**: cost inputs (currency format), denda amount, rekening (bank/number/name), QRIS upload.
+- **Ruangan & Jenis Piket** (below member list): per-room card — up/down arrows (wire reorder), name (inline edit), jenis chips, inline add-jenis input, **"Tambah Ruangan"** button. **Admin-only for edits; non-admin view-only** (section title becomes "Ruangan & jenis piket", no add/rename/reorder/remove).
+- **Edit form**: cost inputs (currency format), denda amount, rekening (bank/number/name), QRIS upload (admin only).
+- **Access**: screen reachable from Profile for ALL members (`GET /rumah/me` + `GET /ruangan` are member-open). Non-admin sees detail + members + rooms/jenis read-only.
 
 ## 6. Constraints / Prohibited
 

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
@@ -64,20 +65,62 @@ function labelOf(status: string): string {
   }
 }
 
-export function Stamp({ status }: { status: string }) {
+export function Stamp({ status, animate }: { status: string; animate?: boolean }) {
   const key = statusKey(status);
   const s = STATUS_STYLE[key];
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
+  const stamp = useRef(new Animated.Value(animate ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (!animate) return;
+    // stampIn keyframes: 0% (opacity 0, rotate -14°, scale 1.6) → 60%
+    // (opacity 1, rotate -4°, scale .96) → 100% (rotate -4°, scale 1).
+    Animated.sequence([
+      Animated.timing(stamp, {
+        toValue: 0.6,
+        duration: 252,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(stamp, {
+        toValue: 1,
+        duration: 168,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [animate, stamp]);
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.stamp,
         { backgroundColor: s.bg, borderColor: s.border },
         dashed && styles.dashed,
+        {
+          opacity: stamp.interpolate({
+            inputRange: [0, 0.6, 1],
+            outputRange: [0, 1, 1],
+          }),
+          transform: [
+            {
+              rotate: stamp.interpolate({
+                inputRange: [0, 0.6, 1],
+                outputRange: ['-14deg', '-4deg', '-4deg'],
+              }),
+            },
+            {
+              scale: stamp.interpolate({
+                inputRange: [0, 0.6, 1],
+                outputRange: [1.6, 0.96, 1],
+              }),
+            },
+          ],
+        },
       ]}
     >
       <Text style={[styles.text, { color: s.color }]}>{labelOf(status)}</Text>
-    </View>
+    </Animated.View>
   );
 }
 

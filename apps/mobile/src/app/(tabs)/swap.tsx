@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Stamp } from '@/components/ui/stamp';
 import { formatShortDate } from '@/lib/format';
 import {
@@ -55,7 +56,17 @@ export default function SwapScreen() {
 
             <Section title="DIAJUKAN KE LO">
               {data.incoming.length === 0 ? (
-                <Empty text="Tidak ada permintaan swap masuk" />
+                <EmptyState
+                  icon={
+                    <ArrowLeftRight
+                      color={colors.inkSoft}
+                      size={22}
+                      strokeWidth={2}
+                    />
+                  }
+                  title="Tidak ada permintaan swap masuk"
+                  sub="Kalau ada yang mau tukar jadwal sama lo, bakal muncul di sini."
+                />
               ) : (
                 data.incoming.map((s) => <IncomingCard key={s.id} swap={s} />)
               )}
@@ -63,7 +74,17 @@ export default function SwapScreen() {
 
             <Section title="SWAP MILIK LO">
               {data.mine.length === 0 ? (
-                <Empty text="Lo belum punya riwayat swap" />
+                <EmptyState
+                  icon={
+                    <CalendarDays
+                      color={colors.inkSoft}
+                      size={22}
+                      strokeWidth={2}
+                    />
+                  }
+                  title="Lo belum punya riwayat swap"
+                  sub="Ajukan swap buat nuker jadwal piket sama anggota lain."
+                />
               ) : (
                 data.mine.map((s) => <MineCard key={s.id} swap={s} />)
               )}
@@ -276,14 +297,6 @@ function SwapForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyText}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
   content: {
@@ -296,8 +309,6 @@ const styles = StyleSheet.create({
   loadingText: { ...type.body, color: colors.inkSoft },
   section: { gap: 8 },
   sectionTitle: { ...type.kicker, fontSize: 9.5, color: colors.inkMuted },
-  empty: { paddingVertical: 32, alignItems: 'center' },
-  emptyText: { ...type.body, color: colors.inkMuted, textAlign: 'center' },
 
   ctaCard: {
     flexDirection: 'row',

@@ -1,51 +1,52 @@
-# Memory — Serumah: log viewer, timezone fix, weekend generate, galon widget, bottom nav (2026-08-08)
+# Memory — Serumah: Piket tab (proportional fine, reviewer auto-assign), v1.7.0 (2026-08-09)
 
-Last updated: 2026-08-08 (session end)
+Last updated: 2026-08-09 (session end)
 
 ## What was built
 
-**Log Viewer & Stats (from prior session, committed):** global `LoggerInterceptor` → Redis `log:buffer` → BullMQ 5-min flush → `log_entries` table; `/api/admin` HTML page (stats + logs), fully public. Redis read-cache (`CacheService`) on dashboard/profile. Prettier root config (`singleQuote`, `.prettierignore`). (Commits `5ac23ee`..`00ba4ba`, `77ba8f8` review fixes.)
-
-**This session (commits `70e5101`, `571f551`, `6a666bf`):**
-- **Timezone fix (CRITICAL, schedule/dashboard):** Prisma stores `@db.Date` as **UTC** date strings. All date helpers in `schedule.service.ts` + `dashboard.service.ts` now build UTC-midnight Dates (`Date.UTC(...)`), resolve "today" by shifting +7h (WIB offset) before reading UTC components, and use `getUTCDay()/getUTC*`. `assertNotFrozen` (Fri 20:00 WIB) + fine `deadline` (20:00 WIB) are explicit UTC+7. This fixed the bug where the PJ banner + Generate button showed though the schedule existed (dates were shifted a day on WIB/UTC-mismatched servers).
-- **Weekend generate on Di kos (locked):** `setWeekendStatus` with `di_kos` now immediately calls `ensureWeekend` for that weekend day — UI shows who piket right away, no need to wait for freeze.
-- **Weekday exemption (locked):** members holding a weekend Jadwal that week are excluded from weekday round-robin that same week (`ensureWeekday` filters via `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows; `generateRestOfWeek` does weekend first then weekday).
-- **Safe area (mobile):** `welcome.tsx` root `View` → `SafeAreaView edges={['bottom']}`; splash `version` bottom uses `max(insets.bottom, 12)+26` — fixes content hidden behind Android 3-button nav.
-- **Beranda dialogs:** `Alert.alert` → `ConfirmDialog` (single mode) for "Status dibekukan" (WeekendCard) and galon "Gagal". Removed duplicate frozen handling in `WeekendDayRow`.
-- **Galon widget redesign (per Serumah.html):** conditional button — `isMine` → "Sudah Beli"; else bell/nudge icon (36×36) + hint "Galon habis? colek dia biar segera beli" → after tap "Notif sudah dikirim ke X" (local state, no backend). Green chip "Tercatat. Giliran maju ke X · notif terkirim." (bg `pineSoft`) — **full width** (was `alignSelf:'flex-start'`, fixed to `width:'100%'`).
-- **Bottom nav gap fix (UNCOMMITTED, `_layout.tsx`):** `paddingBottom: insets.bottom + 22` → `+ 8`. insets.bottom already = Android nav bar height (3-button ≈48dp), the +22 doubled the gap. Change made but **not yet committed/verified**.
+**Piket tab — `app/(tabs)/piket.tsx`** (commits `54edb5e`..`fcd9fcc`, all pushed, tag `v1.7.0`):
+- **"Piket gw" | "Verifikasi" segmented control** (always visible, TBC-4), dynamic kicker (`formatWeekdayDate + " · deadline 20:00"`), rooms progress header.
+- **Collapsible room cards** (auto-collapse on complete, `LayoutAnimation` + Animated fade), badge states: `paperDeep` (editing) / `pine`+check (complete) / `brick`+X (submitted but not worked/partial).
+- **Proportional fine (locked 2026-08-09):** `remainingDenda = nominalDenda × unworked/totalJenis`. Partial submit: room with zero checked jenis = "not worked" (no photos); ≥1 checked = both photos required. UI validates per-room before send (custom `ConfirmDialog` list).
+- **Post-submit read-only** view from `existingSubmission.proofs` (photos via `mediaSource`+token; empty slots = `textureA/B` stripes + "foto tidak terpasang · karena ga dikerjain"). Submission success card + "MENUNGGU VERIFIKASI" stamp (`olive` dashed, `stampIn` 0.42s: -14° scale 1.6 → -4° .96 → -4° 1).
+- **Reviewer auto-assign (locked):** `PiketSubmission.reviewerId` (migration `add_reviewer_to_piket_submissions` + `add_reviewer_relation`) — PJ reviews member submissions; PJ's own submission → round-robin member reviewer. Approve/reject validated by `reviewerId` (not `@Roles('admin')`).
+- **Reject = full flat fine; approve partial = remaining proportional denda.** `listSubmissions` returns `dendaApprove`/`dendaReject`, filtered to **only submissions assigned to / acted on by the logged-in user**.
+- **Review UI:** card (header + approve/reject + denda preview + bell-button toast "Notifikasi telah dikirim ke reviewer" for submitter), separate "Bukti per ruangan" cards (chips green-check done / red-X missed), resolved history → clickable card → bottom sheet (proofs + denda + "Terverifikasi oleh {name}" + close X).
+- **Global `EmptyState`** component (`components/ui/empty-state.tsx`) applied to beranda/swap/tagihan/piket empty states.
+- **Timezone-safe dates** in iuran/listrik/denda/swap (UTC-midnight + WIB offset, same as schedule/dashboard).
+- **Seed rewrite:** 3 rooms (Ruang Tamu/Dapur/Kamar Mandi), 6 history submissions (5 approved + 1 rejected → 1 denda), weekend status (Admin Mawar Minggu `di_kos`), today's Jadwal (Minggu 9 Agu → Admin Mawar). Cleaned stray `jenis_piket` row.
+- **Denda card meta origin-driven (session 2026-08-09 b):** `GET /denda` (`denda.service.ts`) now returns `origin` (`auto`|`partial`|`rejected`) + `reviewerNama` (last `PiketApproval` reviewer, from linked `submission`). Mobile `BillCard` (`tagihan.tsx`) shows note via new local `dendaNote()`: `auto` → `· auto-denda deadline 20:00`; `partial` → `· direview {nama}`; `rejected` → `· ditolak {nama}`, all prefixed `Rab, 22 Agu` (from `createdAt`). Title stays `Denda piket`; Belum Bayar is QRIS-only (Bayar QRIS + Sudah Bayar Cash) — no "bayar ke teman" (peer payment doesn't exist).
 
 ## Decisions made
 
-- **Timezone:** all schedule/dashboard calendar math runs in WIB (UTC+7) wall-clock, stored/computed as UTC-midnight dates. Behavior identical whether server runs UTC (Docker) or WIB (dev). Documented in `context/features/schedule/context.md` constraints.
-- **Weekend rules (locked 2026-08-08):** (1) choosing `di_kos` generates that weekend day's Jadwal immediately; (2) weekend piket assignees are exempt from weekday piket the same week. Both documented in schedule context.
-- **Galon nudge is UI-only** (local state, no backend call — FCM not wired). Documented in galon context.
-- `iuran`/`listrik` services still use local-midnight `new Date(y,m,1)` for `bulan` (`@db.Date`) — **same timezone bug class, NOT yet fixed** (out of scope this session).
+- **Denda proportional** per unchecked item (replaces flat): `nominalDenda × unworked/totalActiveItems`. **Reject = full** `nominalDenda`; **approve partial = remaining** proportional denda.
+- **Reviewer** = PJ for member submissions; round-robin member for PJ's own submission. Only assigned reviewer (`isMyTurn`) can approve/reject.
+- **Piket tab** always shows Verifikasi (TBC-4); history visible to all (TBC-5) but `listSubmissions` filters resolved to those the user acted on.
+- Version bump policy: major only on breaking change; this release = minor **1.7.0 / versionCode 10**.
+- `stampIn` animation (ui-tokens.md Motion): 0.42s, -14° scale 1.6 → -4° .96 → -4° 1 — reuse for all status stamps.
 
 ## Problems solved
 
-- **Timezone off-by-one:** local-midnight JS Dates vs `@db.Date` (Prisma stores UTC). Verified via repro: `new Date(2026,8,3)` in WIB = `2026-08-02T17:00Z` → stored `2026-08-02`. Fix: UTC-midnight helpers + WIB offset.
-- **Weekend schedule not appearing after di_kos:** `setWeekendStatus` only upserted status; now generates the Jadwal too.
-- **Galon "Sudah Beli" shown for others' turn:** now conditional on `isMine`.
-- **Green chip not showing:** was tied to transient local `justBought`; and `alignSelf:'flex-start'` made it not full width.
+- `@db.Date` timezone off-by-one (Prisma stores UTC) — fixed via UTC-midnight + WIB offset helpers across schedule/dashboard/iuran/listrik/denda/swap.
+- Denda "terlihat di semua riwayat": stray `jenis_piket` row ("Kamar Mandi" UUID) made totalItems=10 vs worked=9 → unworked 1. Cleaned + re-seeded.
+- `jenisSelesai` stored IDs vs names — resolved to names via id→name map in backend.
+- Empty photo slot (string `''` vs `null`) — UI checks `!uri`, mobile sends `null`.
+- `stampIn` exact keyframes (was wrong direction).
 
 ## Current state
 
-- Working tree: only `apps/mobile/src/app/(tabs)/_layout.tsx` (bottom nav gap fix) + `memory.md` **uncommitted**.
-- Branch `development` ahead of `origin/development` by **3 commits** (`70e5101`, `571f551`, `6a666bf`) — **push pending** (from Windows `D:\Source\House`, WSL SSH rejected).
-- `origin/development` was at `07a8c53` (redis compose). Tag `v1.6.9` exists.
-- All committed items verified green by user earlier (api build/test + mobile tsc + prettier). The uncommitted `_layout.tsx` change needs `bunx tsc --noEmit` + prettier check.
-- Redis service added to `docker-compose.yml` (commit `07a8c53`); server `.env` needs `REDIS_URL=redis://redis:6379`.
+- **All committed & pushed** to `origin/development`; **tag `v1.7.0` created & pushed** → GitHub Actions builds APK/version.json.
+- **UNCOMMITTED (session 2026-08-09 b):** Tagihan tab revisions — MonthPicker rebuilt as pill-trigger → bottom sheet "Pilih bulan", new `GET /tagihan/months` endpoint (`modules/tagihan`), segmented control to design, kicker token 10.5px, BillCard meta now origin-driven (`dendaNote`: `auto`→deadline 20:00, `partial`→`direview {nama}`, `rejected`→`ditolak {nama}`) via new `origin`/`reviewerNama` fields from `GET /denda` + `formatWeekdayDate(createdAt)` prefix. Context docs synced (denda/iuran/listrik month-filter lines, progress-tracker). Awaiting user verification (build/lint/typecheck/test) before commit.
+- `memory.md` untracked (not committed).
+- Seed + migrations applied locally; API/mobile verified green by user earlier this session.
 
 ## Next session starts with
 
-1. **Commit the bottom-nav gap fix** (`_layout.tsx` `insets.bottom + 8`) after user verifies (`bunx tsc --noEmit` + prettier).
-2. **Push** `development` (3 commits ahead) from Windows; if user wants, also update server deploy with new Redis + re-deploy.
-3. Decide whether to apply the **same timezone fix to `iuran`/`listrik`** (`firstOfMonth`/`monthFromString` still local-midnight — same `@db.Date` bug).
-4. Continue **Phase M5**: Piket (per-room flow), Tagihan, Swap tabs (Beranda done).
+0. **Verify + commit the Tagihan revisions (session 2026-08-09 b, currently uncommitted):** user runs `turbo run build lint typecheck test --filter=@serumah/api` (build `packages/db` first) + `bun run --filter serumah-mobile lint typecheck`; then commit per-item.
+1. **Confirm release build** from GitHub Actions for `v1.7.0`; test in-app update on device.
+2. Continue **Phase M5**: Tagihan (Denda|Iuran|Listrik + month picker, QRIS, proof upload), Swap tabs — Piket tab is built.
+3. If desired, apply the same **proportional-fine + reviewer** patterns to remaining verification/denda screens.
 
 ## Open questions
 
-- `iuran`/`listrik` timezone fix — apply or defer? (same bug class as the schedule fix)
-- Galon nudge is local-only; real FCM notification deferred (not required v1).
 - Phase M6 (E2E/final release) not approved — ask before starting.

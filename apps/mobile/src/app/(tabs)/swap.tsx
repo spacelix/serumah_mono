@@ -1,25 +1,26 @@
-import { ArrowLeftRight, CalendarDays, Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { ArrowLeftRight, CalendarDays, Plus, X } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Stamp } from '@/components/ui/stamp';
-import { formatShortDate } from '@/lib/format';
+import { formatWeekdayDate } from '@/lib/format';
 import {
   useSwapAvailableDays,
   useSwapMutations,
+  useSwapTargets,
   useSwaps,
   type SwapRequest,
 } from '@/features/swap/api/swap';
-import { useIuranMembers } from '@/features/swap/api/members';
 import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -31,7 +32,10 @@ export default function SwapScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Swap" />
+      <ScreenHeader
+        title="Swap"
+        kicker="All-or-nothing · 1 hari penuh"
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -42,17 +46,23 @@ export default function SwapScreen() {
           </View>
         ) : (
           <>
-            <Pressable onPress={() => setShowForm(true)} style={styles.ctaCard}>
-              <View style={styles.ctaIcon}>
-                <Plus color={colors.ink} size={16} strokeWidth={2.4} />
-              </View>
-              <View style={styles.ctaText}>
+            {!showForm && (
+              <Pressable
+                onPress={() => setShowForm(true)}
+                style={({ pressed }) => [
+                  styles.ctaCard,
+                  pressed && styles.ctaPressed,
+                ]}
+              >
+                <Plus color={colors.pine} size={16} strokeWidth={2.6} />
                 <Text style={styles.ctaTitle}>Ajukan swap baru</Text>
                 <Text style={styles.ctaSub}>
-                  Tukar jadwal piket dengan anggota lain
+                  Satu hari penuh — nggak bisa pilih per jenis piket
                 </Text>
-              </View>
-            </Pressable>
+              </Pressable>
+            )}
+
+            {showForm && <SwapForm onClose={() => setShowForm(false)} />}
 
             <Section title="DIAJUKAN KE LO">
               {data.incoming.length === 0 ? (
@@ -72,7 +82,7 @@ export default function SwapScreen() {
               )}
             </Section>
 
-            <Section title="SWAP MILIK LO">
+            <Section title="HISTORI SWAP" sub="buat audit">
               {data.mine.length === 0 ? (
                 <EmptyState
                   icon={
@@ -91,8 +101,6 @@ export default function SwapScreen() {
             </Section>
           </>
         )}
-
-        {showForm && <SwapForm onClose={() => setShowForm(false)} />}
       </ScrollView>
     </SafeAreaView>
   );
@@ -100,14 +108,19 @@ export default function SwapScreen() {
 
 function Section({
   title,
+  sub,
   children,
 }: {
   title: string;
+  sub?: string;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {sub != null && <Text style={styles.sectionSub}>{sub}</Text>}
+      </View>
       {children}
     </View>
   );
@@ -134,25 +147,25 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
 
   return (
     <View style={styles.swapCard}>
+      <View style={styles.cardHead}>
+        <Text style={styles.cardKind}>Request masuk</Text>
+        <Text style={styles.cardTime}>{relativeTime(swap.createdAt)}</Text>
+      </View>
+
       <View style={styles.swapPair}>
-        <MemberBox nama={swap.dari.nama} />
+        <DayBox date={swap.tanggal} nama={swap.dari.nama} />
         <View style={styles.swapArrow}>
-          <ArrowLeftRight size={14} color={colors.inkSoft} strokeWidth={2.2} />
+          <ArrowLeftRight size={20} color={colors.pine} strokeWidth={2.4} />
         </View>
-        <MemberBox nama={swap.ke.nama} />
+        <DayBox date={swap.tanggalKe} nama={swap.ke.nama} isLo />
       </View>
-      <View style={styles.dayRow}>
-        <CalendarDays size={13} color={colors.mustardInk} strokeWidth={2} />
-        <Text style={styles.dayText}>{formatShortDate(swap.tanggal)}</Text>
-      </View>
+
+      <Text style={styles.swapNote}>
+        {swap.dari.nama} mau tukar jadwal {formatWeekdayDate(swap.tanggal)} sama
+        jadwal lo {formatWeekdayDate(swap.tanggalKe)}.
+      </Text>
+
       <View style={styles.swapActions}>
-        <Pressable
-          onPress={onReject}
-          disabled={reject.isPending}
-          style={styles.rejectBtn}
-        >
-          <Text style={styles.rejectText}>Tolak</Text>
-        </Pressable>
         <Pressable
           onPress={onAccept}
           disabled={accept.isPending}
@@ -162,52 +175,93 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
             {accept.isPending ? '…' : 'Terima'}
           </Text>
         </Pressable>
+        <Pressable
+          onPress={onReject}
+          disabled={reject.isPending}
+          style={styles.rejectBtn}
+        >
+          <Text style={styles.rejectText}>Tolak</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 function MineCard({ swap }: { swap: SwapRequest }) {
+  const note = useMemo(() => {
+    if (swap.status === 'diterima') {
+      return `Swap disetujui — ${swap.tanggal} resmi pindah ke ${swap.ke.nama}, ${swap.tanggalKe} jadi jadwal lo.`;
+    }
+    if (swap.status === 'ditolak') {
+      return `Swap ditolak — jadwal balik ke ${swap.dari.nama}.`;
+    }
+    return `Nunggu ${swap.ke.nama} nerima. Kalau ditolak, jadwal balik ke lo.`;
+  }, [swap]);
+
   return (
-    <View style={styles.mineCard}>
-      <View style={styles.swapPair}>
-        <MemberBox nama={swap.dari.nama} />
-        <View style={styles.swapArrow}>
-          <ArrowLeftRight size={12} color={colors.inkSoft} strokeWidth={2.2} />
-        </View>
-        <MemberBox nama={swap.ke.nama} />
+    <View style={styles.swapCard}>
+      <View style={styles.cardHead}>
+        <Text style={styles.cardKind}>Request lo</Text>
+        <Text style={styles.cardTime}>{relativeTime(swap.createdAt)}</Text>
       </View>
-      <View style={styles.mineMeta}>
-        <Text style={styles.dayText}>{formatShortDate(swap.tanggal)}</Text>
+
+      <View style={styles.swapPair}>
+        <DayBox date={swap.tanggal} nama={swap.dari.nama} isLo />
+        <View style={styles.swapArrow}>
+          <ArrowLeftRight size={20} color={colors.pine} strokeWidth={2.4} />
+        </View>
+        <DayBox date={swap.tanggalKe} nama={swap.ke.nama} />
+      </View>
+
+      <Text style={styles.swapNote}>{note}</Text>
+
+      <View style={styles.mineStamp}>
         <Stamp status={swap.status} />
       </View>
     </View>
   );
 }
 
-function MemberBox({ nama }: { nama: string }) {
+function DayBox({
+  date,
+  nama,
+  isLo = false,
+}: {
+  date: string;
+  nama: string;
+  isLo?: boolean;
+}) {
   return (
-    <View style={styles.memberBox}>
-      <Text style={styles.memberName} numberOfLines={1}>
-        {nama}
+    <View style={styles.dayBox}>
+      <Text style={styles.dayBoxDate}>{formatWeekdayDate(date)}</Text>
+      <Text style={styles.dayBoxName}>
+        {isLo ? `Lo (${nama})` : nama}
       </Text>
     </View>
   );
 }
 
+/** Form 2-step: pilih hari lo → pilih hari anggota lain (mutual). */
 function SwapForm({ onClose }: { onClose: () => void }) {
-  const { data: days, isLoading } = useSwapAvailableDays();
-  const members = useIuranMembers();
+  const { data: myDays, isLoading: daysLoading } = useSwapAvailableDays();
+  const { data: targets, isLoading: targetsLoading } = useSwapTargets();
   const { create } = useSwapMutations();
-  const [day, setDay] = useState<string | null>(null);
-  const [member, setMember] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
-  const canSubmit = day != null && member != null && !create.isPending;
+  const [step, setStep] = useState<1 | 2>(1);
+  const [myDay, setMyDay] = useState<string | null>(null);
+  const [target, setTarget] = useState<{
+    memberId: string;
+    nama: string;
+    day: string;
+  } | null>(null);
+
+  const canSubmit = myDay != null && target != null && !create.isPending;
 
   const onSubmit = () => {
-    if (!day || !member) return;
+    if (!myDay || !target) return;
     create.mutate(
-      { tanggal: day, keAnggotaId: member },
+      { tanggal: myDay, tanggalKe: target.day, keAnggotaId: target.memberId },
       {
         onSuccess: () => {
           onClose();
@@ -226,75 +280,165 @@ function SwapForm({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <View style={styles.formCard}>
-      <Text style={styles.formTitle}>Ajukan swap</Text>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable style={styles.formBackdrop} onPress={onClose}>
+        <View
+          style={[styles.formSheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={styles.formHead}>
+            <View style={styles.formHeadText}>
+              <Text style={styles.formKicker}>
+                Langkah {step} dari 2
+              </Text>
+              <Text style={styles.formTitle}>
+                {step === 1
+                  ? 'Pilih hari lo yang mau ditukar'
+                  : 'Mau tukar sama hari siapa?'}
+              </Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.formClose}>
+              <X color={colors.paper} size={15} strokeWidth={2.4} />
+            </Pressable>
+          </View>
 
-      <Text style={styles.formLabel}>Pilih hari (jadwal lo)</Text>
-      {isLoading ? (
-        <Text style={styles.formHint}>Memuat hari…</Text>
-      ) : (
-        <View style={styles.dayGrid}>
-          {(days ?? []).map((d) => (
-            <Pressable
-              key={d}
-              onPress={() => setDay(d)}
-              style={[styles.dayChip, day === d && styles.dayChipActive]}
-            >
-              <Text
+          {step === 1 ? (
+            <>
+              <Text style={styles.formHint}>
+                Cuma hari piket yang sudah terjadwal bisa ditukar.
+              </Text>
+              <View style={styles.dayList}>
+                {daysLoading ? (
+                  <Text style={styles.formHint}>Memuat hari…</Text>
+                ) : (myDays ?? []).length === 0 ? (
+                  <Text style={styles.formHint}>
+                    Tidak ada hari tersedia untuk swap
+                  </Text>
+                ) : (
+                  (myDays ?? []).map((d) => (
+                    <Pressable
+                      key={d}
+                      onPress={() => setMyDay(d)}
+                      style={[
+                        styles.dayOption,
+                        myDay === d && styles.dayOptionActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayOptionText,
+                          myDay === d && styles.dayOptionTextActive,
+                        ]}
+                      >
+                        {formatWeekdayDate(d)}
+                      </Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+              <Pressable
+                onPress={() => myDay != null && setStep(2)}
+                disabled={myDay == null}
                 style={[
-                  styles.dayChipText,
-                  day === d && styles.dayChipTextActive,
+                  styles.submitBtn,
+                  myDay == null && styles.submitBtnDisabled,
                 ]}
               >
-                {formatShortDate(d)}
+                <Text style={styles.submitText}>Lanjut</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.formHint}>
+                Cuma hari yang sudah ada penanggung jawabnya bisa ditukar.
               </Text>
-            </Pressable>
-          ))}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={styles.targetScroll}
+                contentContainerStyle={styles.targetList}
+              >
+                {targetsLoading ? (
+                  <Text style={styles.formHint}>Memuat anggota…</Text>
+                ) : (targets ?? []).length === 0 ? (
+                  <Text style={styles.formHint}>
+                    Tidak ada anggota dengan hari tersedia
+                  </Text>
+                ) : (
+                  (targets ?? []).flatMap((t) =>
+                    t.days.map((d) => {
+                      const active =
+                        target != null &&
+                        target.memberId === t.id &&
+                        target.day === d;
+                      return (
+                        <Pressable
+                          key={`${t.id}-${d}`}
+                          onPress={() =>
+                            setTarget({ memberId: t.id, nama: t.nama, day: d })
+                          }
+                          style={[
+                            styles.targetOption,
+                            active && styles.targetOptionActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.targetOptionText,
+                              active && styles.targetOptionTextActive,
+                            ]}
+                          >
+                            {formatWeekdayDate(d)} · {t.nama}
+                          </Text>
+                        </Pressable>
+                      );
+                    }),
+                  )
+                )}
+              </ScrollView>
+              <View style={styles.formActions}>
+                <Pressable
+                  onPress={() => setStep(1)}
+                  style={styles.backBtn}
+                >
+                  <Text style={styles.backText}>← Ganti hari lo</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void onSubmit()}
+                  disabled={!canSubmit}
+                  style={[
+                    styles.submitBtn,
+                    !canSubmit && styles.submitBtnDisabled,
+                  ]}
+                >
+                  <Text style={styles.submitText}>
+                    {create.isPending ? 'Mengirim…' : 'Ajukan'}
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
-      )}
-      {days != null && days.length === 0 && (
-        <Text style={styles.formHint}>Tidak ada hari tersedia untuk swap</Text>
-      )}
-
-      <Text style={styles.formLabel}>Pilih anggota</Text>
-      <View style={styles.memberList}>
-        {members.map((m) => (
-          <Pressable
-            key={m.id}
-            onPress={() => setMember(m.id)}
-            style={[
-              styles.memberRow,
-              member === m.id && styles.memberRowActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.memberRowName,
-                member === m.id && styles.memberRowNameActive,
-              ]}
-            >
-              {m.nama}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.formActions}>
-        <Pressable onPress={onClose} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Batal</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => void onSubmit()}
-          disabled={!canSubmit}
-          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-        >
-          <Text style={styles.submitText}>
-            {create.isPending ? 'Mengirim…' : 'Ajukan'}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
+      </Pressable>
+    </Modal>
   );
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'baru saja';
+  if (mins < 60) return `${mins} menit lalu`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'kemarin';
+  return `${days} hari lalu`;
 }
 
 const styles = StyleSheet.create({
@@ -308,36 +452,43 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   section: { gap: 8 },
-  sectionTitle: { ...type.kicker, fontSize: 9.5, color: colors.inkMuted },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    paddingTop: 6,
+  },
+  sectionTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13,
+    color: colors.ink,
+  },
+  sectionSub: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 10,
+    color: colors.inkSoft,
+  },
 
   ctaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.lineDash,
-    borderRadius: radius['2xl'],
-    padding: 16,
-    backgroundColor: colors.card,
-  },
-  ctaIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: colors.paperDeep,
+    paddingVertical: 18,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 3,
   },
-  ctaText: { flex: 1, gap: 2 },
+  ctaPressed: { opacity: 0.75 },
   ctaTitle: {
-    fontFamily: fontFamilies.body[700],
-    fontSize: 13.5,
-    color: colors.ink,
+    fontFamily: fontFamilies.body[600],
+    fontSize: 13,
+    color: colors.pine,
   },
   ctaSub: {
     fontFamily: fontFamilies.body[400],
-    fontSize: 11,
+    fontSize: 10.5,
     color: colors.inkSoft,
   },
 
@@ -345,165 +496,190 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius['2xl'],
+    borderRadius: 18,
     padding: 14,
     gap: 12,
   },
-  swapPair: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  cardKind: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.inkSoft,
+  },
+  cardTime: {
+    fontFamily: fontFamilies.mono[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
+  swapPair: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   swapArrow: {
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 20,
   },
-  memberBox: {
+  dayBox: {
     flex: 1,
-    backgroundColor: colors.paper,
-    borderRadius: radius.lg,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
+    backgroundColor: colors.paperDeep,
+    borderRadius: 13,
+    padding: 11,
+    flexDirection: 'column',
     gap: 2,
-    minHeight: 52,
   },
-  memberName: {
-    fontFamily: fontFamilies.body[700],
-    fontSize: 12.5,
-    color: colors.ink,
+  dayBoxDate: {
+    fontFamily: fontFamilies.mono[400],
+    fontSize: 10,
+    color: colors.inkSoft,
   },
-  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dayText: {
-    fontFamily: fontFamilies.mono[600],
-    fontSize: 12,
-    color: colors.ink,
-  },
-  swapActions: { flexDirection: 'row', gap: 10 },
-  rejectBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.brick,
-    borderRadius: radius.md,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  rejectText: {
+  dayBoxName: {
     fontFamily: fontFamilies.body[600],
-    fontSize: 12,
-    color: colors.brick,
+    fontSize: 13,
+    color: colors.ink,
   },
+  swapNote: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11.5,
+    lineHeight: 16.5,
+    color: colors.inkSoft,
+  },
+  swapActions: { flexDirection: 'row', gap: 8 },
   acceptBtn: {
     flex: 1,
-    backgroundColor: colors.pine,
-    borderRadius: radius.md,
-    paddingVertical: 11,
+    backgroundColor: colors.ink,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   acceptText: {
     fontFamily: fontFamilies.body[600],
-    fontSize: 12,
+    fontSize: 12.5,
     color: colors.paper,
   },
-
-  mineCard: {
-    backgroundColor: colors.card,
+  rejectBtn: {
+    flex: 1,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.xl,
-    padding: 12,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  rejectText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  mineStamp: { alignSelf: 'flex-end' },
+
+  formBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  formSheet: {
+    width: '100%',
+    backgroundColor: colors.ink,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  formHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 10,
   },
-  mineMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  formCard: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius['2xl'],
-    padding: 16,
-    gap: 12,
+  formHeadText: { flex: 1, flexDirection: 'column', gap: 3 },
+  formKicker: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+    color: colors.paperFaint,
   },
   formTitle: {
     fontFamily: fontFamilies.display[600],
-    fontSize: 16,
-    color: colors.ink,
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.paper,
   },
-  formLabel: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 11.5,
-    color: colors.inkSoft,
+  formClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 234, 224, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formHint: {
     fontFamily: fontFamilies.body[400],
     fontSize: 11,
-    color: colors.inkMuted,
+    lineHeight: 16,
+    color: colors.paperFaint,
   },
-  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayChip: {
+  dayList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dayOption: {
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.paper,
-  },
-  dayChipActive: { backgroundColor: colors.pine, borderColor: colors.pine },
-  dayChipText: {
-    fontFamily: fontFamilies.mono[600],
-    fontSize: 11.5,
-    color: colors.ink,
-  },
-  dayChipTextActive: { color: colors.paper },
-  memberList: { gap: 8 },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
+    borderColor: 'rgba(239, 234, 224, 0.18)',
+    backgroundColor: 'rgba(239, 234, 224, 0.08)',
+    borderRadius: 13,
     paddingVertical: 11,
-    paddingHorizontal: 12,
-    backgroundColor: colors.paper,
-    gap: 8,
+    paddingHorizontal: 13,
   },
-  memberRowActive: {
+  dayOptionActive: {
     borderColor: colors.pine,
-    backgroundColor: colors.pineSoft,
+    backgroundColor: colors.pine,
   },
-  memberRowName: {
-    flex: 1,
+  dayOptionText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
-    color: colors.ink,
+    color: colors.paper,
   },
-  memberRowNameActive: { color: colors.pineDeep },
-  formActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn: {
-    flex: 1,
+  dayOptionTextActive: { color: colors.paper },
+  targetScroll: { flexGrow: 0 },
+  targetList: { flexDirection: 'column', gap: 7 },
+  targetOption: {
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
+    borderColor: 'rgba(239, 234, 224, 0.18)',
+    backgroundColor: 'rgba(239, 234, 224, 0.08)',
+    borderRadius: 13,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
   },
-  cancelText: {
+  targetOptionActive: {
+    borderColor: colors.pine,
+    backgroundColor: colors.pine,
+  },
+  targetOptionText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
-    color: colors.ink,
+    color: colors.paper,
+  },
+  targetOptionTextActive: { color: colors.paper },
+  formActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backBtn: { paddingVertical: 4 },
+  backText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11.5,
+    color: colors.paperFaint,
   },
   submitBtn: {
-    flex: 2,
+    flex: 1,
     backgroundColor: colors.pine,
-    borderRadius: radius.md,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: 'center',
   },
   submitBtnDisabled: { backgroundColor: colors.disabledBg },
   submitText: {
-    fontFamily: fontFamilies.body[700],
+    fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
     color: colors.paper,
   },

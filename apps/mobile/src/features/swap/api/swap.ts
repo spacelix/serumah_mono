@@ -9,10 +9,17 @@ export interface SwapMember {
 export interface SwapRequest {
   id: string;
   tanggal: string;
+  tanggalKe: string;
   status: 'diajukan' | 'diterima' | 'ditolak';
   dari: SwapMember;
   ke: SwapMember;
   createdAt: string;
+}
+
+export interface SwapTarget {
+  id: string;
+  nama: string;
+  days: string[];
 }
 
 export interface SwapListResponse {
@@ -30,11 +37,21 @@ export async function apiGetSwapAvailableDays(): Promise<string[]> {
   return response.data;
 }
 
+export async function apiGetSwapTargets(): Promise<SwapTarget[]> {
+  const response = await apiClient.get<SwapTarget[]>('/swap/target-days');
+  return response.data;
+}
+
 export async function apiCreateSwap(
   tanggal: string,
+  tanggalKe: string,
   keAnggotaId: string,
 ): Promise<{ swapRequest: SwapRequest }> {
-  const response = await apiClient.post('/swap', { tanggal, keAnggotaId });
+  const response = await apiClient.post('/swap', {
+    tanggal,
+    tanggalKe,
+    keAnggotaId,
+  });
   return response.data;
 }
 
@@ -55,6 +72,7 @@ export async function apiRejectSwap(
 export const swapKeys = {
   list: ['swap', 'list'] as const,
   available: ['swap', 'available-days'] as const,
+  targets: ['swap', 'target-days'] as const,
 };
 
 export function useSwaps() {
@@ -71,6 +89,13 @@ export function useSwapAvailableDays() {
   });
 }
 
+export function useSwapTargets() {
+  return useQuery({
+    queryKey: swapKeys.targets,
+    queryFn: apiGetSwapTargets,
+  });
+}
+
 export function useSwapMutations() {
   const queryClient = useQueryClient();
   const invalidate = () => {
@@ -79,14 +104,17 @@ export function useSwapMutations() {
   const create = useMutation({
     mutationFn: ({
       tanggal,
+      tanggalKe,
       keAnggotaId,
     }: {
       tanggal: string;
+      tanggalKe: string;
       keAnggotaId: string;
-    }) => apiCreateSwap(tanggal, keAnggotaId),
+    }) => apiCreateSwap(tanggal, tanggalKe, keAnggotaId),
     onSuccess: () => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: swapKeys.available });
+      void queryClient.invalidateQueries({ queryKey: swapKeys.targets });
     },
   });
   const accept = useMutation({

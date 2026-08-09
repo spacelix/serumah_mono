@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -89,5 +90,41 @@ export class RumahScopeService {
   async isPj(userId: string, rumahId: string): Promise<boolean> {
     const pj = await this.getPj(rumahId);
     return pj.id === userId;
+  }
+
+  /**
+   * Assigned reviewer for a payment (locked 2026-08-10): same rule as the
+   * piket reviewer.
+   * - payer is an ordinary member → reviewer is the PJ (admin).
+   * - payer is the PJ → reviewer is another member, chosen round-robin
+   *   (rotating by `count` — the number of payments the PJ has made so far).
+   * The payer is never their own reviewer.
+   */
+  async assignPaymentReviewer(
+    rumahId: string,
+    payerId: string,
+    count: number,
+  ): Promise<string> {
+    const members = await this.prisma.anggota.findMany({
+      where: { rumahId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, role: true },
+    });
+    const pj = members.find((m) => m.role === 'admin');
+
+    if (payerId !== pj?.id) {
+      // Ordinary member → PJ reviews.
+      if (!pj) throw new NotFoundException('Kos belum memiliki PJ.');
+      return pj.id;
+    }
+
+    // PJ paid → round-robin among the other (non-PJ) members.
+    const others = members.filter((m) => m.role !== 'admin');
+    if (others.length === 0) {
+      throw new ConflictException(
+        'Tidak ada anggota lain untuk memverifikasi pembayaran PJ.',
+      );
+    }
+    return others[count % others.length]!.id;
   }
 }

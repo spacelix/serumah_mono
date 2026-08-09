@@ -63,28 +63,46 @@ export class ListrikService {
       this.prisma.anggota.findMany({
         where: { rumahId: anggota.rumahId },
         select: { id: true, nama: true },
+        orderBy: { createdAt: 'asc' },
       }),
     ]);
 
     const n = allMembers.length;
     const nameMap = Object.fromEntries(allMembers.map((m) => [m.id, m.nama]));
+    // Deterministic member order for distributing the rounding remainder.
+    const memberIds = allMembers.map((m) => m.id);
 
     const total = records.reduce((sum, r) => sum + r.nominal, 0);
     const myBought = records
       .filter((r) => r.anggotaId === anggota.id)
       .reduce((sum, r) => sum + r.nominal, 0);
 
-    // Buyer's own credit toward next month = sum(nominal − share) per record.
-    const myCredit = records
-      .filter((r) => r.anggotaId === anggota.id)
-      .reduce(
-        (sum, r) =>
-          sum + (n > 0 ? r.nominal - Math.floor(r.nominal / n) : r.nominal),
-        0,
-      );
+    // Even split per record: base = floor(nominal / n); the rounding remainder
+    // (nominal − base·n) is spread +1 rupiah to `remainder` members, rotating
+    // the start by the record index so nobody always absorbs the remainder.
+    const sharesFor = (
+      nominal: number,
+      recordIndex: number,
+    ): Record<string, number> => {
+      if (n === 0) return {};
+      const base = Math.floor(nominal / n);
+      const remainder = nominal - base * n;
+      const shares: Record<string, number> = {};
+      for (let i = 0; i < n; i++) {
+        const member = memberIds[(recordIndex + i) % n]!;
+        shares[member] = base + (i < remainder ? 1 : 0);
+      }
+      return shares;
+    };
 
-    return {
-      records: records.map((r) => ({
+    // Buyer's own credit toward next month = sum(nominal − own share) per record.
+    let myCredit = 0;
+    const recordsOut = records.map((r, index) => {
+      const shares = sharesFor(r.nominal, index);
+      if (r.anggotaId === anggota.id) {
+        myCredit += r.nominal - (shares[r.anggotaId] ?? 0);
+      }
+      return {
         id: r.id,
         anggota: r.anggota,
         nominal: r.nominal,
@@ -92,8 +110,13 @@ export class ListrikService {
         keterangan: r.keterangan,
         buktiBayar: r.buktiBayar,
         createdAt: r.createdAt,
-        share: n > 0 ? Math.floor(r.nominal / n) : 0,
-      })),
+        share: shares[r.anggotaId] ?? 0,
+        shares,
+      };
+    });
+
+    return {
+      records: recordsOut,
       nameMap,
       total,
       myBought,

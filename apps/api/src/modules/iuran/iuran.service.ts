@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -32,14 +33,14 @@ const KATEGORI: {
     biayaListrikWajib: number;
   }) => number;
 }[] = [
-  { key: 'kos', label: 'Sewa', amount: (r) => r.biayaKos },
-  { key: 'wifi', label: 'WiFi', amount: (r) => r.biayaWifi },
-  {
-    key: 'listrik_wajib',
-    label: 'Listrik Wajib',
-    amount: (r) => r.biayaListrikWajib,
-  },
-];
+    { key: 'kos', label: 'Sewa', amount: (r) => r.biayaKos },
+    { key: 'wifi', label: 'WiFi', amount: (r) => r.biayaWifi },
+    {
+      key: 'listrik_wajib',
+      label: 'Listrik Wajib',
+      amount: (r) => r.biayaListrikWajib,
+    },
+  ];
 
 interface ListrikAdjustment {
   total: number;
@@ -54,7 +55,7 @@ export class IuranService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
-  ) {}
+  ) { }
 
   private monthFromString(bulan: string): Date {
     const match = /^(\d{4})-(\d{2})$/.exec(bulan);
@@ -99,7 +100,10 @@ export class IuranService {
 
     const iuran = await this.prisma.iuranBulanan.findMany({
       where: { anggota: { rumahId: anggota.rumahId }, bulan: month },
-      include: { anggota: { select: { id: true, nama: true } } },
+      include: {
+        anggota: { select: { id: true, nama: true } },
+        reviewer: { select: { id: true, nama: true } },
+      },
       orderBy: { kategori: 'asc' },
     });
 
@@ -120,7 +124,19 @@ export class IuranService {
     });
 
     return {
-      iuranList: iuran,
+      iuranList: iuran.map((i) => ({
+        id: i.id,
+        anggota: i.anggota,
+        bulan: i.bulan,
+        kategori: i.kategori,
+        label: i.label,
+        nominal: i.nominal,
+        status: i.status,
+        reviewerId: i.reviewerId,
+        reviewerNama: i.reviewer?.nama ?? null,
+        buktiBayar: i.buktiBayar,
+        createdAt: i.createdAt,
+      })),
       pelunasan,
       rumah: {
         totalPerBulan:
@@ -261,35 +277,60 @@ export class IuranService {
       );
     }
 
-    const isPj = await this.scope.isPj(anggota.id, anggota.rumahId);
-    const nextStatus = isPj ? 'lunas' : 'menunggu_konfirmasi';
+    // Assigned reviewer (locked 2026-08-10): member → PJ; PJ → round-robin
+    // non-PJ member. PJ's own payment is NO LONGER auto-lunas — it must be
+    // confirmed by another member (no self-confirmation).
+    const reviewerId = await this.scope.assignPaymentReviewer(
+      anggota.rumahId,
+      anggota.id,
+      await this.prisma.iuranBulanan.count({
+        where: { anggotaId: anggota.id },
+      }),
+    );
 
     await this.prisma.iuranBulanan.updateMany({
       where: { id: { in: pending.map((p) => p.id) } },
-      data: { status: nextStatus, buktiBayar: dto.buktiUrl },
+      data: { status: 'menunggu_konfirmasi', reviewerId, buktiBayar: dto.buktiUrl },
     });
 
     this.logger.log(
-      `[IuranService] ${anggota.nama} bukti ${month.toISOString()} → ${nextStatus}`,
+      `[IuranService] ${anggota.nama} bukti ${month.toISOString()} → menunggu_konfirmasi (reviewer ${reviewerId})`,
     );
-    return { status: nextStatus, count: pending.length };
+    return { status: 'menunggu_konfirmasi', count: pending.length, reviewerId };
   }
 
   async confirmLunas(payload: CurrentUserPayload, iuranId: string) {
-    const pj = await this.requireReviewer(payload);
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
     const iuran = await this.prisma.iuranBulanan.findUnique({
       where: { id: iuranId },
       include: { anggota: true },
     });
-    if (!iuran || iuran.anggota.rumahId !== pj.rumahId) {
+    if (!iuran || iuran.anggota.rumahId !== anggota.rumahId) {
       throw new NotFoundException('Iuran tidak ditemukan.');
+    }
+    if (iuran.status !== 'menunggu_konfirmasi') {
+      throw new ConflictException('Iuran tidak menunggu konfirmasi.');
+    }
+    // Only the assigned reviewer may confirm (member → PJ, PJ → round-robin member).
+    if (iuran.reviewerId !== anggota.id) {
+      throw new ForbiddenException(
+        'Bukan giliran Anda untuk memverifikasi pembayaran ini.',
+      );
+    }
+    if (iuran.anggotaId === anggota.id) {
+      throw new ForbiddenException(
+        'Anda tidak dapat memverifikasi pembayaran sendiri.',
+      );
     }
 
     await this.prisma.iuranBulanan.update({
       where: { id: iuran.id },
       data: { status: 'lunas' },
     });
-    this.logger.log(`[IuranService] Iuran ${iuran.id} lunas (${pj.nama})`);
+    this.logger.log(`[IuranService] Iuran ${iuran.id} lunas (${anggota.nama})`);
     return { iuran: { id: iuran.id, status: 'lunas' } };
   }
 

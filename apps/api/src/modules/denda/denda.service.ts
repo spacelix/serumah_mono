@@ -38,6 +38,7 @@ export class DendaService {
       orderBy: { createdAt: 'desc' },
       include: {
         anggota: { select: { id: true, nama: true } },
+        reviewer: { select: { id: true, nama: true } },
         submission: {
           include: {
             jadwal: { select: { tanggal: true } },
@@ -113,10 +114,12 @@ export class DendaService {
           nominal: d.nominal,
           status: d.status,
           bayarKeAnggotaId: d.bayarKeAnggotaId,
+          reviewerId: d.reviewerId,
+          reviewerNama,
+          paymentReviewerNama: d.reviewer?.nama ?? null,
           buktiBayar: d.buktiBayar,
           createdAt: d.createdAt,
           origin,
-          reviewerNama,
           tanggal: d.submission?.jadwal.tanggal ?? null,
           detail,
         };
@@ -144,38 +147,42 @@ export class DendaService {
       throw new ConflictException('Denda sudah memiliki status pembayaran.');
     }
 
-    const isPj = await this.scope.isPj(anggota.id, anggota.rumahId!);
+    // Assigned reviewer (locked 2026-08-10): member → PJ; PJ → round-robin
+    // non-PJ member. PJ's own fine is NO LONGER auto-lunas — it must be
+    // confirmed by another member (no self-confirmation).
+    const reviewerId = await this.scope.assignPaymentReviewer(
+      anggota.rumahId!,
+      anggota.id,
+      await this.prisma.denda.count({
+        where: { anggotaId: anggota.id },
+      }),
+    );
 
-    if (isPj) {
-      // PJ/Admin's own fine → directly lunas (no self-confirmation).
-      await this.prisma.denda.update({
-        where: { id: denda.id },
-        data: {
-          status: 'lunas',
-          buktiBayar: dto.buktiUrl,
-          bayarKeAnggotaId: anggota.id,
-        },
-      });
-      this.logger.log(`[DendaService] Denda ${denda.id} lunas (PJ).`);
-      return { status: 'lunas', receiverId: anggota.id };
-    }
-
+    // Payment receiver is always the PJ (QRIS owner).
     const pj = await this.scope.getPj(anggota.rumahId!);
     await this.prisma.denda.update({
       where: { id: denda.id },
       data: {
         status: 'menunggu_konfirmasi',
+        reviewerId,
         buktiBayar: dto.buktiUrl,
         bayarKeAnggotaId: pj.id,
       },
     });
-    this.logger.log(`[DendaService] Denda ${denda.id} menunggu konfirmasi.`);
-    return { status: 'menunggu_konfirmasi', receiverId: pj.id };
+
+    this.logger.log(
+      `[DendaService] Denda ${denda.id} menunggu konfirmasi (reviewer ${reviewerId}).`,
+    );
+    return { status: 'menunggu_konfirmasi', receiverId: pj.id, reviewerId };
   }
 
   async approve(payload: CurrentUserPayload, dendaId: string) {
-    const anggota = await this.requireReviewer(payload);
-    const denda = await this.getPendingDenda(dendaId, anggota.rumahId!);
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    const denda = await this.getPendingDendaForReview(
+      dendaId,
+      anggota.rumahId!,
+      anggota.id,
+    );
 
     await this.prisma.$transaction([
       this.prisma.denda.update({
@@ -196,8 +203,12 @@ export class DendaService {
   }
 
   async reject(payload: CurrentUserPayload, dendaId: string) {
-    const anggota = await this.requireReviewer(payload);
-    const denda = await this.getPendingDenda(dendaId, anggota.rumahId!);
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    const denda = await this.getPendingDendaForReview(
+      dendaId,
+      anggota.rumahId!,
+      anggota.id,
+    );
 
     await this.prisma.$transaction([
       this.prisma.denda.update({
@@ -205,6 +216,7 @@ export class DendaService {
         data: {
           status: 'belum_bayar',
           bayarKeAnggotaId: null,
+          reviewerId: null,
           buktiBayar: null,
         },
       }),
@@ -221,15 +233,15 @@ export class DendaService {
     return { denda: { id: denda.id, status: 'belum_bayar' } };
   }
 
-  private async requireReviewer(payload: CurrentUserPayload) {
-    const anggota = await this.scope.requireAnggota(payload.userId);
-    if (!anggota.rumahId) {
-      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
-    }
-    return this.scope.requirePj(payload.userId, anggota.rumahId);
-  }
-
-  private async getPendingDenda(dendaId: string, rumahId: string) {
+  /**
+   * Only the assigned reviewer may approve/reject a pending payment —
+   * member payments → PJ, PJ payments → round-robin member.
+   */
+  private async getPendingDendaForReview(
+    dendaId: string,
+    rumahId: string,
+    reviewerId: string,
+  ) {
     const denda = await this.prisma.denda.findUnique({
       where: { id: dendaId },
       include: { anggota: true },
@@ -239,6 +251,16 @@ export class DendaService {
     }
     if (denda.status !== 'menunggu_konfirmasi') {
       throw new ConflictException('Denda tidak menunggu konfirmasi.');
+    }
+    if (denda.reviewerId !== reviewerId) {
+      throw new ForbiddenException(
+        'Bukan giliran Anda untuk memverifikasi pembayaran ini.',
+      );
+    }
+    if (denda.anggotaId === reviewerId) {
+      throw new ForbiddenException(
+        'Anda tidak dapat memverifikasi pembayaran sendiri.',
+      );
     }
     return denda;
   }

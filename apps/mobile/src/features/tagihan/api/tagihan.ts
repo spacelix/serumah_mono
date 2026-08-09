@@ -57,10 +57,12 @@ export interface Denda {
   nominal: number;
   status: 'belum_bayar' | 'menunggu_konfirmasi' | 'lunas';
   bayarKeAnggotaId: string | null;
+  reviewerId: string | null;
+  reviewerNama: string | null;
+  paymentReviewerNama: string | null;
   buktiBayar: string | null;
   createdAt: string;
   origin: 'auto' | 'partial' | 'rejected';
-  reviewerNama: string | null;
   tanggal: string | null;
   detail: DendaDetailRoom[];
 }
@@ -103,7 +105,10 @@ export interface IuranItem {
   label: string;
   nominal: number;
   status: 'belum_bayar' | 'menunggu_konfirmasi' | 'lunas';
+  reviewerId: string | null;
+  reviewerNama: string | null;
   buktiBayar: string | null;
+  createdAt: string;
 }
 
 export interface PelunasanItem {
@@ -175,6 +180,7 @@ export interface ListrikRecord {
   buktiBayar: string | null;
   createdAt: string;
   share: number;
+  shares: Record<string, number>;
 }
 
 export interface ListrikListResponse {

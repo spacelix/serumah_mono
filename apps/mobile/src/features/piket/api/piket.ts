@@ -19,19 +19,29 @@ export interface ExistingSubmission {
   id: string;
   status: string;
   submittedAt: string | null;
+  reviewerId: string | null;
+  reviewerName: string | null;
+  proofs: {
+    ruanganId: string;
+    fotoBefore: string | null;
+    fotoAfter: string | null;
+    jenisSelesai: string[];
+  }[];
 }
 
 export interface PiketToday {
   jadwal: TodayJadwal | null;
   ruangan: { id: string; nama: string }[];
   jenisByRuangan: Record<string, JenisPiketItem[]>;
+  totalJenis: number;
   existingSubmission: ExistingSubmission | null;
+  nominalDenda: number;
 }
 
 export interface RuanganProofInput {
   ruanganId: string;
-  fotoBeforeUrl: string;
-  fotoAfterUrl: string;
+  fotoBeforeUrl: string | null;
+  fotoAfterUrl: string | null;
   jenisSelesai: string[];
 }
 
@@ -47,6 +57,28 @@ export interface SubmissionResult {
 export interface UploadPhotoResult {
   url: string;
   key: string;
+}
+
+export interface SubmissionItem {
+  id: string;
+  status: string;
+  submittedAt: string | null;
+  tanggal: string;
+  anggota: { id: string; nama: string };
+  proofs: {
+    ruanganId: string;
+    ruanganNama: string;
+    fotoBefore: string | null;
+    fotoAfter: string | null;
+    jenisSelesai: string[];
+    jenisList: string[];
+  }[];
+  isMine: boolean;
+  reviewerId: string | null;
+  reviewerName: string | null;
+  isMyTurn: boolean;
+  dendaApprove: number;
+  dendaReject: number;
 }
 
 export async function apiGetPiketToday(): Promise<PiketToday> {
@@ -88,6 +120,8 @@ export async function uploadPiketPhoto(
 
 export const piketKeys = {
   today: ['piket', 'today'] as const,
+  submissions: (status: 'pending' | 'resolved') =>
+    ['piket', 'submissions', status] as const,
 };
 
 export function usePiketToday() {
@@ -103,5 +137,45 @@ export function useCreateSubmission() {
     mutationFn: (input: CreateSubmissionInput) => apiCreateSubmission(input),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: piketKeys.today }),
+  });
+}
+
+export async function apiGetSubmissions(
+  status: 'pending' | 'resolved',
+): Promise<SubmissionItem[]> {
+  const response = await apiClient.get<SubmissionItem[]>(
+    `/piket/submissions?status=${status}`,
+  );
+  return response.data;
+}
+
+export function useSubmissions(status: 'pending' | 'resolved') {
+  return useQuery({
+    queryKey: piketKeys.submissions(status),
+    queryFn: () => apiGetSubmissions(status),
+  });
+}
+
+export function useApproveSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post(`/piket/submissions/${id}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['piket', 'submissions'] });
+      queryClient.invalidateQueries({ queryKey: piketKeys.today });
+    },
+  });
+}
+
+export function useRejectSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post(`/piket/submissions/${id}/reject`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['piket', 'submissions'] });
+      queryClient.invalidateQueries({ queryKey: piketKeys.today });
+    },
   });
 }

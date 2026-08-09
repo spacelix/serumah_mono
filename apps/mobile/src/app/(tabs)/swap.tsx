@@ -1,7 +1,6 @@
 import { ArrowLeftRight, CalendarDays, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import {
   type SwapRequest,
 } from '@/features/swap/api/swap';
 import { useIuranMembers } from '@/features/swap/api/members';
+import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
@@ -118,7 +118,7 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
   const onAccept = () =>
     accept.mutate(swap.id, {
       onError: (e) =>
-        Alert.alert(
+        dialog.alert(
           'Gagal',
           e instanceof Error ? e.message : 'Terjadi kesalahan.',
         ),
@@ -126,7 +126,7 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
   const onReject = () =>
     reject.mutate(swap.id, {
       onError: (e) =>
-        Alert.alert(
+        dialog.alert(
           'Gagal',
           e instanceof Error ? e.message : 'Terjadi kesalahan.',
         ),
@@ -211,13 +211,13 @@ function SwapForm({ onClose }: { onClose: () => void }) {
       {
         onSuccess: () => {
           onClose();
-          Alert.alert(
+          dialog.alert(
             'Terkirim',
             'Permintaan swap terkirim untuk dikonfirmasi.',
           );
         },
         onError: (e) =>
-          Alert.alert(
+          dialog.alert(
             'Gagal',
             e instanceof Error ? e.message : 'Terjadi kesalahan.',
           ),

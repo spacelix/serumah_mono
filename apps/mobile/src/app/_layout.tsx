@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { SplashScreen as SerumahSplash } from '@/components/splash/splash-screen';
+import { AppDialog } from '@/components/ui/app-dialog';
+import { PhotoPreview } from '@/components/ui/photo-preview';
 import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
@@ -23,24 +25,42 @@ export default function RootLayout() {
   const stage = useAuthStore((s) => s.stage);
   const hydrate = useAuthStore((s) => s.hydrate);
   const [ready, setReady] = useState(false);
+  const [holdDone, setHoldDone] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    // Hold the branded splash long enough for the riseIn + wordmark animation
-    // to read (design intent), even when fonts/API resolve instantly.
-    const minimum = new Promise<void>((resolve) => setTimeout(resolve, 2400));
-    void Promise.all([hydrate(), minimum, apiCheckHealth()]).then(() => {
-      if (!cancelled) {
-        setReady(true);
-        void SplashScreen.hideAsync();
-      }
+    if (!fontsLoaded) return;
+    // Load auth + health behind the NATIVE splash (still covering). The branded
+    // SerumahSplash is NOT mounted yet — its riseIn/wordmark must play while
+    // visible, not hidden behind the native splash.
+    void Promise.all([hydrate(), apiCheckHealth()]).then(() => {
+      if (cancelled) return;
+      setReady(true);
+      requestAnimationFrame(() => void SplashScreen.hideAsync());
     });
     return () => {
       cancelled = true;
     };
-  }, [hydrate]);
+  }, [fontsLoaded, hydrate]);
 
-  if (!fontsLoaded || !ready) {
+  useEffect(() => {
+    if (!ready || holdDone) return;
+    // Hold the branded splash long enough for the riseIn + wordmark animation
+    // to read (design intent), even when everything resolved instantly.
+    const t = setTimeout(() => setHoldDone(true), 2400);
+    return () => clearTimeout(t);
+  }, [ready, holdDone]);
+
+  if (!ready) {
+    // While behind the native splash render a plain matching backdrop — the
+    // branded `<SerumahSplash />` mounts only at reveal so its riseIn/wordmark
+    // animation actually plays on screen.
+    return <View style={styles.splashBackdrop} />;
+  }
+
+  if (!holdDone) {
+    // Native splash just hid — show the branded splash fresh so the riseIn +
+    // wordmark animation reads before the app slides in.
     return <SerumahSplash />;
   }
 
@@ -91,10 +111,13 @@ export default function RootLayout() {
         )}
       </ThemeProvider>
       <Toaster />
+      <PhotoPreview />
+      <AppDialog />
     </QueryClientProvider>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
+  splashBackdrop: { flex: 1, backgroundColor: colors.splashGreen },
 });

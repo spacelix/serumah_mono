@@ -47,6 +47,7 @@ Tab **Tagihan → Listrik** (segment 3). Components: `ListrikRecordCard`, `Listr
 - No status/approval — no confirm buttons.
 - Do not compute splits in the UI — read from the API.
 - Unrelated to galon (galon has no amount — locked decision).
+- **Timezone (locked 2026-08-08):** `bulan` is stored as `@db.Date` (Prisma persists UTC components). Month math uses UTC-midnight dates — `monthFromString("YYYY-MM")` → `Date.UTC(y,m-1,1)`, and "now" (default month) is resolved by shifting +7h (WIB) before reading UTC components. Same rule as schedule/dashboard services.
 
 ## 7. Dependencies
 

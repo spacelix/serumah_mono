@@ -4,6 +4,12 @@ import type { CurrentUserPayload } from '../../common/decorators/current-user.de
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { CreateListrikDto } from './dto/listrik.dto';
 
+// Asia/Jakarta is UTC+7, no DST. `bulan` is stored as `@db.Date`, which Prisma
+// persists from the UTC components of the JS Date — so all month math uses
+// UTC-midnight dates and resolves "now" by shifting +7h first (same rule as
+// the schedule/dashboard services).
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 @Injectable()
 export class ListrikService {
   private readonly logger = new Logger(ListrikService.name);
@@ -18,12 +24,17 @@ export class ListrikService {
     if (!match) {
       throw new BadRequestException('Format bulan harus YYYY-MM.');
     }
-    return new Date(Number(match[1]), Number(match[2]) - 1, 1);
+    // "2026-08" is already an explicit calendar month — build UTC-midnight so
+    // the stored `@db.Date` value is 2026-08-01 regardless of server timezone.
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
   }
 
   private firstOfMonth(date: Date | string): Date {
+    // "Now" is resolved in WIB (UTC+7), then canonicalized to UTC-midnight so
+    // the stored `@db.Date` matches what a WIB user sees as "this month".
     const d = new Date(date);
-    return new Date(d.getFullYear(), d.getMonth(), 1);
+    const wib = new Date(d.getTime() + WIB_OFFSET_MS);
+    return new Date(Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), 1));
   }
 
   async list(payload: CurrentUserPayload, bulan?: string) {

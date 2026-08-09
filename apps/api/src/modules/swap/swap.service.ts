@@ -13,6 +13,11 @@ import { CreateSwapDto } from './dto/swap.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5];
 
+// Asia/Jakarta is UTC+7, no DST. `tanggal` is stored as `@db.Date`, which
+// Prisma persists from UTC components — so all calendar math uses UTC-midnight
+// dates and resolves "today" by shifting +7h (same rule as schedule/dashboard).
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 @Injectable()
 export class SwapService {
   private readonly logger = new Logger(SwapService.name);
@@ -24,11 +29,20 @@ export class SwapService {
 
   private toDate(date: Date | string): Date {
     const d = new Date(date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const wib = new Date(d.getTime() + WIB_OFFSET_MS);
+    return new Date(
+      Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate()),
+    );
   }
 
   private addDays(date: Date, days: number): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    return new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate() + days,
+      ),
+    );
   }
 
   async list(payload: CurrentUserPayload) {
@@ -75,7 +89,7 @@ export class SwapService {
 
     const days = jadwal
       .map((j) => j.tanggal)
-      .filter((d) => PIKET_WEEKDAYS.includes(d.getDay()))
+      .filter((d) => PIKET_WEEKDAYS.includes(d.getUTCDay()))
       .sort((a, b) => a.getTime() - b.getTime());
 
     return days;

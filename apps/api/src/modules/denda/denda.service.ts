@@ -11,6 +11,11 @@ import type { CurrentUserPayload } from '../../common/decorators/current-user.de
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { UploadBuktiDto } from './dto/denda.dto';
 
+// Asia/Jakarta is UTC+7, no DST. The month filter is a WIB calendar month, so
+// its UTC range is built from UTC-midnight shifted by -7h (a "month" seen by a
+// WIB user starts at 2026-08-01T00:00+07 = 2026-07-31T17:00Z).
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 @Injectable()
 export class DendaService {
   private readonly logger = new Logger(DendaService.name);
@@ -182,9 +187,11 @@ export class DendaService {
     }
     const year = Number(match[1]);
     const month = Number(match[2]) - 1;
+    // Filter `createdAt` (a timestamptz) by the WIB calendar month: start of
+    // the 1st = UTC-midnight − 7h; end = start of the next month − 7h.
     return {
-      start: new Date(year, month, 1),
-      end: new Date(year, month + 1, 1),
+      start: new Date(Date.UTC(year, month, 1) - WIB_OFFSET_MS),
+      end: new Date(Date.UTC(year, month + 1, 1) - WIB_OFFSET_MS),
     };
   }
 }

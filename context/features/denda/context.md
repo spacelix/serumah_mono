@@ -30,7 +30,7 @@ Locked decisions:
 - State: `belum_bayar` → (upload proof) `menunggu_konfirmasi` → (PJ approve) `lunas`. Reject → back to `belum_bayar`.
 - **PJ/Admin's own fine → proof upload directly `lunas`** (no self-confirmation).
 - Payment ALWAYS goes to the PJ/Admin of the rumah (not peer approval — locked decision item 27).
-- Fine amount = `rumah.nominal_denda` (flat per submission).
+- **Fine amount is proportional (locked 2026-08-09):** `denda = rumah.nominal_denda × (unworkedItems / totalActiveItems)`, rounded — set when the submission is rejected (PiketService). `nominal_denda` is the "full" fine (nothing worked). Auto-fine (bolong, no submission) still charges the full `nominal_denda`.
 - Month filter: dropdown default current month, can view history.
 - Approver auto = PJ/Admin — only the PJ sees the "Perlu konfirmasi dari lo" section.
 
@@ -52,6 +52,7 @@ Tab **Tagihan → Denda** (segment 1). Components: `BillCard`, `Stamp`.
 - No peer approval — only PJ/Admin.
 - Fine detail (bottom sheet) is NOT used (locked decision) — card shows status + payment button directly.
 - Never trust client status — transitions go through the service.
+- **Timezone (locked 2026-08-08):** the `?bulan=YYYY-MM` filter is a **WIB calendar month** over `createdAt` (timestamptz). Range built from UTC-midnight − 7h (`Date.UTC(y,m,1) − 7h` … `Date.UTC(y,m+1,1) − 7h`). Same WIB/UTC rule as schedule/iuran.
 
 ## 7. Dependencies
 

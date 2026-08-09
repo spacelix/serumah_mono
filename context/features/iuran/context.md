@@ -55,6 +55,7 @@ Tab **Tagihan → Iuran Bulanan** (segment 2). Components: `IuranTotalCard`, `St
 - Client cannot fill in the amount — computed server-side.
 - No `addon` category (galon does not create iuran — locked decision).
 - Do not show per-category upload — one total proof.
+- **Timezone (locked 2026-08-08):** `bulan` is stored as `@db.Date` (Prisma persists UTC components). Month math uses UTC-midnight dates — `monthFromString("YYYY-MM")` → `Date.UTC(y,m-1,1)`, and "now" (default month) is resolved by shifting +7h (WIB) before reading UTC components. Same rule as schedule/dashboard services.
 
 ## 7. Dependencies
 

@@ -38,8 +38,38 @@ export class DendaService {
       orderBy: { createdAt: 'desc' },
       include: {
         anggota: { select: { id: true, nama: true } },
+        submission: {
+          include: {
+            jadwal: { select: { tanggal: true } },
+            proofs: {
+              include: { ruangan: { select: { nama: true } } },
+            },
+            approvals: {
+              orderBy: { reviewedAt: 'desc' },
+              take: 1,
+              select: { reviewer: { select: { nama: true } } },
+            },
+          },
+        },
       },
     });
+
+    // Active rooms + their jenis names, to resolve the cause detail per room.
+    const rooms = await this.prisma.ruangan.findMany({
+      where: {
+        rumahId: anggota.rumahId,
+        jenisPiket: { some: { isActive: true } },
+      },
+      include: { jenisPiket: { where: { isActive: true } } },
+    });
+    const roomJenis = new Map<string, string[]>();
+    const jenisName = new Map<string, string>();
+    for (const room of rooms) {
+      roomJenis.set(room.id, room.jenisPiket.map((j) => j.nama));
+      for (const j of room.jenisPiket) jenisName.set(j.id, j.nama);
+    }
+    const resolveJenis = (ids: string[]) =>
+      ids.map((id) => jenisName.get(id) ?? id);
 
     const rumah = await this.prisma.rumah.findUnique({
       where: { id: anggota.rumahId },
@@ -48,15 +78,49 @@ export class DendaService {
 
     return {
       qrisUrl: rumah?.qrisUrl ?? null,
-      denda: denda.map((d) => ({
-        id: d.id,
-        anggota: d.anggota,
-        nominal: d.nominal,
-        status: d.status,
-        bayarKeAnggotaId: d.bayarKeAnggotaId,
-        buktiBayar: d.buktiBayar,
-        createdAt: d.createdAt,
-      })),
+      denda: denda.map((d) => {
+        // Fine origin decides the meta line on the bill card:
+        // - 'auto'    → piket not done at all, auto-fine at 20:00 deadline.
+        // - 'partial' → submission approved but some jenis_piket unchecked.
+        // - 'rejected' → submission rejected (full flat fine).
+        const submissionStatus = d.submission?.status;
+        const origin: 'auto' | 'partial' | 'rejected' =
+          submissionStatus === 'approved'
+            ? 'partial'
+            : submissionStatus === 'rejected'
+              ? 'rejected'
+              : 'auto';
+        const reviewerNama =
+          d.submission?.approvals[0]?.reviewer?.nama ?? null;
+
+        // Cause detail per room (from the linked submission's proofs).
+        const detail = d.submission
+          ? d.submission.proofs.map((p) => {
+            const done = new Set(resolveJenis(p.jenisSelesai));
+            return {
+              ruanganNama: p.ruangan.nama,
+              fotoBefore: p.fotoBefore,
+              fotoAfter: p.fotoAfter,
+              jenisSelesai: [...done],
+              jenisList: roomJenis.get(p.ruanganId) ?? [...done],
+            };
+          })
+          : [];
+
+        return {
+          id: d.id,
+          anggota: d.anggota,
+          nominal: d.nominal,
+          status: d.status,
+          bayarKeAnggotaId: d.bayarKeAnggotaId,
+          buktiBayar: d.buktiBayar,
+          createdAt: d.createdAt,
+          origin,
+          reviewerNama,
+          tanggal: d.submission?.jadwal.tanggal ?? null,
+          detail,
+        };
+      }),
     };
   }
 

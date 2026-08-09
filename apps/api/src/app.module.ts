@@ -20,6 +20,7 @@ import { RuanganModule } from './modules/ruangan/ruangan.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { PiketModule } from './modules/piket/piket.module';
 import { DendaModule } from './modules/denda/denda.module';
+import { TagihanModule } from './modules/tagihan/tagihan.module';
 import { IuranModule } from './modules/iuran/iuran.module';
 import { ListrikModule } from './modules/listrik/listrik.module';
 import { SwapModule } from './modules/swap/swap.module';
@@ -53,6 +54,7 @@ import { AppService } from './app.service';
     ScheduleModule,
     PiketModule,
     DendaModule,
+    TagihanModule,
     IuranModule,
     ListrikModule,
     SwapModule,

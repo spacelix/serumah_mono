@@ -25,7 +25,32 @@ export function useCurrentMember() {
   });
 }
 
+/* ---------- Months (filter options) ---------- */
+export interface TagihanMonthsResponse {
+  months: string[];
+}
+
+export async function apiGetTagihanMonths(): Promise<TagihanMonthsResponse> {
+  const response = await apiClient.get<TagihanMonthsResponse>('/tagihan/months');
+  return response.data;
+}
+
+export function useTagihanMonths() {
+  return useQuery({
+    queryKey: ['tagihan', 'months'],
+    queryFn: apiGetTagihanMonths,
+  });
+}
+
 /* ---------- Denda ---------- */
+export interface DendaDetailRoom {
+  ruanganNama: string;
+  fotoBefore: string | null;
+  fotoAfter: string | null;
+  jenisSelesai: string[];
+  jenisList: string[];
+}
+
 export interface Denda {
   id: string;
   anggota: ApiMember;
@@ -34,6 +59,10 @@ export interface Denda {
   bayarKeAnggotaId: string | null;
   buktiBayar: string | null;
   createdAt: string;
+  origin: 'auto' | 'partial' | 'rejected';
+  reviewerNama: string | null;
+  tanggal: string | null;
+  detail: DendaDetailRoom[];
 }
 
 export interface DendaListResponse {

@@ -107,12 +107,12 @@ export const type = {
     lineHeight: 20,
     letterSpacing: 0.14,
   },
-  /** Kicker / eyebrow — mono 500 · 10px · +0.14em uppercase */
+  /** Kicker / eyebrow — mono 500 · 10.5px · +0.14em uppercase */
   kicker: {
     fontFamily: fontFamilies.mono[500],
-    fontSize: 10,
-    lineHeight: 14,
-    letterSpacing: 1.4,
+    fontSize: 10.5,
+    lineHeight: 14.7,
+    letterSpacing: 1.47,
     textTransform: 'uppercase',
   },
   /** Stamp cap — Space Grotesk 700 · 10px · +0.11em */

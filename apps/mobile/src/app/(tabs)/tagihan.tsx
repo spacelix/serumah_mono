@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
-import { Camera, Plus, QrCode, ReceiptText, X } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import { ArrowUp, Camera, Check, ChevronRight, Plus, QrCode, ReceiptText, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -13,15 +14,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MonthPicker } from '@/components/tagihan/month-picker';
 import { Stamp } from '@/components/ui/stamp';
+import { previewImage } from '@/components/ui/photo-preview';
 import { formatCurrency, formatShortDate, formatWeekdayDate } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
+import { dialog } from '@/stores/dialog-store';
+import { toast } from '@/stores/toast-store';
 import {
   apiApproveDenda,
   apiConfirmIuranLunas,
@@ -83,6 +87,7 @@ export default function TagihanScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {segment === 'denda' && <DendaView bulan={bulan} />}
         {segment === 'iuran' && <IuranView bulan={bulan} />}
@@ -128,7 +133,7 @@ function DendaView({ bulan }: { bulan: string }) {
       setSelected(null);
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(null);
     }
@@ -140,7 +145,7 @@ function DendaView({ bulan }: { bulan: string }) {
       await apiApproveDenda(id);
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(null);
     }
@@ -152,7 +157,7 @@ function DendaView({ bulan }: { bulan: string }) {
       await apiRejectDenda(id);
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(null);
     }
@@ -288,8 +293,8 @@ function DendaDetailSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.sheetBackdrop}>
-        <View style={styles.sheet}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
           <View style={styles.sheetHandle} />
           {denda && (
             <>
@@ -407,7 +412,7 @@ function DendaDetailSheet({
             </>
           )}
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
@@ -431,7 +436,7 @@ function ApprovalCard({
     <View style={styles.claimCard}>
       <View style={styles.claimCardTop}>
         <Pressable
-          onPress={() => bukti && showImage(bukti)}
+          onPress={() => bukti && previewImage(bukti)}
           style={styles.claimTexts}
         >
           <Text style={styles.claimName}>{name} udah bayar</Text>
@@ -472,6 +477,10 @@ function IuranView({ bulan }: { bulan: string }) {
   const my = useCurrentMember();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [verifyMember, setVerifyMember] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [upUri, setUpUri] = useState<string | null>(null);
 
   if (queries.iuran.isLoading) return <Loading />;
   const data = queries.iuran.data;
@@ -486,34 +495,73 @@ function IuranView({ bulan }: { bulan: string }) {
   const pending = data.iuranList.filter(
     (i) => i.status === 'menunggu_konfirmasi' && i.anggota.id !== myId,
   );
+  const pendingGroups = pending.reduce<Map<string, IuranItem[]>>((groups, i) => {
+    const list = groups.get(i.anggota.id) ?? [];
+    list.push(i);
+    groups.set(i.anggota.id, list);
+    return groups;
+  }, new Map());
+  const verifyItems = verifyMember
+    ? (pendingGroups.get(verifyMember) ?? [])
+    : [];
 
   const revalidate = () => {
     void queryClient.invalidateQueries({ queryKey: tagihanKeys.iuran(bulan) });
   };
 
-  const onUploadTotal = async () => {
+  const unpaidTotal = unpaid.reduce((s, i) => s + i.nominal, 0);
+  const iuranStatus =
+    unpaid.length > 0
+      ? 'belum_bayar'
+      : myIuran.every((i) => i.status === 'lunas')
+        ? 'lunas'
+        : 'menunggu_konfirmasi';
+  const payTotal = unpaid.length > 0 ? unpaidTotal : total;
+
+  const onPickUpload = async () => {
     const uri = await capturePhoto();
-    if (!uri) return;
+    if (uri) setUpUri(uri);
+  };
+
+  const onSubmitUpload = async () => {
+    if (!upUri) return;
     setBusy(true);
     try {
-      const url = await uploadProof('iuran-bukti', uri, bulan);
+      const url = await uploadProof('iuran-bukti', upUri, bulan);
       await apiUploadBuktiTotal(bulan, url);
       revalidate();
-      Alert.alert('Terkirim', 'Bukti iuran berhasil diunggah.');
+      setUpUri(null);
+      setUploadOpen(false);
+      dialog.alert('Terkirim', 'Bukti iuran berhasil diunggah.');
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(false);
     }
   };
 
-  const onConfirm = async (id: string) => {
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const onVerify = async () => {
+    const ids = [...checked];
+    if (ids.length === 0) return;
     setBusy(true);
     try {
-      await apiConfirmIuranLunas(id);
+      for (const id of ids) {
+        await apiConfirmIuranLunas(id);
+      }
+      setChecked(new Set());
+      setVerifyMember(null);
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(false);
     }
@@ -521,89 +569,436 @@ function IuranView({ bulan }: { bulan: string }) {
 
   return (
     <View style={styles.section}>
-      <View style={styles.iuranTotalCard}>
-        <View style={styles.iuranHeader}>
-          <ReceiptText color={colors.ink} size={16} strokeWidth={2} />
-          <Text style={styles.iuranKicker}>IURAN BULANAN · {bulan}</Text>
-        </View>
-        <Text
-          style={[styles.iuranTotal, unpaid.length === 0 && styles.amountPaid]}
-        >
-          {formatCurrency(total)}
-        </Text>
-        <Text style={styles.iuranSub}>
-          Rp{' '}
-          {formatInt(
-            Math.round(data.rumah.totalPerBulan / Math.max(nAnggota, 1)),
-          )}{' '}
-          ÷ {Math.max(nAnggota, 1)} anggota aktif
-        </Text>
-      </View>
-
       {data.rumah.rekening.bank != null && (
-        <Text style={styles.rekening}>
-          Bayar ke: {data.rumah.rekening.bank} {data.rumah.rekening.nomor} a.n.{' '}
-          {data.rumah.rekening.nama}
-        </Text>
+        <RekeningCard reken={data.rumah.rekening} />
       )}
 
-      <View style={styles.categoryList}>
-        {myIuran.map((i) => (
-          <CategoryRow key={i.id} item={i} />
-        ))}
+      <View style={styles.iuranCard}>
+        <View style={styles.iuranCardHead}>
+          <View style={styles.iuranCardTile}>
+            <ReceiptText size={18} strokeWidth={1.9} color={colors.pine} />
+          </View>
+          <View style={styles.iuranCardInfo}>
+            <Text style={styles.iuranCardLabel}>
+              Iuran Bulanan — {formatMonthLabel(bulan)}
+            </Text>
+            <Text
+              style={[
+                styles.iuranCardAmount,
+                unpaid.length === 0 && styles.iuranCardAmountPaid,
+              ]}
+            >
+              {formatCurrency(payTotal)}
+            </Text>
+            <Text style={styles.iuranCardSub}>
+              {formatCurrency(Math.round(payTotal * nAnggota))} ÷{' '}
+              {Math.max(nAnggota, 1)} anggota aktif
+            </Text>
+          </View>
+          <Stamp status={iuranStatus} />
+        </View>
+        {unpaid.length > 0 && (
+          <Pressable
+            onPress={() => setUploadOpen(true)}
+            disabled={busy}
+            style={({ pressed }) => [
+              styles.iuranCardBtn,
+              pressed && styles.iuranCardBtnPressed,
+            ]}
+          >
+            <ArrowUp size={14} strokeWidth={2.2} color={colors.paper} />
+            <Text style={styles.iuranCardBtnText}>Upload Bukti Bayar</Text>
+          </Pressable>
+        )}
       </View>
 
-      {unpaid.length > 0 && (
-        <Pressable
-          onPress={() => void onUploadTotal()}
-          disabled={busy}
-          style={styles.uploadBtn}
-        >
-          <Text style={styles.uploadBtnText}>
-            {busy ? 'Mengunggah…' : 'Upload Bukti Bayar'}
-          </Text>
-        </Pressable>
+      {uploadOpen && (
+        <IuranUploadSheet
+          bulan={bulan}
+          amount={unpaidTotal}
+          items={unpaid}
+          anggotaAktif={Math.max(nAnggota, 1)}
+          bank={data.rumah.rekening.bank ?? null}
+          nomor={data.rumah.rekening.nomor ?? null}
+          rekeningName={data.rumah.rekening.nama ?? null}
+          uri={upUri}
+          busy={busy}
+          onPick={() => void onPickUpload()}
+          onSubmit={() => void onSubmitUpload()}
+          onClose={() => {
+            setUpUri(null);
+            setUploadOpen(false);
+          }}
+        />
       )}
 
       {isPj && pending.length > 0 && (
-        <View style={styles.approvalSection}>
-          <View style={styles.approvalHeaderRow}>
-            <Text style={styles.approvalTitle}>Perlu konfirmasi dari lo</Text>
+        <View style={styles.verifySection}>
+          <View style={styles.verifyHeader}>
+            <Text style={styles.verifyTitle}>Perlu konfirmasi dari lo</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{pending.length} nunggu</Text>
+              <Text style={styles.badgeText}>{pending.length}</Text>
             </View>
           </View>
-          {pending.map((i) => (
-            <View key={i.id} style={styles.pendingIuranRow}>
-              <Text style={styles.pendingIuranText}>
-                {i.anggota.nama} · {i.label}
-              </Text>
+          {[...pendingGroups.entries()].map(([memberId, items]) => {
+            const member = items[0].anggota;
+            return (
               <Pressable
-                onPress={() => void onConfirm(i.id)}
-                disabled={busy}
-                style={styles.approveBtn}
+                key={memberId}
+                onPress={() => {
+                  setChecked(new Set());
+                  setVerifyMember(memberId);
+                }}
+                style={({ pressed }) => [
+                  styles.verifyRow,
+                  pressed && styles.verifyRowPressed,
+                ]}
               >
-                <Text style={styles.approveText}>{busy ? '…' : 'Lunas'}</Text>
+                <View style={styles.verifyAvatar}>
+                  <Text style={styles.verifyAvatarText}>
+                    {member.nama.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.verifyRowText}>
+                  <Text style={styles.verifyRowName}>{member.nama}</Text>
+                  <Text style={styles.verifyRowMeta}>
+                    {items.length} kategori nunggu
+                  </Text>
+                </View>
+                <ChevronRight size={16} color={colors.inkSoft} strokeWidth={2.2} />
               </Pressable>
-            </View>
-          ))}
+            );
+          })}
         </View>
+      )}
+
+      {verifyMember != null && (
+        <IuranVerifySheet
+          items={verifyItems}
+          checked={checked}
+          busy={busy}
+          onToggle={toggleChecked}
+          onVerify={() => void onVerify()}
+          onClose={() => setVerifyMember(null)}
+        />
       )}
     </View>
   );
 }
 
-function CategoryRow({ item }: { item: IuranItem }) {
+/** Box rekening kos (mustard — pola Serumah.html): tap → copy nomor rekening. */
+function RekeningCard({
+  reken,
+}: {
+  reken: { bank: string | null; nomor: string | null; nama: string | null };
+}) {
+  const copy = () => {
+    if (reken.nomor) void Clipboard.setStringAsync(reken.nomor);
+    toast.success('Nomor rekening disalin.');
+  };
+  const hasReken = reken.bank != null || reken.nomor != null;
+
   return (
-    <View style={styles.categoryRow}>
-      <Text style={styles.categoryLabel}>{item.label}</Text>
-      <View style={styles.categoryRight}>
-        <Text style={styles.categoryAmount}>
-          {formatCurrency(item.nominal)}
-        </Text>
-        <Stamp status={item.status} />
-      </View>
-    </View>
+    <Pressable
+      onPress={copy}
+      style={({ pressed }) => [
+        styles.rekeningCard,
+        pressed && styles.rekeningCardPressed,
+      ]}
+    >
+      <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M3.5 9.5L12 4.5l8.5 5M5 9.5V19h14V9.5M9 13h6"
+          stroke={colors.mustardInk}
+          strokeWidth={1.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={styles.rekeningCardText} numberOfLines={2}>
+        {hasReken
+          ? `Bayar ke: ${[reken.bank, reken.nomor].filter(Boolean).join(' ')}${reken.nama ? ` a.n. ${reken.nama}` : ''}`
+          : 'Rekening kos belum diatur.'}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Sheet checklist verifikasi iuran untuk PJ — centang item valid + lihat bukti. */
+function IuranVerifySheet({
+  items,
+  checked,
+  busy,
+  onToggle,
+  onVerify,
+  onClose,
+}: {
+  items: IuranItem[];
+  checked: Set<string>;
+  busy: boolean;
+  onToggle: (id: string) => void;
+  onVerify: () => void;
+  onClose: () => void;
+}) {
+const token = useAuthStore((s) => s.token);
+    const nChecked = checked.size;
+    const insets = useSafeAreaInsets();
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable style={styles.verifBackdrop} onPress={onClose}>
+        <View
+          style={[styles.verifSheet, { paddingBottom: insets.bottom + 16 }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={styles.verifHandle} />
+          <View style={styles.verifHead}>
+            <View style={styles.verifHeadText}>
+              <Text style={styles.verifTitle}>
+                Verifikasi {items[0]?.anggota.nama ?? 'iuran'}
+              </Text>
+              <Text style={styles.verifMeta}>
+                Centang yang sudah bayar sesuai bukti transfer
+              </Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.verifClose}>
+              <X color={colors.inkSoft} size={18} strokeWidth={2.4} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.verifScroll}
+            contentContainerStyle={styles.verifList}
+          >
+            {items.map((item) => {
+              const isChecked = checked.has(item.id);
+              const hasProof = item.buktiBayar != null;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => onToggle(item.id)}
+                  style={({ pressed }) => [
+                    styles.verifItem,
+                    isChecked && styles.verifItemChecked,
+                    pressed && styles.verifItemPressed,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.verifCheck,
+                      isChecked && styles.verifCheckActive,
+                    ]}
+                  >
+                    {isChecked && (
+                      <Check color={colors.paper} size={11} strokeWidth={3} />
+                    )}
+                  </View>
+                  <View style={styles.verifItemBody}>
+                    <Text style={styles.verifItemName}>{item.anggota.nama}</Text>
+                    <Text style={styles.verifItemLabel}>
+                      {item.label} · {formatMonthLabel(item.bulan)}
+                    </Text>
+                    <Text style={styles.verifItemAmount}>
+                      {formatCurrency(item.nominal)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      if (hasProof) previewImage(item.buktiBayar!);
+                    }}
+                    hitSlop={6}
+                    style={[
+                      styles.verifProof,
+                      !hasProof && styles.verifProofEmpty,
+                    ]}
+                  >
+                    {hasProof ? (
+                      <ExpoImage
+                        source={mediaSource(item.buktiBayar!, token)}
+                        style={styles.verifProofImg}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <Text style={styles.verifProofText}>no bukti</Text>
+                    )}
+                  </Pressable>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.verifFooter}>
+            <Pressable
+              onPress={onVerify}
+              disabled={busy || nChecked === 0}
+              style={[
+                styles.verifBtn,
+                (busy || nChecked === 0) && styles.verifBtnDisabled,
+              ]}
+            >
+              <Text style={styles.verifBtnText}>
+                {busy
+                  ? 'Memverifikasi…'
+                  : `Verifikasi ${nChecked > 0 ? `(${nChecked})` : ''}`}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/** Sheet "Upload Bukti Transfer" iuran — pola Serumah.html (upStep1 → upStep2). */
+function IuranUploadSheet({
+  bulan,
+  amount,
+  items,
+  anggotaAktif,
+  bank,
+  nomor,
+  rekeningName,
+  uri,
+  busy,
+  onPick,
+  onSubmit,
+  onClose,
+}: {
+  bulan: string;
+  amount: number;
+  items: IuranItem[];
+  anggotaAktif: number;
+  bank: string | null;
+  nomor: string | null;
+  rekeningName: string | null;
+  uri: string | null;
+  busy: boolean;
+  onPick: () => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const bankLine = [bank, nomor].filter(Boolean).join(' ');
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable style={styles.uploadBackdrop} onPress={onClose}>
+        <View
+          style={[styles.uploadSheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={styles.uploadHandle} />
+          <View style={styles.uploadHead}>
+            <View style={styles.uploadHeadText}>
+              <Text style={styles.uploadTitle}>
+                Iuran Bulanan · {formatMonthLabel(bulan)}
+              </Text>
+              <Text style={styles.uploadAmount}>{formatCurrency(amount)}</Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.uploadClose}>
+              <Text style={styles.uploadCloseText}>×</Text>
+            </Pressable>
+          </View>
+
+          {items.length > 0 && (
+            <View style={styles.uploadItems}>
+              <Text style={styles.uploadItemsKicker}>
+                Item yang harus dibayar
+              </Text>
+              {items.map((i) => (
+                <View key={i.id} style={styles.uploadItemRow}>
+                  <Text style={styles.uploadItemLabel}>{i.label}</Text>
+                  <Text style={styles.uploadItemAmount}>
+                    {formatCurrency(i.nominal)}
+                  </Text>
+                </View>
+              ))}
+              <Text style={styles.uploadShare}>
+                {formatCurrency(amount)} ÷ {anggotaAktif} anggota aktif
+              </Text>
+            </View>
+          )}
+
+          {bankLine || rekeningName ? (
+            <View style={styles.transferTo}>
+              <Text style={styles.transferToKicker}>Transfer ke</Text>
+              <Text style={styles.transferToBank}>{bankLine || '—'}</Text>
+              {rekeningName && (
+                <Text style={styles.transferToName}>a.n. {rekeningName}</Text>
+              )}
+            </View>
+          ) : null}
+
+          {!uri ? (
+            <Pressable
+              onPress={onPick}
+              disabled={busy}
+              style={({ pressed }) => [
+                styles.uploadDrop,
+                pressed && styles.uploadDropPressed,
+              ]}
+            >
+              <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 16V5M8 8.5L12 4.5l4 4M5 18.5h14"
+                  stroke={colors.inkSoft}
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+              <Text style={styles.uploadDropText}>Upload Bukti Transfer</Text>
+              <Text style={styles.uploadDropSub}>pilih dari galeri</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.uploadPreviewWrap}>
+              <Pressable
+                onPress={() => uri && previewImage(uri)}
+                hitSlop={6}
+              >
+                <ExpoImage
+                  source={{ uri }}
+                  style={styles.uploadPreview}
+                  contentFit="cover"
+                />
+              </Pressable>
+              <Text style={styles.uploadPreviewHint}>ketuk untuk perbesar</Text>
+              <View style={styles.uploadActions}>
+                <Pressable
+                  onPress={onSubmit}
+                  disabled={busy}
+                  style={[styles.uploadSend, busy && styles.uploadSendDisabled]}
+                >
+                  <Text style={styles.uploadSendText}>
+                    {busy ? 'Mengirim…' : 'Kirim ke PJ'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={onPick}
+                  disabled={busy}
+                  style={styles.uploadSwap}
+                >
+                  <Text style={styles.uploadSwapText}>Ganti</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -648,7 +1043,7 @@ function ListrikView({ bulan }: { bulan: string }) {
       setBukti(null);
       revalidate();
     } catch (e) {
-      Alert.alert('Gagal', errMsg(e));
+      dialog.alert('Gagal', errMsg(e));
     } finally {
       setBusy(false);
     }
@@ -773,7 +1168,7 @@ function ListrikRecordCard({ record }: { record: ListrikRecord }) {
         </Text>
       </View>
       <Pressable
-        onPress={() => record.buktiBayar && showImage(record.buktiBayar!)}
+        onPress={() => record.buktiBayar && previewImage(record.buktiBayar!)}
       >
         <Text style={styles.recordProof}>Lihat bukti</Text>
       </Pressable>
@@ -797,7 +1192,7 @@ async function capturePhoto(): Promise<string | null> {
   const permission =
     await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert(
+    dialog.alert(
       'Izin galeri',
       'Izinkan akses galeri untuk memilih bukti pembayaran.',
     );
@@ -813,13 +1208,6 @@ async function capturePhoto(): Promise<string | null> {
 async function pickListrikProof(setBukti: (uri: string | null) => void) {
   const uri = await capturePhoto();
   setBukti(uri);
-}
-
-function showImage(url: string) {
-  Alert.alert('Bukti', 'Buka gambar bukti pembayaran', [
-    { text: 'Tutup' },
-    { text: 'Lihat' },
-  ]);
 }
 
 function errMsg(e: unknown): string {
@@ -1102,12 +1490,6 @@ const styles = StyleSheet.create({
     color: colors.paper,
   },
 
-  approvalSection: {
-    backgroundColor: colors.mustardSoft,
-    borderRadius: radius['2xl'],
-    padding: 14,
-    gap: 10,
-  },
   claimSection: { gap: 10 },
   claimHeader: {
     flexDirection: 'row',
@@ -1184,16 +1566,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.brick,
   },
-  approvalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  approvalTitle: {
-    fontFamily: fontFamilies.display[600],
-    fontSize: 13.5,
-    color: colors.mustardInk,
-  },
   badge: {
     backgroundColor: colors.mustard,
     borderRadius: radius.pill,
@@ -1205,87 +1577,463 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.mustardInkStrong,
   },
-  pendingIuranRow: {
+
+  verifySection: {
+    backgroundColor: colors.mustardSoft,
+    borderWidth: 1,
+    borderColor: colors.mustardBorder,
+    borderRadius: radius['2xl'],
+    padding: 14,
+    gap: 8,
+  },
+  verifyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  verifyTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 13.5,
+    color: colors.mustardInk,
+  },
+  verifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: colors.card,
     borderRadius: radius.lg,
-    padding: 12,
-    gap: 10,
-  },
-  approveBtn: {
-    flex: 1,
-    backgroundColor: colors.pine,
-    borderRadius: radius.md,
     paddingVertical: 10,
-    alignItems: 'center',
+    paddingHorizontal: 12,
   },
-  approveText: {
-    fontFamily: fontFamilies.body[600],
+  verifyRowPressed: { opacity: 0.7 },
+  verifyAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.pine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyAvatarText: {
+    fontFamily: fontFamilies.display[700],
     fontSize: 12,
     color: colors.paper,
   },
-  pendingIuranText: {
-    flex: 1,
-    fontFamily: fontFamilies.body[500],
-    fontSize: 12,
+  verifyRowText: { flex: 1, gap: 1 },
+  verifyRowName: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
     color: colors.ink,
   },
+  verifyRowMeta: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
 
-  iuranTotalCard: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius['2xl'],
-    padding: 16,
-    gap: 4,
+  verifBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.55)',
+    justifyContent: 'flex-end',
   },
-  iuranHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iuranKicker: { ...type.kicker, fontSize: 9.5, color: colors.inkSoft },
-  iuranTotal: {
-    fontFamily: fontFamilies.mono[700],
-    fontSize: 24,
-    letterSpacing: -0.5,
-    color: colors.brick,
+  verifSheet: {
+    width: '100%',
+    maxHeight: '82%',
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 10,
   },
-  iuranSub: {
+  verifHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    marginBottom: 2,
+  },
+  verifHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 4,
+  },
+  verifHeadText: { flex: 1, gap: 3 },
+  verifTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 14.5,
+    letterSpacing: -0.14,
+    color: colors.ink,
+  },
+  verifMeta: {
     fontFamily: fontFamilies.body[400],
     fontSize: 11,
+    lineHeight: 16,
     color: colors.inkSoft,
   },
-  rekening: {
-    fontFamily: fontFamilies.body[400],
-    fontSize: 11.5,
-    color: colors.inkSoft,
+  verifClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.paperDeep,
-    borderRadius: radius.md,
-    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  categoryList: { gap: 8 },
-  categoryRow: {
+  verifScroll: { flexGrow: 0, flexShrink: 1 },
+  verifList: { gap: 8, paddingBottom: 4 },
+  verifItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.lg,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    borderRadius: 13,
+    padding: 12,
+  },
+  verifItemChecked: {
+    borderColor: colors.pine,
+    backgroundColor: colors.pineSoft,
+  },
+  verifItemPressed: { opacity: 0.75 },
+  verifCheck: {
+    flex: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.inkSoft,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifCheckActive: { backgroundColor: colors.pine, borderColor: colors.pine },
+  verifItemBody: { flex: 1, minWidth: 0, gap: 2 },
+  verifItemName: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  verifItemLabel: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    lineHeight: 14,
+    color: colors.inkSoft,
+  },
+  verifItemAmount: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 12,
+    color: colors.ink,
+    marginTop: 1,
+  },
+  verifProof: {
+    flex: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 9,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paperDeep,
+  },
+  verifProofEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifProofImg: { width: '100%', height: '100%' },
+  verifProofText: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 7.5,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+  },
+  verifFooter: { paddingTop: 4 },
+  verifBtn: {
+    backgroundColor: colors.pine,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  verifBtnDisabled: { opacity: 0.5 },
+  verifBtnText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
+
+  uploadBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 26, 23, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  uploadSheet: {
+    width: '100%',
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    gap: 13,
+  },
+  uploadHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    marginBottom: 4,
+  },
+  uploadHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  uploadHeadText: { flex: 1, flexDirection: 'column', gap: 3 },
+  uploadTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.ink,
+  },
+  uploadAmount: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 21,
+    letterSpacing: -0.4,
+    color: colors.ink,
+  },
+  uploadClose: {
+    flex: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.paperDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadCloseText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 15,
+    lineHeight: 15,
+    color: colors.inkSoft,
+  },
+  uploadItems: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 11,
+    padding: 13,
+    gap: 9,
+  },
+  uploadItemsKicker: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+  },
+  uploadItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
   },
-  categoryLabel: {
+  uploadItemLabel: {
     flex: 1,
     fontFamily: fontFamilies.body[500],
     fontSize: 12.5,
     color: colors.ink,
   },
-  categoryRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  categoryAmount: {
+  uploadItemAmount: {
     fontFamily: fontFamilies.mono[600],
     fontSize: 13,
     color: colors.ink,
+  },
+  uploadShare: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 9,
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
+  transferTo: {
+    backgroundColor: colors.mustardSoft,
+    borderRadius: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    gap: 2,
+  },
+  transferToKicker: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+  },
+  transferToBank: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 14,
+    letterSpacing: 0.3,
+    color: colors.ink,
+  },
+  transferToName: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11,
+    color: colors.mustardText,
+  },
+  uploadDrop: {
+    height: 120,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.lineDash,
+    backgroundColor: colors.paperDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  uploadDropPressed: { opacity: 0.75 },
+  uploadDropText: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 11.5,
+    color: colors.inkSoft,
+  },
+  uploadDropSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10,
+    color: colors.inkMuted,
+  },
+  uploadPreviewWrap: { gap: 10 },
+  uploadPreview: {
+    width: '100%',
+    height: 150,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paperDeep,
+    overflow: 'hidden',
+  },
+  uploadPreviewHint: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    color: colors.inkMuted,
+  },
+  uploadActions: { flexDirection: 'row', gap: 8 },
+  uploadSend: {
+    flex: 1,
+    backgroundColor: colors.pine,
+    borderRadius: 11,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  uploadSendDisabled: { backgroundColor: colors.disabledBg },
+  uploadSendText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
+  uploadSwap: {
+    flex: 0,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: 'transparent',
+    borderRadius: 11,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadSwapText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+
+  iuranCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 11,
+    padding: 14,
+    gap: 11,
+  },
+  iuranCardHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+  },
+  iuranCardTile: {
+    flex: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.paperDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iuranCardInfo: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'column',
+    gap: 3,
+  },
+  iuranCardLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 13.5,
+    letterSpacing: -0.15,
+    color: colors.ink,
+  },
+  iuranCardAmount: {
+    fontFamily: fontFamilies.mono[700],
+    fontSize: 19,
+    letterSpacing: -0.4,
+    color: colors.ink,
+  },
+  iuranCardAmountPaid: { color: colors.inkSoft },
+  iuranCardSub: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10,
+    color: colors.inkMuted,
+  },
+  iuranCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.pine,
+    borderRadius: 11,
+    paddingVertical: 12,
+  },
+  iuranCardBtnPressed: { backgroundColor: colors.pineDeep },
+  iuranCardBtnText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.paper,
+  },
+  rekeningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.mustardSoft,
+    borderWidth: 1,
+    borderColor: colors.mustardBorder,
+    borderRadius: radius.md,
+    padding: 13,
+  },
+  rekeningCardPressed: { opacity: 0.7 },
+  rekeningCardText: {
+    flex: 1,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: colors.mustardText,
   },
 
   listrikSummary: {

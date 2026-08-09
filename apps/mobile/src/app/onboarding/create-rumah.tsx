@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Share,
@@ -15,6 +14,7 @@ import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
 import { apiCreateRumah } from '@/features/onboarding/api/onboarding';
 import { useAuthStore } from '@/stores/auth-store';
+import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
 
@@ -42,7 +42,7 @@ export default function OnboardingCreateRumahScreen() {
         error instanceof Error
           ? error.message
           : 'Terjadi kesalahan. Coba lagi.';
-      Alert.alert('Gagal membuat kos', message);
+      dialog.alert('Gagal membuat kos', message);
     } finally {
       setSubmitting(false);
     }
@@ -68,7 +68,7 @@ export default function OnboardingCreateRumahScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
           {inviteCode == null ? (

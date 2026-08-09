@@ -1,4 +1,7 @@
+import { Eye, EyeOff } from 'lucide-react-native';
+import { useState } from 'react';
 import {
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -26,16 +29,41 @@ export function SerumahInput({
   label,
   hint,
   error,
+  secureTextEntry,
   ...rest
 }: SerumahInputProps) {
+  const [show, setShow] = useState(false);
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.inkMuted}
-        style={[styles.input, error != null && styles.inputError]}
-        {...rest}
-      />
+      <View style={styles.inputWrap}>
+        <TextInput
+          placeholderTextColor={colors.inkMuted}
+          style={[
+            styles.input,
+            error != null && styles.inputError,
+            secureTextEntry && styles.inputSecure,
+          ]}
+          secureTextEntry={secureTextEntry && !show}
+          {...rest}
+        />
+        {secureTextEntry && (
+          <Pressable
+            onPress={() => setShow((v) => !v)}
+            style={styles.eyeBtn}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={show ? 'Sembunyikan password' : 'Tampilkan password'}
+          >
+            {show ? (
+              <EyeOff color={colors.inkSoft} size={18} strokeWidth={1.9} />
+            ) : (
+              <Eye color={colors.inkSoft} size={18} strokeWidth={1.9} />
+            )}
+          </Pressable>
+        )}
+      </View>
       {error != null ? (
         <Text style={styles.error}>{error}</Text>
       ) : hint != null ? (
@@ -55,7 +83,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.3,
     color: colors.inkSoft,
   },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.card,
@@ -66,8 +99,20 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body[500],
     fontSize: 13.5,
   },
+  inputSecure: {
+    paddingRight: 44,
+  },
   inputError: {
     borderColor: colors.brick,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 4,
+    width: 36,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   error: {
     fontFamily: fontFamilies.body[500],

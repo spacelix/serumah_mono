@@ -63,6 +63,8 @@ export interface RumahManageMember {
   fotoProfil: string | null;
   role: string;
   createdAt: string;
+  kontakDarurat: string | null;
+  alamat: string | null;
 }
 
 export interface RumahDetail {

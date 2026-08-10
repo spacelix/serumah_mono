@@ -2,7 +2,6 @@ import { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 interface EmptyStateProps {
@@ -83,17 +82,20 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: 6,
-    backgroundColor: colors.ink,
-    borderRadius: radius.xl,
+    backgroundColor: colors.paperDeep,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.lineDash,
+    borderRadius: 11,
     paddingVertical: 12,
     paddingHorizontal: 22,
   },
-  actionPressed: { backgroundColor: colors.pineDeep },
-  actionDisabled: { backgroundColor: colors.paperDeep },
+  actionPressed: { opacity: 0.75 },
+  actionDisabled: { opacity: 0.5 },
   actionText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
-    color: colors.paper,
+    color: colors.pine,
   },
   actionTextDisabled: { color: colors.inkMuted },
 });

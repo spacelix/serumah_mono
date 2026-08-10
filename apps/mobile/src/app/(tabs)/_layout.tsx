@@ -9,7 +9,7 @@ import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
 import { TabIcon, type TabIconName } from '@/components/ui/tab-icon';
 
-const TABS: Array<{ name: string; label: string; icon: TabIconName }> = [
+const TABS: { name: string; label: string; icon: TabIconName }[] = [
   { name: 'index', label: 'Beranda', icon: 'beranda' },
   { name: 'piket', label: 'Piket', icon: 'piket' },
   { name: 'tagihan', label: 'Tagihan', icon: 'tagihan' },

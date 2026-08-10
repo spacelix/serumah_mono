@@ -2,15 +2,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Check, Pencil, Plus, X } from 'lucide-react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +22,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/stores/toast-store';
+import { dialog } from '@/stores/dialog-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient, mediaSource } from '@/lib/api-client';
 import {
@@ -118,36 +122,43 @@ export default function ManageRumahScreen() {
         onBack={handleBack}
         backLabel="Profil"
       />
-      <ScrollView
-        ref={scrollRef}
-        onContentSizeChange={() => {
-          if (shouldScrollToGenerate && !scrolledRef.current)
-            scrollToGenerate();
-        }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <RumahCard
-          rumah={data.rumah}
-          isAdmin={data.currentRole === 'admin'}
-          onChange={() => invalidate()}
-        />
-        <QrisSection
-          isAdmin={data.currentRole === 'admin'}
-          qrisUrl={data.rumah.qrisUrl}
-          onChange={() => invalidate()}
-        />
-        <MembersSection
-          members={data.anggotaList}
-          isAdmin={data.currentRole === 'admin'}
-        />
-        <RoomsSection
-          isAdmin={data.currentRole === 'admin'}
-          denda={data.rumah.nominalDenda}
-          onAddedJenis={() => setAddedJenis(true)}
-        />
-        <GenerateJadwalSection isAdmin={data.currentRole === 'admin'} />
-      </ScrollView>
+        <ScrollView
+          ref={scrollRef}
+          onContentSizeChange={() => {
+            if (shouldScrollToGenerate && !scrolledRef.current)
+              scrollToGenerate();
+          }}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        >
+          <RumahCard
+            rumah={data.rumah}
+            isAdmin={data.currentRole === 'admin'}
+            onChange={() => invalidate()}
+          />
+          <QrisSection
+            isAdmin={data.currentRole === 'admin'}
+            qrisUrl={data.rumah.qrisUrl}
+            onChange={() => invalidate()}
+          />
+          <MembersSection
+            members={data.anggotaList}
+            isAdmin={data.currentRole === 'admin'}
+          />
+          <RoomsSection
+            isAdmin={data.currentRole === 'admin'}
+            denda={data.rumah.nominalDenda}
+            onAddedJenis={() => setAddedJenis(true)}
+          />
+          <GenerateJadwalSection isAdmin={data.currentRole === 'admin'} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <ConfirmDialog
         visible={confirmRefresh}
@@ -283,7 +294,7 @@ function EditRumahCard({
   onClosed: () => void;
   onChange: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
   const [nama, setNama] = useState(rumah.nama);
   const [alamat, setAlamat] = useState(rumah.alamat);
@@ -304,7 +315,8 @@ function EditRumahCard({
     }).start();
   }, [rise]);
 
-  if (closing) {
+  useEffect(() => {
+    if (!closing) return;
     Animated.timing(rise, {
       toValue: 0,
       duration: 180,
@@ -315,7 +327,7 @@ function EditRumahCard({
         onClosed();
       }
     });
-  }
+  }, [closing, rise, onClosed]);
 
   const save = async () => {
     if (!nama.trim()) {
@@ -475,7 +487,7 @@ function QrisSection({
   const pickAndUpload = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Izin galeri', 'Izinkan akses galeri untuk pilih gambar QRIS.');
+      dialog.alert('Izin galeri', 'Izinkan akses galeri untuk pilih gambar QRIS.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -632,6 +644,9 @@ function MembersSection({
   const [removeTarget, setRemoveTarget] = useState<RumahManageMember | null>(
     null,
   );
+  const [detailTarget, setDetailTarget] = useState<RumahManageMember | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
 
   const remove = async () => {
@@ -659,7 +674,13 @@ function MembersSection({
         {members.map((m, index) => (
           <View key={m.id}>
             {index > 0 && <View style={styles.memberDivider} />}
-            <View style={styles.memberRow}>
+            <Pressable
+              onPress={() => setDetailTarget(m)}
+              style={({ pressed }) => [
+                styles.memberRow,
+                pressed && styles.memberRowPressed,
+              ]}
+            >
               <View style={styles.memberAvatar}>
                 {m.fotoProfil ? (
                   <ExpoImage
@@ -684,19 +705,21 @@ function MembersSection({
                   <Text style={styles.pjBadgeText}>PJ Kos</Text>
                 </View>
               )}
-              {isAdmin && m.role !== 'admin' && (
-                <Pressable
-                  onPress={() => setRemoveTarget(m)}
-                  style={styles.moreBtn}
-                  hitSlop={6}
-                >
-                  <Text style={styles.moreText}>⋯</Text>
-                </Pressable>
-              )}
-            </View>
+              <Text style={styles.memberChevron}>›</Text>
+            </Pressable>
           </View>
         ))}
       </View>
+
+      <MemberDetailSheet
+        member={detailTarget}
+        isAdmin={isAdmin}
+        onClose={() => setDetailTarget(null)}
+        onRemove={(m) => {
+          setDetailTarget(null);
+          setRemoveTarget(m);
+        }}
+      />
 
       <ConfirmDialog
         visible={removeTarget != null}
@@ -711,6 +734,116 @@ function MembersSection({
         onCancel={() => setRemoveTarget(null)}
       />
     </View>
+  );
+}
+
+/* ================= Detail Anggota (bottom sheet) ================= */
+
+function MemberDetailSheet({
+  member,
+  isAdmin,
+  onClose,
+  onRemove,
+}: {
+  member: RumahManageMember | null;
+  isAdmin: boolean;
+  onClose: () => void;
+  onRemove: (member: RumahManageMember) => void;
+}) {
+  const token = useAuthStore((s) => s.token);
+
+  return (
+    <Modal
+      visible={member != null}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.memberSheetBackdrop} onPress={onClose}>
+        <View style={styles.memberSheet} onStartShouldSetResponder={() => true}>
+          <View style={styles.memberSheetHandle} />
+          {member && (
+            <>
+              <View style={styles.memberSheetHead}>
+                <View style={styles.memberSheetHeadText}>
+                  <Text style={styles.memberSheetTitle}>Detail anggota</Text>
+                  <Text style={styles.memberSheetMeta}>
+                    {member.role === 'admin' ? 'PJ Kos' : 'Anggota'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={8}
+                  style={styles.memberSheetClose}
+                >
+                  <X color={colors.inkSoft} size={18} strokeWidth={2.4} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={styles.memberSheetScroll}
+                contentContainerStyle={styles.memberSheetScrollContent}
+              >
+                <View style={styles.memberSheetProfile}>
+                  <View style={styles.memberSheetAvatar}>
+                    {member.fotoProfil ? (
+                      <ExpoImage
+                        source={mediaSource(member.fotoProfil, token)}
+                        style={styles.memberSheetAvatarImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <Text style={styles.memberSheetAvatarInitial}>
+                        {member.nama.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <View>
+                    <Text style={styles.memberSheetName}>{member.nama}</Text>
+                    <Text style={styles.memberSheetJoined}>
+                      Bergabung {formatLongDate(member.createdAt)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.memberSheetInfoCard}>
+                  <View style={styles.memberSheetInfoRow}>
+                    <Text style={styles.memberSheetInfoLabel}>
+                      Kontak darurat
+                    </Text>
+                    <Text style={styles.memberSheetInfoValue}>
+                      {member.kontakDarurat?.trim() || '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.memberSheetInfoDivider} />
+                  <View style={styles.memberSheetInfoRow}>
+                    <Text style={styles.memberSheetInfoLabel}>Alamat</Text>
+                    <Text style={styles.memberSheetInfoValue}>
+                      {member.alamat?.trim() || '—'}
+                    </Text>
+                  </View>
+                </View>
+
+                {isAdmin && member.role !== 'admin' && (
+                  <Pressable
+                    onPress={() => onRemove(member)}
+                    style={({ pressed }) => [
+                      styles.memberSheetRemoveBtn,
+                      pressed && styles.memberSheetRemoveBtnPressed,
+                    ]}
+                  >
+                    <Text style={styles.memberSheetRemoveBtnText}>
+                      Hapus anggota
+                    </Text>
+                  </Pressable>
+                )}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -743,10 +876,10 @@ function RoomsSection({
   const totalJenis =
     ruangan?.reduce((acc, r) => acc + r.jenisPiket.length, 0) ?? 0;
 
-  const move = async (index: number, dir: 'down') => {
+  const move = async (index: number, dir: 'up' | 'down') => {
     if (!ruangan) return;
-    const target = index + 1;
-    if (target >= ruangan.length) return;
+    const target = dir === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= ruangan.length) return;
     const next = [...ruangan];
     [next[index], next[target]] = [next[target], next[index]];
     setBusy(true);
@@ -921,6 +1054,23 @@ function RoomsSection({
                           size={11}
                           strokeWidth={2.1}
                         />
+                      </Pressable>
+                    )}
+                    {isAdmin && (
+                      <Pressable
+                        onPress={() => void move(index, 'up')}
+                        disabled={busy || index === 0}
+                        style={styles.iconBtn}
+                        hitSlop={4}
+                      >
+                        <Text
+                          style={[
+                            styles.moveUp,
+                            index === 0 && styles.moveUpDisabled,
+                          ]}
+                        >
+                          ↑
+                        </Text>
                       </Pressable>
                     )}
                     {isAdmin && (
@@ -1111,7 +1261,7 @@ function AddRoomForm({
   onSave: () => void;
   busy: boolean;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
 
   useEffect(() => {
     Animated.timing(rise, {
@@ -1255,9 +1405,15 @@ function CostRow({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
+  flex: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
-  content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40, gap: 18 },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 48,
+    gap: 18,
+  },
 
   /* Kartu dasar */
   card: {
@@ -1605,6 +1761,134 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     color: colors.inkSoft,
   },
+  memberRowPressed: { opacity: 0.6 },
+  memberChevron: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 15,
+    lineHeight: 15,
+    color: colors.inkMuted,
+    marginLeft: 2,
+  },
+
+  /* Detail anggota (bottom sheet) */
+  memberSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 42, 36, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  memberSheet: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: radius['3xl'],
+    borderTopRightRadius: radius['3xl'],
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  memberSheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.paperDeep,
+    marginBottom: 14,
+  },
+  memberSheetHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  memberSheetHeadText: { gap: 3, flex: 1 },
+  memberSheetTitle: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 14,
+    color: colors.ink,
+  },
+  memberSheetMeta: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
+  memberSheetClose: {
+    padding: 4,
+  },
+  memberSheetScroll: { flexGrow: 0 },
+  memberSheetScrollContent: { gap: 12, paddingBottom: 4 },
+  memberSheetProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  memberSheetAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.pine,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  memberSheetAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  memberSheetAvatarInitial: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 18,
+    color: colors.paper,
+  },
+  memberSheetName: {
+    fontFamily: fontFamilies.body[700],
+    fontSize: 15,
+    color: colors.ink,
+  },
+  memberSheetJoined: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 11,
+    color: colors.inkSoft,
+    marginTop: 2,
+  },
+  memberSheetInfoCard: {
+    backgroundColor: colors.paperDeep,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  memberSheetInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 11,
+  },
+  memberSheetInfoDivider: { height: 1, backgroundColor: colors.line },
+  memberSheetInfoLabel: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11,
+    color: colors.inkSoft,
+  },
+  memberSheetInfoValue: {
+    flex: 1,
+    textAlign: 'right',
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.ink,
+  },
+  memberSheetRemoveBtn: {
+    backgroundColor: 'rgba(179, 63, 63, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(179, 63, 63, 0.4)',
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  memberSheetRemoveBtnPressed: { opacity: 0.6 },
+  memberSheetRemoveBtnText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.brick,
+  },
 
   /* Ruangan */
   roomList: { gap: 10, marginTop: 8 },
@@ -1646,6 +1930,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moveUp: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 11,
+    lineHeight: 11,
+    color: colors.inkSoft,
+  },
+  moveUpDisabled: { opacity: 0.35 },
   moveDown: {
     fontFamily: fontFamilies.body[600],
     fontSize: 11,

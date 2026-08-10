@@ -3,7 +3,6 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,6 +20,7 @@ import {
   uploadAvatar,
 } from '@/features/onboarding/api/onboarding';
 import { useAuthStore } from '@/stores/auth-store';
+import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
 
@@ -36,7 +36,7 @@ export default function OnboardingProfileScreen() {
   const pickPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
+      dialog.alert(
         'Butuh izin',
         'Izinkan akses galeri untuk memilih foto profil.',
       );
@@ -54,7 +54,7 @@ export default function OnboardingProfileScreen() {
 
   const handleNext = async () => {
     if (nama.trim() === '') {
-      Alert.alert(
+      dialog.alert(
         'Nama wajib diisi',
         'Masukkan nama kamu dulu untuk melanjutkan.',
       );
@@ -79,7 +79,7 @@ export default function OnboardingProfileScreen() {
         error instanceof Error
           ? error.message
           : 'Terjadi kesalahan. Coba lagi.';
-      Alert.alert('Gagal menyimpan profil', message);
+      dialog.alert('Gagal menyimpan profil', message);
     } finally {
       setSubmitting(false);
     }
@@ -89,7 +89,7 @@ export default function OnboardingProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
           <View style={styles.header}>

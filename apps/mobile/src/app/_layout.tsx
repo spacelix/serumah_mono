@@ -1,20 +1,50 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { SplashScreen as SerumahSplash } from '@/components/splash/splash-screen';
+import { AppDialog } from '@/components/ui/app-dialog';
+import { PhotoPreview } from '@/components/ui/photo-preview';
 import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
+import {
+  configureAndroidChannel,
+  deepLinkFromResponse,
+  registerPushToken,
+} from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { useSerumahFonts } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
+
+/** Navigate to a tab when a push notification is tapped. */
+function goToDeepLink(deepLink?: string) {
+  const route = deepLinkFromResponseWithKey(deepLink);
+  if (!route) return;
+  if (route === 'beranda') {
+    router.navigate('/');
+  } else if (route === 'piket') {
+    router.navigate('/(tabs)/piket');
+  } else if (route === 'swap') {
+    router.navigate('/(tabs)/swap');
+  } else if (route === 'tagihan') {
+    router.navigate('/(tabs)/tagihan');
+  }
+}
+
+function deepLinkFromResponseWithKey(deepLink?: string) {
+  if (!deepLink) return null;
+  const key = deepLink.replace('/(tabs)/', '').replace(/\//g, '');
+  const valid = ['piket', 'swap', 'tagihan', 'beranda', 'index'];
+  return valid.includes(key) ? key : null;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -23,24 +53,56 @@ export default function RootLayout() {
   const stage = useAuthStore((s) => s.stage);
   const hydrate = useAuthStore((s) => s.hydrate);
   const [ready, setReady] = useState(false);
+  const [holdDone, setHoldDone] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    // Hold the branded splash long enough for the riseIn + wordmark animation
-    // to read (design intent), even when fonts/API resolve instantly.
-    const minimum = new Promise<void>((resolve) => setTimeout(resolve, 2400));
-    void Promise.all([hydrate(), minimum, apiCheckHealth()]).then(() => {
-      if (!cancelled) {
-        setReady(true);
-        void SplashScreen.hideAsync();
-      }
+    if (!fontsLoaded) return;
+    // Load auth + health behind the NATIVE splash (still covering). The branded
+    // SerumahSplash is NOT mounted yet — its riseIn/wordmark must play while
+    // visible, not hidden behind the native splash.
+    void Promise.all([hydrate(), apiCheckHealth()]).then(() => {
+      if (cancelled) return;
+      setReady(true);
+      requestAnimationFrame(() => void SplashScreen.hideAsync());
     });
     return () => {
       cancelled = true;
     };
-  }, [hydrate]);
+  }, [fontsLoaded, hydrate]);
 
-  if (!fontsLoaded || !ready) {
+  useEffect(() => {
+    if (!ready || holdDone) return;
+    // Hold the branded splash long enough for the riseIn + wordmark animation
+    // to read (design intent), even when everything resolved instantly.
+    const t = setTimeout(() => setHoldDone(true), 2400);
+    return () => clearTimeout(t);
+  }, [ready, holdDone]);
+
+  // Push notifications: Android channel + register the device token once the
+  // user is authenticated, and route taps to the relevant tab.
+  useEffect(() => {
+    void configureAndroidChannel();
+    const sub = Notifications.addNotificationResponseReceivedListener((res) =>
+      goToDeepLink(deepLinkFromResponse(res) ?? undefined),
+    );
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (stage === 'ready') void registerPushToken();
+  }, [stage]);
+
+  if (!ready) {
+    // While behind the native splash render a plain matching backdrop — the
+    // branded `<SerumahSplash />` mounts only at reveal so its riseIn/wordmark
+    // animation actually plays on screen.
+    return <View style={styles.splashBackdrop} />;
+  }
+
+  if (!holdDone) {
+    // Native splash just hid — show the branded splash fresh so the riseIn +
+    // wordmark animation reads before the app slides in.
     return <SerumahSplash />;
   }
 
@@ -91,10 +153,13 @@ export default function RootLayout() {
         )}
       </ThemeProvider>
       <Toaster />
+      <PhotoPreview />
+      <AppDialog />
     </QueryClientProvider>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
+  splashBackdrop: { flex: 1, backgroundColor: colors.splashGreen },
 });

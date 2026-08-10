@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSwapDto } from './dto/swap.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5];
@@ -25,6 +26,7 @@ export class SwapService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private toDate(date: Date | string): Date {
@@ -95,6 +97,49 @@ export class SwapService {
     return days;
   }
 
+  /**
+   * For the swap form step 2: every other member + their scheduled piket days
+   * (next 2 weeks) that can be swapped in. Mutual 2-day swap target picker.
+   */
+  async targetDays(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) return [];
+
+    const today = this.toDate(new Date());
+    const twoWeeksAhead = this.addDays(today, 14);
+
+    const [members, jadwal] = await Promise.all([
+      this.prisma.anggota.findMany({
+        where: { rumahId: anggota.rumahId, id: { not: anggota.id } },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, nama: true },
+      }),
+      this.prisma.jadwal.findMany({
+        where: {
+          rumahId: anggota.rumahId,
+          tanggal: { gte: today, lte: twoWeeksAhead },
+        },
+        select: { tanggal: true, anggotaId: true },
+      }),
+    ]);
+
+    const daysByMember = new Map<string, Date[]>();
+    for (const j of jadwal) {
+      if (!PIKET_WEEKDAYS.includes(j.tanggal.getUTCDay())) continue;
+      const list = daysByMember.get(j.anggotaId) ?? [];
+      list.push(j.tanggal);
+      daysByMember.set(j.anggotaId, list);
+    }
+
+    return members
+      .map((m) => ({
+        id: m.id,
+        nama: m.nama,
+        days: (daysByMember.get(m.id) ?? []).sort((a, b) => a.getTime() - b.getTime()),
+      }))
+      .filter((m) => m.days.length > 0);
+  }
+
   async create(payload: CurrentUserPayload, dto: CreateSwapDto) {
     const anggota = await this.scope.requireAnggota(payload.userId);
     if (!anggota.rumahId) {
@@ -104,18 +149,19 @@ export class SwapService {
       throw new BadRequestException('Tidak dapat menukar dengan diri sendiri.');
     }
 
-    const target = this.toDate(dto.tanggal);
+    const tanggalLo = this.toDate(dto.tanggal);
+    const tanggalMereka = this.toDate(dto.tanggalKe);
 
     // Must be an already-scheduled piket day for this user.
-    const jadwal = await this.prisma.jadwal.findFirst({
-      where: { rumahId: anggota.rumahId, tanggal: target },
+    const jadwalLo = await this.prisma.jadwal.findFirst({
+      where: { rumahId: anggota.rumahId, tanggal: tanggalLo },
     });
-    if (!jadwal) {
+    if (!jadwalLo) {
       throw new BadRequestException(
         'Tidak ada jadwal piket pada tanggal tersebut.',
       );
     }
-    if (jadwal.anggotaId !== anggota.id) {
+    if (jadwalLo.anggotaId !== anggota.id) {
       throw new BadRequestException(
         'Anda tidak memiliki jadwal piket pada tanggal tersebut.',
       );
@@ -128,10 +174,25 @@ export class SwapService {
       throw new BadRequestException('Anggota penerima tidak ditemukan.');
     }
 
+    // The target day must belong to the receiver (the day we'll take over).
+    const jadwalMereka = await this.prisma.jadwal.findFirst({
+      where: { rumahId: anggota.rumahId, tanggal: tanggalMereka },
+    });
+    if (!jadwalMereka) {
+      throw new BadRequestException(
+        'Tidak ada jadwal piket pada tanggal penerima.',
+      );
+    }
+    if (jadwalMereka.anggotaId !== receiver.id) {
+      throw new BadRequestException(
+        `${receiver.nama} tidak memiliki jadwal piket pada tanggal tersebut.`,
+      );
+    }
+
     const duplicate = await this.prisma.swapRequest.findFirst({
       where: {
         dariAnggotaId: anggota.id,
-        tanggal: target,
+        tanggal: tanggalLo,
         status: 'diajukan',
       },
     });
@@ -145,14 +206,16 @@ export class SwapService {
       data: {
         dariAnggotaId: anggota.id,
         keAnggotaId: receiver.id,
-        tanggal: target,
+        tanggal: tanggalLo,
+        tanggalKe: tanggalMereka,
         status: 'diajukan',
       },
     });
 
     this.logger.log(
-      `[SwapService] ${anggota.nama} swap ${target.toISOString()} → ${receiver.nama}`,
+      `[SwapService] ${anggota.nama} swap ${tanggalLo.toISOString()} ⇄ ${tanggalMereka.toISOString()} (${receiver.nama})`,
     );
+    await this.notifications.notifySwapIncoming(receiver.id, anggota.nama);
     return { swapRequest };
   }
 
@@ -166,7 +229,9 @@ export class SwapService {
 
     // Reject swaps for days that already have a submission.
     const existingSubmission = await this.prisma.piketSubmission.findFirst({
-      where: { jadwal: { rumahId, tanggal: swap.tanggal } },
+      where: {
+        jadwal: { rumahId, tanggal: { in: [swap.tanggal, swap.tanggalKe] } },
+      },
     });
     if (existingSubmission) {
       throw new ConflictException(
@@ -174,11 +239,16 @@ export class SwapService {
       );
     }
 
-    // Move the schedule for that day to the receiver (all-or-nothing).
+    // Mutual all-or-nothing: the requester's day moves to the receiver, and
+    // the receiver's day moves to the requester.
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.jadwal.updateMany({
         where: { rumahId, tanggal: swap.tanggal },
         data: { anggotaId: anggota.id },
+      });
+      await tx.jadwal.updateMany({
+        where: { rumahId, tanggal: swap.tanggalKe },
+        data: { anggotaId: swap.dariAnggotaId },
       });
       return tx.swapRequest.update({
         where: { id: swap.id },
@@ -189,6 +259,7 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} diterima oleh ${anggota.nama}`,
     );
+    await this.notifications.notifySwapAccepted(swap.dariAnggotaId, anggota.nama);
     return { swapRequest: updated };
   }
 
@@ -204,6 +275,7 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} ditolak oleh ${anggota.nama}`,
     );
+    await this.notifications.notifySwapRejected(swap.dariAnggotaId, anggota.nama);
     return { swapRequest: updated };
   }
 

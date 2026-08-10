@@ -16,4 +16,9 @@ export class GalonController {
   confirm(@CurrentUser() payload: CurrentUserPayload, @Param('id') id: string) {
     return this.galonService.confirm(payload, id);
   }
+
+  @Post('nudge')
+  nudge(@CurrentUser() payload: CurrentUserPayload) {
+    return this.galonService.nudge(payload);
+  }
 }

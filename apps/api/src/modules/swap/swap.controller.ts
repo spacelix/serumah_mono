@@ -18,6 +18,11 @@ export class SwapController {
     return this.swapService.availableDays(payload);
   }
 
+  @Get('target-days')
+  targetDays(@CurrentUser() payload: CurrentUserPayload) {
+    return this.swapService.targetDays(payload);
+  }
+
   @Post()
   create(
     @CurrentUser() payload: CurrentUserPayload,

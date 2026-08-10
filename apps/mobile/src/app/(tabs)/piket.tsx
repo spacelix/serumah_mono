@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -261,8 +262,8 @@ function ReviewSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.sheetBackdrop}>
-        <View style={styles.sheet}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
           <View style={styles.sheetHandle} />
           {submission && (
             <>
@@ -319,7 +320,7 @@ function ReviewSheet({
             </>
           )}
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
@@ -566,7 +567,7 @@ function RuanganPiketCard({
   const [previewSlot, setPreviewSlot] = useState<'before' | 'after' | null>(
     null,
   );
-  const fade = useRef(new Animated.Value(1)).current;
+  const fade = useAnimatedValue(1);
   const info = useInfoDialog();
   const wasComplete = useRef(false);
 

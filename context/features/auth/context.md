@@ -44,8 +44,9 @@ Screens: `app/login.tsx`, `app/register.tsx`, splash (`app/index.tsx`).
   3. **Iuran & galon transparan** — kicker "Satu atap, satu catatan", art money (Wifi/Listrik amounts + galon chip with droplet SVG, stroke `mustard` 1.9)
      Skip (`Lewati`) and final "Mulai · Masuk" both → `/login`. Session-based redirect after splash:
   - not logged in → `/welcome`; logged in + no profile → `/onboarding/profile`; has profile + no rumah → `/onboarding/create-rumah`; complete → `(tabs)`.
-- **Login**: email field, password field, **"Masuk"** button (ink, full width), link **"Belum punya akun? Daftar"**.
+- **Login**: email field, password field (with show/hide toggle), **"Masuk"** button (ink, full width), link **"Belum punya akun? Daftar"**.
 - **Register**: email, password, password confirmation, **"Daftar"** button, link **"Sudah punya akun? Masuk"**.
+- **Password show/hide toggle (locked 2026-08-09):** every password field (`SerumahInput` with `secureTextEntry`, incl. profile "Ganti password" `PasswordField`) renders an eye icon at the right — toggles `secureTextEntry`. Default hidden.
 - Loading state while submitting; errors show Indonesian API messages.
 - All text in Bahasa Indonesia. No stamp on these screens.
 

@@ -11,7 +11,6 @@ const ICON_SIZE = 15;
 
 function ToastRow({ item }: { item: ToastItem }) {
   const progress = useMemo(() => new Animated.Value(0), []);
-  const dismiss = useToastStore((s) => s.dismiss);
 
   useEffect(() => {
     Animated.timing(progress, {

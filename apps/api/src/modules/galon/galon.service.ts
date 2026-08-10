@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CacheService } from '../redis/cache.service';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class GalonService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async current(payload: CurrentUserPayload) {
@@ -87,8 +89,39 @@ export class GalonService {
     this.logger.log(
       `[GalonService] Giliran ${giliran.id} selesai, next ${next.id}`,
     );
+    const [buyer, nextMember] = await Promise.all([
+      this.prisma.anggota.findUnique({
+        where: { id: giliran.anggotaId },
+        select: { nama: true },
+      }),
+      this.prisma.anggota.findUnique({
+        where: { id: next.anggotaId },
+        select: { id: true, nama: true },
+      }),
+    ]);
+    await this.notifications.notifyGalonBought(
+      anggota.rumahId!,
+      buyer?.nama ?? 'Anggota',
+      nextMember?.nama ?? null,
+    );
+    await this.notifications.notifyGalonNudge(nextMember?.id ?? next.anggotaId);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { next };
+  }
+
+  /** Nudge the member whose galon turn is active (bell button on Beranda). */
+  async nudge(payload: CurrentUserPayload) {
+    const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
+    const giliran = await this.prisma.giliranGalon.findFirst({
+      where: { rumahId: anggota.rumahId, status: 'menunggu' },
+      orderBy: { periodeMulai: 'asc' },
+    });
+    if (!giliran) return { ok: false };
+    await this.notifications.notifyGalonNudge(giliran.anggotaId);
+    return { ok: true };
   }
 
   private async ensureTurn(rumahId: string) {

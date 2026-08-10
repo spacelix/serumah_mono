@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -18,6 +17,7 @@ import {
   type JoinPreview,
 } from '@/features/onboarding/api/onboarding';
 import { useAuthStore } from '@/stores/auth-store';
+import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
 
@@ -69,7 +69,7 @@ export default function OnboardingJoinRumahScreen() {
         error instanceof Error
           ? error.message
           : 'Terjadi kesalahan. Coba lagi.';
-      Alert.alert('Gagal gabung kos', message);
+      dialog.alert('Gagal gabung kos', message);
     } finally {
       setJoining(false);
     }
@@ -79,7 +79,7 @@ export default function OnboardingJoinRumahScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
           <View style={styles.header}>

@@ -86,8 +86,8 @@ function MonthSheet({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
           <View style={styles.handle} />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Pilih bulan</Text>
@@ -128,7 +128,7 @@ function MonthSheet({
             </View>
           </ScrollView>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }

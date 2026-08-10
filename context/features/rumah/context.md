@@ -17,7 +17,7 @@ Modules: `rumah`, `ruangan`.
 
 | Method | Path                   | Request                                                                                                      | Response                               | Notes                                                   |
 | ------ | ---------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------- | ------------------------------------------------------- |
-| GET    | `/rumah/me`            | —                                                                                                            | `{ rumah, anggotaList, currentRole }`  | Rumah detail + members.                                 |
+| GET    | `/rumah/me`            | —                                                                                                            | `{ rumah, anggotaList, currentRole }`  | Rumah detail + members (`anggotaList` now also returns `kontakDarurat` + `alamat` per member — all members can view). |
 | PATCH  | `/rumah/me`            | `{ biayaKos?, biayaWifi?, biayaListrikWajib?, nominalDenda?, rekeningBank?, rekeningNomor?, rekeningNama? }` | `{ rumah }`                            | Admin only.                                             |
 | POST   | `/rumah/reset-invite`  | — (admin)                                                                                                    | `{ inviteCode }`                       | Generate new 6-digit code.                              |
 | DELETE | `/rumah/anggota/:id`   | — (admin)                                                                                                    | `{ success }`                          | Set `anggota.rumahId = null`. Does not delete the user. |
@@ -51,9 +51,10 @@ Screen: `app/rumah/manage.tsx` (+ room management inline, not a separate page).
 
 - **"Kelola Rumah" card** (ONE card): header name (Space Grotesk 600 15px) + address + Edit button; invite code box (bg paper radius 13) + **"Copy kode"** (Clipboard) — **invite row admin-only** (hidden for non-admin); **Biaya Rumah** section (4 rows bg paper radius 10 — Biaya Kos, WiFi, Listrik Wajib mono 12px + **Denda Piket** "Rp X" mono brick); **Rekening Kos** section (mustardSoft box radius 10 — "Bank · Nomor" mono 700 13px + "a.n. Nama").
 - **QRIS pembayaran section** (below Rumah card): thumbnail `rumah.qrisUrl` (admin or not); **"Upload QRIS" / "Ganti QRIS"** button (admin only, kamera → `uploadProof('qris')` → `PUT /rumah/qris`). Non-admin melihat QRIS (buat bayar denda) tanpa tombol.
-- **Member list**: 36px avatar circle + name + role pill + remove icon (brick) admin only.
+- **Member list**: 36px avatar circle + name + role pill + chevron, row pressable (ALL members) → opens **"Detail anggota" bottom sheet** (slide modal): avatar 48px + name + role + "Bergabung {tanggal}" + info card with **Kontak darurat** and **Alamat** (dash `—` when empty). For admin, sheet shows a **"Hapus anggota"** button (brick outline) on non-admin members — no more inline `⋯` in the row; removal confirms via ConfirmDialog. Locked 2026-08-09: any member of the rumah can view another member's `kontakDarurat`/`alamat`.
 - **Ruangan & Jenis Piket** (below member list): per-room card — up/down arrows (wire reorder), name (inline edit), jenis chips, inline add-jenis input, **"Tambah Ruangan"** button. **Admin-only for edits; non-admin view-only** (section title becomes "Ruangan & jenis piket", no add/rename/reorder/remove).
 - **Edit form**: cost inputs (currency format), denda amount, rekening (bank/number/name), QRIS upload (admin only).
+- **Keyboard (locked 2026-08-09):** manage screen ScrollView is wrapped in `KeyboardAvoidingView` (`behavior` = `padding` on iOS / `height` on Android) + `keyboardShouldPersistTaps="handled"` so "Tambah Ruangan" / add-jenis inputs are never covered by the keyboard.
 - **Access**: screen reachable from Profile for ALL members (`GET /rumah/me` + `GET /ruangan` are member-open). Non-admin sees detail + members + rooms/jenis read-only.
 
 ## 6. Constraints / Prohibited

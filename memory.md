@@ -1,52 +1,47 @@
-# Memory — Serumah: Piket tab (proportional fine, reviewer auto-assign), v1.7.0 (2026-08-09)
+# Memory — Serumah: swap mutual, reviewer denda/iuran, listrik, schedule, v1.7.1 (2026-08-10)
 
-Last updated: 2026-08-09 (session end)
+Last updated: 2026-08-10 (session end)
 
 ## What was built
 
-**Piket tab — `app/(tabs)/piket.tsx`** (commits `54edb5e`..`fcd9fcc`, all pushed, tag `v1.7.0`):
-- **"Piket gw" | "Verifikasi" segmented control** (always visible, TBC-4), dynamic kicker (`formatWeekdayDate + " · deadline 20:00"`), rooms progress header.
-- **Collapsible room cards** (auto-collapse on complete, `LayoutAnimation` + Animated fade), badge states: `paperDeep` (editing) / `pine`+check (complete) / `brick`+X (submitted but not worked/partial).
-- **Proportional fine (locked 2026-08-09):** `remainingDenda = nominalDenda × unworked/totalJenis`. Partial submit: room with zero checked jenis = "not worked" (no photos); ≥1 checked = both photos required. UI validates per-room before send (custom `ConfirmDialog` list).
-- **Post-submit read-only** view from `existingSubmission.proofs` (photos via `mediaSource`+token; empty slots = `textureA/B` stripes + "foto tidak terpasang · karena ga dikerjain"). Submission success card + "MENUNGGU VERIFIKASI" stamp (`olive` dashed, `stampIn` 0.42s: -14° scale 1.6 → -4° .96 → -4° 1).
-- **Reviewer auto-assign (locked):** `PiketSubmission.reviewerId` (migration `add_reviewer_to_piket_submissions` + `add_reviewer_relation`) — PJ reviews member submissions; PJ's own submission → round-robin member reviewer. Approve/reject validated by `reviewerId` (not `@Roles('admin')`).
-- **Reject = full flat fine; approve partial = remaining proportional denda.** `listSubmissions` returns `dendaApprove`/`dendaReject`, filtered to **only submissions assigned to / acted on by the logged-in user**.
-- **Review UI:** card (header + approve/reject + denda preview + bell-button toast "Notifikasi telah dikirim ke reviewer" for submitter), separate "Bukti per ruangan" cards (chips green-check done / red-X missed), resolved history → clickable card → bottom sheet (proofs + denda + "Terverifikasi oleh {name}" + close X).
-- **Global `EmptyState`** component (`components/ui/empty-state.tsx`) applied to beranda/swap/tagihan/piket empty states.
-- **Timezone-safe dates** in iuran/listrik/denda/swap (UTC-midnight + WIB offset, same as schedule/dashboard).
-- **Seed rewrite:** 3 rooms (Ruang Tamu/Dapur/Kamar Mandi), 6 history submissions (5 approved + 1 rejected → 1 denda), weekend status (Admin Mawar Minggu `di_kos`), today's Jadwal (Minggu 9 Agu → Admin Mawar). Cleaned stray `jenis_piket` row.
-- **Denda card meta origin-driven (session 2026-08-09 b):** `GET /denda` (`denda.service.ts`) now returns `origin` (`auto`|`partial`|`rejected`) + `reviewerNama` (last `PiketApproval` reviewer, from linked `submission`). Mobile `BillCard` (`tagihan.tsx`) shows note via new local `dendaNote()`: `auto` → `· auto-denda deadline 20:00`; `partial` → `· direview {nama}`; `rejected` → `· ditolak {nama}`, all prefixed `Rab, 22 Agu` (from `createdAt`). Title stays `Denda piket`; Belum Bayar is QRIS-only (Bayar QRIS + Sudah Bayar Cash) — no "bayar ke teman" (peer payment doesn't exist).
+**All committed on `development` (8 commits, since `v1.7.1` tag, NOT pushed — push from Windows):**
+- `30dd4b6` **feat(db):** payment reviewerId on Denda + IuranBulanan (migration `add_payment_reviewer`); SwapRequest + `tanggalKe` (migration `swap_mutual_two_day`).
+- `d53b6d9` **feat(api):** `RumahScopeService.assignPaymentReviewer` (member→PJ, PJ→round-robin non-PJ; **PJ's own denda/iuran payment NO LONGER auto-lunas** — goes `menunggu_konfirmasi` + assigned reviewer); approve/reject/confirmLunas validate `reviewerId` (not `@Roles('admin')`). **Listrik even split**: `base=floor(nominal/n)`, sisa rupiah dibagikan rata (rotasi per record), tiap record return `shares: {memberId→share}` + `share` (user's own). **Schedule `selfHealWeek` cron harian 06:00** → ensure current week today→Sunday (idempoten, no past); fixes "Senin tidak tergenerate kalau cron Sabtu terlewat".
+- `bf9ddc6` **feat(api):** swap mutual 2-hari — `POST /swap` `{tanggal, tanggalKe, keAnggotaId}` (validasi kedua hari punya jadwal piket milik masing-masing); `accept` saling pindahkan kedua jadwal; endpoint baru `GET /swap/target-days` → `{id, nama, days[]}[]`.
+- `0f1c16b` **feat(swap):** mobile `swap.tsx` di-rebuild — header kicker "All-or-nothing · 1 hari penuh"; CTA dashed "Ajukan swap baru" (hilang saat form terbuka); form **dark bottom sheet 2-step** (step 1 pilih hari lo dari `available-days` → step 2 pilih hari anggota lain dari `target-days` + "← Ganti hari lo"); kartu incoming "Request masuk" + waktu relatif + dua `DayBox` + ⇄ pine + note + Terima(ink)/Tolak(outline); section **Histori swap · buat audit** (Request lo + stamp). `members.ts` (useIuranMembers) dihapus → `useSwapTargets`.
+- `b34f25c` **feat(tagihan):** denda/iuran pending filter `reviewerId === myId` (bukan isPj); label "Kirim ke reviewer" (PJ) / "Kirim ke PJ" (member); denda card waitNote "nunggu konfirmasi {reviewerNama}" + **"Lihat Detail" button** untuk `menunggu_konfirmasi`/`lunas`; `IuranDetailSheet` (read-only, desain sama upload sheet: header title+amount+stamp kanan, items, bukti, **timeline**); `IuranVerifySheet` (sama desain detail, tanpa timeline, button **"Lunas"**); **Listrik**: summary tanpa progress bar + note rule "Listrik tambahan dibagi rata ke semua. Pembeli dapet kredit, non-pembeli ditambah di tagihan bulan depan." (mono 400 11 pineDeep); button "Tambah Record" dashed; `ListrikFormCard` (top-level, rise-in/out, Rp field kecil, foto preview+clear, preview modal dgn "Ganti foto"); `ListrikRecordCard` (avatar initial pine, nama+tanggal, amount brick, thumb bukti striped) + `ListrikDetailSheet` (foto stripes "pinch buat zoom", info card, share box, kredit/tagihan box).
+- `140f2f8` **feat(mobile):** `EmptyState` action button → dashed (paperDeep/lineDash/pine); `Stamp` `menunggu_konfirmasi` → 2-line "MENUNGGU\nKONFIRMASI" (maxWidth 82, center); Kelola Rumah room card **move up ↑** (sebelumnya hanya down); Beranda **banner "Jadwal piket pekan ini belum dibuat" dihapus** (empty state sudah ada).
+- `0168cde` **docs:** swap context (mutual 2-day), schedule context (self-heal cron), data-model (tanggalKe), progress-tracker.
 
 ## Decisions made
 
-- **Denda proportional** per unchecked item (replaces flat): `nominalDenda × unworked/totalActiveItems`. **Reject = full** `nominalDenda`; **approve partial = remaining** proportional denda.
-- **Reviewer** = PJ for member submissions; round-robin member for PJ's own submission. Only assigned reviewer (`isMyTurn`) can approve/reject.
-- **Piket tab** always shows Verifikasi (TBC-4); history visible to all (TBC-5) but `listSubmissions` filters resolved to those the user acted on.
-- Version bump policy: major only on breaking change; this release = minor **1.7.0 / versionCode 10**.
-- `stampIn` animation (ui-tokens.md Motion): 0.42s, -14° scale 1.6 → -4° .96 → -4° 1 — reuse for all status stamps.
+- **Swap = mutual 2-hari (locked 2026-08-10):** bukan transfer 1 hari. Hari pengaju → penerima, hari penerima → pengaju.
+- **PJ payment tidak auto-lunas (locked 2026-08-10):** denda + iuran milik PJ di-review round-robin member lain.
+- **Listrik split** sisa rupiah dibagi rata (selisih maks Rp 1/orang), dirotasi per record; kredit pembeli = `nominal − share`, tagihan non-pembeli = `share`.
+- Cron harian self-heal (06:00) menutup celah pregenerate Sabtu yang terlewat.
+- UI denda: note rejected = `· direject {nama}`; partial = `· direview {nama}`; auto = `· auto-denda deadline 20:00`.
 
 ## Problems solved
 
-- `@db.Date` timezone off-by-one (Prisma stores UTC) — fixed via UTC-midnight + WIB offset helpers across schedule/dashboard/iuran/listrik/denda/swap.
-- Denda "terlihat di semua riwayat": stray `jenis_piket` row ("Kamar Mandi" UUID) made totalItems=10 vs worked=9 → unworked 1. Cleaned + re-seeded.
-- `jenisSelesai` stored IDs vs names — resolved to names via id→name map in backend.
-- Empty photo slot (string `''` vs `null`) — UI checks `!uri`, mobile sends `null`.
-- `stampIn` exact keyframes (was wrong direction).
+- Senin jadwal tidak tergenerate karena cron Sabtu single-fire → daily self-heal idempoten (tidak generate hari lampau).
+- Swap UI (one-way) vs design (mutual 2-hari) mismatch → backend jadi mutual.
+- PJ denda/iuran auto-lunas (self-confirmation) → reviewer round-robin.
+- Listrik `floor` membuat pembeli selalu menyerap sisa → sisa dibagi rata.
+- Card form listrik re-render tiap ketik (nested component) → di-extract jadi top-level.
 
 ## Current state
 
-- **All committed & pushed** to `origin/development`; **tag `v1.7.0` created & pushed** → GitHub Actions builds APK/version.json.
-- **UNCOMMITTED (session 2026-08-09 b):** Tagihan tab revisions — MonthPicker rebuilt as pill-trigger → bottom sheet "Pilih bulan", new `GET /tagihan/months` endpoint (`modules/tagihan`), segmented control to design, kicker token 10.5px, BillCard meta now origin-driven (`dendaNote`: `auto`→deadline 20:00, `partial`→`direview {nama}`, `rejected`→`ditolak {nama}`) via new `origin`/`reviewerNama` fields from `GET /denda` + `formatWeekdayDate(createdAt)` prefix. Context docs synced (denda/iuran/listrik month-filter lines, progress-tracker). Awaiting user verification (build/lint/typecheck/test) before commit.
-- `memory.md` untracked (not committed).
-- Seed + migrations applied locally; API/mobile verified green by user earlier this session.
+- All committed on `development`; **push pending dari Windows**: `git push origin development` (+ tag v1.7.1 jika belum). Belum ada tag baru untuk commit di atas.
+- Working tree clean. `memory.md` ter-update (belum di-commit — file sesi; kalau mau masuk git, commit terpisah).
 
 ## Next session starts with
 
-0. **Verify + commit the Tagihan revisions (session 2026-08-09 b, currently uncommitted):** user runs `turbo run build lint typecheck test --filter=@serumah/api` (build `packages/db` first) + `bun run --filter serumah-mobile lint typecheck`; then commit per-item.
-1. **Confirm release build** from GitHub Actions for `v1.7.0`; test in-app update on device.
-2. Continue **Phase M5**: Tagihan (Denda|Iuran|Listrik + month picker, QRIS, proof upload), Swap tabs — Piket tab is built.
-3. If desired, apply the same **proportional-fine + reviewer** patterns to remaining verification/denda screens.
+1. **Push dari Windows** (WSL SSH ditolak): `git push origin development && git push origin v1.7.1`.
+2. Pastikan migrasi sudah di-apply lokal: `cd packages/db && bunx prisma migrate dev` (folder migrasi `add_payment_reviewer` + `swap_mutual_two_day` sudah ada; user harus jalankan) lalu `bun run generate && bun run build`.
+3. Uji flow swap mutual end-to-end (form 2-step, accept pindah kedua jadwal), reviewer denda/iuran (PJ bayar → menunggu konfirmasi member lain), listrik split.
+4. Lanjut Phase M5: verifikasi tab Swap & Tagihan di device; kalau perlu bump version + tag baru.
 
 ## Open questions
 
-- Phase M6 (E2E/final release) not approved — ask before starting.
+- Push tag v1.7.1 sudah ter-push? (release CI APK arm64 ~40-50MB) — cek GitHub Actions.
+- `formatWeekdayDate` memberi "Kam 30 Jul" tanpa koma vs design "Kam, 30 Jul" — kosmetik kecil, belum diubah.

@@ -36,6 +36,7 @@ designs/Serumah.html        ← visual prototype (open in browser)
 | Galon      | `features/galon/context.md`      | Galon rotation + "Sudah Beli" (no reimbursement)                              |
 | Profile    | `features/profile/context.md`    | View/edit name, photo, emergency contact, address                             |
 | Rumah      | `features/rumah/context.md`      | Management: members, costs, rekening, QRIS, invite code + rooms & jenis_piket |
+| Notifications | `features/notifications/context.md` | FCM push: piket reminders, reviewer/approver alerts, denda weekly, iuran next-month |
 | Update     | `features/update/context.md`     | In-app non-store update via GitHub Releases                                   |
 
 ---
@@ -66,4 +67,5 @@ designs/Serumah.html        ← visual prototype (open in browser)
 | galon, buy galon, water refill turn                                            | galon      |
 | profile, my profile, emergency contact                                         | profile    |
 | manage rumah, manage kos, costs, rekening, invite, members, rooms, jenis piket | rumah      |
+| notif, notification, push, FCM, reminder, pengingat                            | notifications |
 | update, version, apk, release                                                  | update     |

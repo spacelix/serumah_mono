@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+} from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
@@ -57,7 +63,7 @@ function labelOf(status: string): string {
     case 'belum_bayar':
       return 'BELUM BAYAR';
     case 'menunggu_konfirmasi':
-      return 'MENUNGGU KONFIRMASI';
+      return 'MENUNGGU\nKONFIRMASI';
     case 'ditolak':
       return 'DITOLAK';
     default:
@@ -68,11 +74,19 @@ function labelOf(status: string): string {
 export function Stamp({ status, animate }: { status: string; animate?: boolean }) {
   const key = statusKey(status);
   const s = STATUS_STYLE[key];
+  const label = labelOf(status);
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
-  const stamp = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const settled = status === 'lunas' || status === 'approved';
+  const stamp = useAnimatedValue(animate ? 0 : 1);
+  const prevStatus = useRef(status);
 
   useEffect(() => {
-    if (!animate) return;
+    // stampIn dipicu saat stamp "lunas"/"approved" baru tercapai (transisi
+    // status) atau saat diminta eksplisit via `animate` — pola Serumah.html.
+    const becameSettled = settled && prevStatus.current !== status;
+    prevStatus.current = status;
+    if (!animate && !becameSettled) return;
+    stamp.setValue(0);
     // stampIn keyframes: 0% (opacity 0, rotate -14°, scale 1.6) → 60%
     // (opacity 1, rotate -4°, scale .96) → 100% (rotate -4°, scale 1).
     Animated.sequence([
@@ -89,7 +103,7 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
         useNativeDriver: true,
       }),
     ]).start();
-  }, [animate, stamp]);
+  }, [animate, settled, stamp, status]);
 
   return (
     <Animated.View
@@ -119,7 +133,15 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
         },
       ]}
     >
-      <Text style={[styles.text, { color: s.color }]}>{labelOf(status)}</Text>
+      <Text
+        style={[
+          styles.text,
+          { color: s.color },
+          label.includes('\n') && styles.textMultiline,
+        ]}
+      >
+        {label}
+      </Text>
     </Animated.View>
   );
 }
@@ -138,5 +160,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.display[700],
     fontSize: 10,
     letterSpacing: 0.8,
+  },
+  textMultiline: {
+    maxWidth: 82,
+    textAlign: 'center',
+    fontSize: 8.5,
+    lineHeight: 11,
   },
 });

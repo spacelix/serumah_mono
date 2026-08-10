@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSubmissionDto } from './dto/piket.dto';
 
 // Asia/Jakarta is UTC+7, no DST. `jadwal.tanggal` is stored as `@db.Date`
@@ -23,6 +24,7 @@ export class PiketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly notifications: NotificationsService,
   ) { }
 
   private today(): Date {
@@ -212,8 +214,9 @@ export class PiketService {
       }
     }
 
+    let reviewerId = '';
     const submission = await this.prisma.$transaction(async (tx) => {
-      const reviewerId = await this.assignReviewer(
+      reviewerId = await this.assignReviewer(
         anggota.rumahId!,
         anggota.id,
       );
@@ -248,6 +251,9 @@ export class PiketService {
     this.logger.log(
       `[PiketService] Submission ${submission.id} (${anggota.nama})`,
     );
+    if (reviewerId) {
+      await this.notifications.notifyPiketReviewer(reviewerId, anggota.nama);
+    }
     return { submission };
   }
 

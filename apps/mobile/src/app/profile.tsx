@@ -1,18 +1,20 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
-import { LogOut, Pencil, X } from 'lucide-react-native';
+import { Eye, EyeOff, LogOut, Pencil, X } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   ActivityIndicator,
-  Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +36,7 @@ import {
 import { formatCurrency, formatLongDate } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
+import { dialog } from '@/stores/dialog-store';
 import { toast } from '@/stores/toast-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -90,11 +93,11 @@ export default function ProfileScreen() {
 
   const onSavePassword = async () => {
     if (!pwLama || !pwBaru || !pwKonfirmasi) {
-      Alert.alert('Lengkapi dulu', 'Isi semua kolom password.');
+      dialog.alert('Lengkapi dulu', 'Isi semua kolom password.');
       return;
     }
     if (pwBaru !== pwKonfirmasi) {
-      Alert.alert('Tidak cocok', 'Password baru dan konfirmasi harus sama.');
+      dialog.alert('Tidak cocok', 'Password baru dan konfirmasi harus sama.');
       return;
     }
     setPwSaving(true);
@@ -106,7 +109,7 @@ export default function ProfileScreen() {
       setPwKonfirmasi('');
       setPwClosing(true);
     } catch (e) {
-      Alert.alert(
+      dialog.alert(
         'Gagal',
         e instanceof Error ? e.message : 'Terjadi kesalahan.',
       );
@@ -127,7 +130,7 @@ export default function ProfileScreen() {
       invalidate();
       toast.success('Foto profil ganti.');
     } catch (e) {
-      Alert.alert(
+      dialog.alert(
         'Gagal',
         e instanceof Error ? e.message : 'Terjadi kesalahan.',
       );
@@ -143,7 +146,7 @@ export default function ProfileScreen() {
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('Izin kamera', 'Izinkan kamera untuk foto profil.');
+          dialog.alert('Izin kamera', 'Izinkan kamera untuk foto profil.');
           return;
         }
         const result = await ImagePicker.launchCameraAsync({
@@ -157,7 +160,7 @@ export default function ProfileScreen() {
         const permission =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('Izin galeri', 'Izinkan akses galeri untuk foto profil.');
+          dialog.alert('Izin galeri', 'Izinkan akses galeri untuk foto profil.');
           return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -180,7 +183,7 @@ export default function ProfileScreen() {
       invalidate();
       toast.success('Foto profil udah dihapus.');
     } catch (e) {
-      Alert.alert(
+      dialog.alert(
         'Gagal',
         e instanceof Error ? e.message : 'Terjadi kesalahan.',
       );
@@ -189,7 +192,7 @@ export default function ProfileScreen() {
 
   const onSaveEdit = async () => {
     if (!nama.trim()) {
-      Alert.alert('Perhatian', 'Nama wajib diisi.');
+      dialog.alert('Perhatian', 'Nama wajib diisi.');
       return;
     }
     setSaving(true);
@@ -225,7 +228,7 @@ export default function ProfileScreen() {
       setOnboarding(true, false);
       router.replace('/onboarding/create-rumah');
     } catch (e) {
-      Alert.alert(
+      dialog.alert(
         'Gagal',
         e instanceof Error ? e.message : 'Terjadi kesalahan.',
       );
@@ -251,10 +254,15 @@ export default function ProfileScreen() {
         onBack={() => router.back()}
         backLabel="Beranda"
       />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {editing ? (
           <EditProfileCard
             nama={nama}
@@ -397,6 +405,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <ConfirmDialog
         visible={confirm != null}
@@ -525,7 +534,7 @@ function EditProfileCard({
   onPickAvatar: () => void;
   onDeleteAvatar: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
 
   useEffect(() => {
@@ -677,6 +686,51 @@ function EditField({
   );
 }
 
+function PasswordField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <View style={styles.editField}>
+      <Text style={styles.editLabel}>{label}</Text>
+      <View style={styles.passwordWrap}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.inkMuted}
+          secureTextEntry={!show}
+          autoCapitalize="none"
+          style={[styles.editInput, styles.passwordInput]}
+        />
+        <Pressable
+          onPress={() => setShow((v) => !v)}
+          style={styles.passwordEye}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={
+            show ? 'Sembunyikan password' : 'Tampilkan password'
+          }
+        >
+          {show ? (
+            <EyeOff color={colors.inkSoft} size={17} strokeWidth={1.9} />
+          ) : (
+            <Eye color={colors.inkSoft} size={17} strokeWidth={1.9} />
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function ChangePasswordCard({
   lama,
   setLama,
@@ -702,7 +756,7 @@ function ChangePasswordCard({
   onClosed: () => void;
   onSave: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
 
   useEffect(() => {
@@ -759,39 +813,24 @@ function ChangePasswordCard({
         </Pressable>
       </View>
 
-      <EditField label="Password lama">
-        <TextInput
-          value={lama}
-          onChangeText={setLama}
-          placeholder="Password yang sekarang"
-          placeholderTextColor={colors.inkMuted}
-          secureTextEntry
-          autoCapitalize="none"
-          style={styles.editInput}
-        />
-      </EditField>
-      <EditField label="Password baru">
-        <TextInput
-          value={baru}
-          onChangeText={setBaru}
-          placeholder="Minimal 8 karakter"
-          placeholderTextColor={colors.inkMuted}
-          secureTextEntry
-          autoCapitalize="none"
-          style={styles.editInput}
-        />
-      </EditField>
-      <EditField label="Konfirmasi password">
-        <TextInput
-          value={konfirmasi}
-          onChangeText={setKonfirmasi}
-          placeholder="Ulangi password baru"
-          placeholderTextColor={colors.inkMuted}
-          secureTextEntry
-          autoCapitalize="none"
-          style={styles.editInput}
-        />
-      </EditField>
+      <PasswordField
+        label="Password lama"
+        value={lama}
+        onChangeText={setLama}
+        placeholder="Password yang sekarang"
+      />
+      <PasswordField
+        label="Password baru"
+        value={baru}
+        onChangeText={setBaru}
+        placeholder="Minimal 8 karakter"
+      />
+      <PasswordField
+        label="Konfirmasi password"
+        value={konfirmasi}
+        onChangeText={setKonfirmasi}
+        placeholder="Ulangi password baru"
+      />
 
       <Text style={styles.editHint}>
         Butuh password lama dulu. Paling aman pakai kombinasi angka, huruf, dan
@@ -899,6 +938,7 @@ function MenuRow({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.paper },
+  flex: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
   content: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40, gap: 13 },
@@ -1069,6 +1109,23 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: fontFamilies.body[500],
     fontSize: 13,
+  },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    paddingRight: 42,
+    flex: 1,
+  },
+  passwordEye: {
+    position: 'absolute',
+    right: 4,
+    width: 34,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   editInputReadonly: {
     color: colors.inkSoft,

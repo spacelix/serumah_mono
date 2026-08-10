@@ -39,6 +39,7 @@ Screen: `app/profile.tsx` (from the avatar chip on Beranda).
 - **"Simpan"** button.
 - **"Kelola Kos"** link → Rumah Management. **All members** — admin edits, non-admin view-only (detail rumah, anggota, ruangan & jenis piket).
 - **Logout** (inkSoft text button).
+- **Keyboard (locked 2026-08-09):** profile ScrollView is wrapped in `KeyboardAvoidingView` (`behavior` = `padding` on iOS / `height` on Android) + `keyboardShouldPersistTaps="handled"` so the Ganti password card inputs are never covered.
 
 ## 6. Constraints / Prohibited
 

@@ -507,6 +507,34 @@ export class ScheduleService {
   }
 
   /**
+   * Daily self-heal (2026-08-10): ensure the current week's weekday roster
+   * exists for today → Sunday (never past days). Idempotent via ensureWeekday,
+   * so a missed Saturday pregenerate (server down) is caught up the next
+   * morning — Monday no longer requires a manual "Generate Jadwal".
+   */
+  @Cron('0 6 * * *')
+  async selfHealWeek(): Promise<void> {
+    const today = this.toDate(new Date());
+    const sunday = this.addDays(this.mondayOf(today), 6);
+    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
+    let count = 0;
+    for (const rumah of rumahs) {
+      for (
+        let cursor = today;
+        cursor <= sunday;
+        cursor = this.addDays(cursor, 1)
+      ) {
+        if (this.isPiketDay(cursor)) {
+          if (await this.ensureWeekday(rumah.id, cursor)) count += 1;
+        }
+      }
+    }
+    this.logger.log(
+      `[ScheduleService] Self-heal jadwal pekan berjalan ${today.toISOString()} (${count} baris baru)`,
+    );
+  }
+
+  /**
    * Freeze weekend roster Friday 20:00 (per spec). After statuses are frozen
    * the weekend Jadwal for Sat+Sun is generated for every rumah.
    */

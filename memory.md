@@ -1,56 +1,68 @@
-# Memory — Serumah: Push via Expo Push Service, best practice audit, akan pindah D:\sm (2026-08-10)
+# Memory — Serumah: Build lokal fix + revisi UI swap + notifikasi weekend + CLI test push (2026-08-11)
 
-Last updated: 2026-08-10 (late session)
+Last updated: 2026-08-11
 
 ## What was built (sesi ini)
 
-**Semua committed di `development`; TIDAK push — push dari Windows + project akan dipindah ke `D:\sm`.**
+**Semua committed & di-push ke `development` via SSH (`git@github.com:spacelix/serumah_mono.git`).**
 
-- `7d4dd25` **refactor(notif):** pindah dari FCM HTTP v1 → **Expo Push Service** (best practice): `FcmService` kini `POST exp.host/--/api/v2/push/send` tanpa auth; mobile pakai `getExpoPushTokenAsync`. FCM env (`FCM_PROJECT_ID` dll) dihapus dari backend — tidak dipakai.
-- `ad93014` **fix(notif):** `getExpoPushTokenAsync({ projectId })` eksplisit (`expoProjectId()` dari `extra.eas.projectId`/`EXPO_PUBLIC_EAS_PROJECT_ID`); log push di-gate `__DEV__` (token tidak bocor); dedup parser deep-link (`routeForDeepLink` tunggal).
-- `6cb7825` **chore:** hapus `react-native-reanimated` + `react-native-worklets` dari `apps/mobile/package.json` — TAPI keduanya tetap ada sbg transitive dep (`expo-modules-core` wajib worklets, `react-native-gesture-handler` wajib reanimated). Jadi **tidak menyelesaikan path CMake**.
-- `2850239` **refactor(permission):** `lib/media-permissions.ts` baru — `ensureCameraPermission()`/`ensureMediaLibraryPermission()` check-then-request sekali + `Linking.openSettings()` saat denied. Dipakai di 6 lokasi (profile, rumah/manage, onboarding/profile, piket, tagihan).
-- `08f8e20` **refactor:** `useAnimatedValue(0)` di toaster + splash (ganti `useMemo(new Animated.Value)` — React Compiler friendly).
-- `30a42d4` **docs:** README + notifications context → Expo Push Service, `EXPO_PUBLIC_EAS_PROJECT_ID`.
-- `32ced46` **chore:** `eas init` → `extra.eas.projectId` (`c033064a-0913-42d1-9218-e8a84297ab93`) + `owner: xavierxxs` di `apps/mobile/app.json`. Root `app.json` duplikat (salah lokasi dr eas init) **dihapus**.
-- `c44aad3` **fix(notif):** `lib/notifications.ts` refactor — **dynamic import** `expo-notifications` + guard `inExpoGo()` (Constants.appOwnership === 'expo'). `setupNotifications()` (handler foreground + channel + deep-link listener), `registerPushToken`, `clearPushToken`. App tetap jalan di Expo Go untuk fitur non-push.
+- `c108cc2` **feat v1.9.0** — revisi UI swap + notifikasi weekend + CLI test push + notification icon all-white.
+- `3f6ac82` **ci:** install CMake 3.30.5 di `release.yml` (dibutuhkan `expo-build-properties` cmakeVersion).
+- `ef73fc4` **fix(api):** exclude `scripts/` dari `tsconfig.build.json` — `dist/main.js` kembali flattened (Docker CMD `node dist/main`).
 
-**Notif debugging backend** (sebelum pindah ke Expo Push): `90a7fd1` exchange JWT→access token, `d51bf60` SHA-256 hash, `c2affa4` aud fcm, `7a45476` normalize `\n` — semua obsolete setelah `7d4dd25` (Expo Push Service), tinggal di history.
+### Swap (`apps/mobile/src/app/(tabs)/swap.tsx` + `apps/api/src/modules/swap/`)
+- Form **3 langkah** (sebelumnya 2): pilih hari lo (kartu tanggal + daftar **ruangan**, bukan jenis piket) → pilih hari anggota lain → ringkasan "LO KASIH ⇄ LO AMBIL" + "Kirim ke {nama}"/"Ubah". Klik kartu langsung lanjut step.
+- **Swap hanya 1 minggu berjalan** (Sen–Min, hari ≥ hari ini) — `mondayOf(today)` +6, bukan 2 minggu.
+- **Histori swap kompak** (`Jum, 18 Jul · piket asli X → dikerjain Y` + `Diterima Y · 16 Jul 21:04`) — pakai `resolvedAt` (kolom baru, migrasi `20260810174332_swap_resolved_at`, set saat accept/reject).
+- **Filter bulan** di histori (default bulan berjalan, chevron `‹›` + sheet "Pilih bulan", nonaktif di ujung). Bar selalu tampil.
+- `DayBox` pakai **nama depan** (`firstName` di `lib/format.ts`).
+- Panah `⇄` jadi teks Space Grotesk (bukan lucide). Seed swap ditambah 4 request (incoming + history).
+
+### UI umum
+- **Welcome screen** (`(auth)/welcome.tsx`): auto-advance 3.5s/step, indicator = segmen aktif progress bar + dot untuk lainnya (selesai juga jadi dot), step terakhir STUCK (tidak auto ke login), transisi fade+slide naik.
+- **`components/ui/animated-sheet.tsx`** (baru): reusable bottom sheet — backdrop fade-in + sheet rise (pola confirm-dialog, `useNativeDriver`). Dipakai di filter bulan tagihan & swap.
+- Semua bottom sheet diberi `paddingBottom: insets.bottom + 26` (fix konten tertutup nav bar Android): denda detail, review piket, detail anggota, upload iuran, listrik, swap form.
+- **Kicker subscreen** (`components/ui/screen-header.tsx`) = **nama rumah** (sebelumnya "Serumah").
+- Fix `flex: 1` di tombol form swap (collaps ke 0 tinggi saat anak langsung sheet).
+- Fix require cycle: `auth-store → notifications → api-client → auth-store` — `clearPushToken` jadi dynamic import di `auth-store.ts`.
+- Format jam `19.00` → `19:00` (`formatDateTimeShort` di `lib/format.ts`).
+
+### Notifikasi weekend (baru, belum di-test)
+- `NotificationsService`: `notifyWeekendStatus` (ke semua anggota lain saat pilih Di kos/Pulang), `notifyWeekendReminder` (Jumat), `notifyWeekendMissed` (freeze).
+- `schedule.service.ts`: hook notif di `setWeekendStatus`; `freezeWeekendCron` kirim "bertanggung jawab sepenuhnya" ke yang belum pilih sama sekali.
+- `notifications-cron.service.ts`: cron **Jumat 08:00 + 19:00** reminder belum pilih (konsisten dgn freeze Jumat 20:00).
+- **CLI test push** `apps/api/scripts/send-notification.ts` (`bun run notif:test`): pilih rumah wajib → pilih skenario (8 opsi) → pilih anggota (indikator token ●/○) → kirim via Expo. Load `.env` manual (`scripts/lib/env.ts`, import pertama — tanpa dotenv, override selalu).
+
+### Notification icon
+- `assets/images/notification-icon.png` = siluet **all-white** dari `splash-icon.png` (di-konversi, splash-icon punya warna jadi tidak valid langsung). Config `expo-notifications` di app.json: `icon` + `color: #EFEAE0`.
 
 ## Decisions made
-
-- **Push = Expo Push Service** (best practice resmi): backend kirim ke `exp.host`, Expo relay ke FCM/APNs. Backend TIDAK butuh FCM credentials. Mobile butuh `extra.eas.projectId` (sudah ada) + `google-services.json` + FCM V1 key di EAS (build app, bukan server).
-- **Expo Go tidak bisa push Android** (SDK 53+) — guard `inExpoGo()` biar app jalan untuk dev non-push.
-- Release APK arm64-v8a only; emulator x86_64 tidak bisa install → test push via dev build x86_64 / device fisik.
-- **Tetap build via GitHub Actions** (gratis, tanpa batas) — EAS build tidak wajib; `eas init` hanya utk projectId. iOS butuh $99/tahun (Apple Developer) jika mau device fisik.
-- `Anggota.push_token` satu-satunya penyimpan token; tabel `fcm_tokens` dihapus.
+- **E2E M6 = hybrid**: iterasi ke backend **lokal** dulu, **VPS** untuk final verification (push, cron, migrate prod). Backend VPS belum punya kode notifikasi — harus redeploy.
+- **Tidak perlu seed dinamis** — app pribadi, tidak public (keputusan user, M6).
+- Remote SSH permanen (`git@github.com`); push dilakukan dari **Windows** (SSH key tidak tersedia di WSL sandbox).
+- Build lokal Windows butuh CMake **3.30.5** (via `expo-build-properties`) — CMake 3.22.1 punya bug `build.ninja still dirty`.
+- Expo Go / emulator tidak bisa push Android — test push hanya di **device fisik**.
 
 ## Problems solved
-
-- Push tidak jalan: FCM HTTP v1 JWT auth (UNAUTHENTICATED → Invalid grant) → ganti **Expo Push Service** (hapus semua kerumitan JWT).
-- Expo Go error "Push removed from Expo Go" → dynamic import + guard `inExpoGo`.
-- Izin notif tidak muncul → re-ask `denied` + register tiap app start.
-- **Build lokal Windows masih gagal** (path `.bun` >250 CMake, `build.ninja still dirty`): hapus reanimated/worklets TIDAK cukup (masih transitive dep). `buildStagingDirectory` app-level tidak sentuh module reanimated. **Solusi nyata: pindah project ke path pendek — `D:\sm`.** CI (path pendek) sudah build sukses.
-- Expo Go dev-client error `exp+serumah://expo-development-client` → buka dev build via Metro (`expo start` → `a`), bukan dari icon.
+- `build.ninja still dirty after 100 tries` (Windows): bukan path — root cause CMake 3.22.1 + bun `.bun` store. Fix: `android.cmakeVersion=3.30.5` (install via sdkmanager) + hapus `.cxx` stale. CI juga butuh `sdkmanager "cmake;3.30.5"` di release.yml.
+- `PluginError expo-build-properties PLUGIN_NOT_FOUND` di Windows: bun membuat junction target-relatif `../../../` yang di Windows dihitung dari root drive (`D:\`) → node tidak resolve. Fix: `rm` junction + `mklink /J` dengan target **absolut**.
+- `dist/main` tidak ditemukan di Docker: `scripts/send-notification.ts` ikut dikompilasi `nest build` → output jadi `dist/src/main.js`. Fix: exclude `scripts/` di `tsconfig.build.json`.
+- Tombol swap tak berteks/hilang: (1) disabled text `paper` di `disabledBg` tak terlihat; (2) `flex:1` → tinggi 0 saat anak langsung sheet.
+- `Invalid time value` di swap: API `available-days` masih return `string[]` lama — perlu restart API (shape baru `{tanggal, ruangan}`).
+- Dashboard jadwal tak update setelah swap diterima: `SwapService.accept` tidak invalidate cache `dashboard:{rumahId}` — tambah `CacheService.invalidateScope`.
 
 ## Current state
-
-- All committed di `development`; **push pending dari Windows** (`git push origin development --tags`), akan dilakukan setelah pindah ke `D:\sm`.
-- Secret `GOOGLE_SERVICES_BASE64` sudah di-set user di GitHub Actions.
-- `extra.eas.projectId` + `owner` ada di `apps/mobile/app.json`.
-- Migrasi belum apply di DB: `drop_fcm_tokens`, `add_push_token` — butuh `prisma migrate dev`.
-- **Project akan dipindah ke `D:\sm`** (clone ulang atau pindah folder) untuk solve build lokal Windows.
+- v1.9.0 (versionCode 15) sudah di-release (APK + version.json via GitHub Releases) — build CI sukses setelah fix CMake.
+- Remote SSH; push terakhir sukses dari Windows. Commit lokal terakhir `ef73fc4`.
+- **Backend VPS belum di-redeploy** (kode notifikasi weekend + fix dist/main belum di server).
+- Migrasi `swap_resolved_at` sudah di-apply di DB lokal.
+- Push end-to-end **belum di-test** di device fisik (baru siap: CLI + icon + config).
 
 ## Next session starts with
-
-1. **Pindah project ke `D:\sm`** (path pendek). Cara: clone ulang di `D:\sm`, atau pindahkan folder; lalu `bun install`, `Remove-Item -Recurse -Force android`, `bunx expo run:android`. Ini seharusnya build lokal sukses (path CMake aman).
-2. Push `development --tags` dari Windows (setelah pindah).
-3. Apply migrasi: `cd packages/db && bunx prisma migrate dev`.
-4. Test push end-to-end di device fisik: install APK (google-services + projectId ter-inject) → login → `logcat [notifications]` → cek `anggota.push_token` terisi `ExponentPushToken[...]` → trigger notif (galon nudge/piket/denda).
-5. Set `EXPO_PUBLIC_EAS_PROJECT_ID` di `apps/mobile/.env` LOKAL (untuk dev di luar EAS build) — meski `extra.eas.projectId` sudah cukup.
+1. **Redeploy backend VPS** (pull `development`, `docker compose up -d --build backend`, pastikan `dist/main` jalan + migrate prod).
+2. **Test push di device fisik**: install APK 1.9.0 → login → cek `anggota.push_token` terisi → `bun run notif:test` → pilih rumah Kos Mawar → trigger skenario (weekend status, galon, denda).
+3. Lanjut **M6**: E2E hybrid (lokal dulu) per alur inti (auth, onboarding, beranda, piket, denda, tagihan, swap, galon, notif), lalu final verification di VPS.
 
 ## Open questions
-
-- Path build lokal: `D:\sm` cukup pendek? (perlu <~30 char root utk aman dgn `.bun` redundan).
-- Test push end-to-end belum diverifikasi (masih butuh test di device fisik setelah build sukses).
-- Revisi swap (sudah lama direncanakan) belum dikerjakan — prioritas berikutnya setelah build jalan.
+- Play Store? (M6 "final release" saat ini = in-app update via GitHub Releases, bukan store)
+- Kapan M5 items (Beranda/Piket/Tagihan/Swap/Profile) ditandai selesai di progress-tracker — fitur sudah dibangun, tapi checkbox M5 masih unchecked.

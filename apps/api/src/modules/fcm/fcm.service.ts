@@ -61,7 +61,7 @@ export class FcmService {
 
   private async sendViaFcm(token: string, msg: PushMessage): Promise<boolean> {
     try {
-      const jwt = await this.signedJwt();
+      const accessToken = await this.getAccessToken();
       const body = {
         message: {
           token,
@@ -75,7 +75,7 @@ export class FcmService {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${jwt}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(body),
@@ -125,13 +125,34 @@ export class FcmService {
     }
   }
 
+  /** Exchange a signed service-account JWT for an OAuth2 access token (Google). */
+  private async getAccessToken(): Promise<string> {
+    const assertion = await this.signedJwt();
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion,
+      }),
+    });
+    if (!res.ok) {
+      const err = (await res.json()) as { error_description?: string };
+      throw new Error(
+        `Gagal tukar JWT ke access token: ${err?.error_description ?? res.status}`,
+      );
+    }
+    const data = (await res.json()) as { access_token: string };
+    return data.access_token;
+  }
+
   private async signedJwt(): Promise<string> {
     const header = { alg: 'RS256', typ: 'JWT' };
     const now = Math.floor(Date.now() / 1000);
     const claims = {
       iss: this.clientEmail,
       scope: FCM_SCOPE,
-      aud: 'https://fcm.googleapis.com/',
+      aud: 'https://oauth2.googleapis.com/token',
       iat: now,
       exp: now + 3600,
     };

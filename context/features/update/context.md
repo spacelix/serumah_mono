@@ -15,6 +15,7 @@ No DB tables. Uses:
 
 - `UPDATE_MANIFEST_URL` (env `EXPO_PUBLIC_UPDATE_MANIFEST_URL`) → GitHub raw `version.json`.
 - Repo: `https://github.com/spacelix/serumah_mono`.
+- **Push announce** (dipicu GitHub Actions setelah release): `POST /update/announce` di API — body `{ versionName, notes }`, header `x-announce-secret` (env server `ANNOUNCE_SECRET`, GitHub secret `ANNOUNCE_SECRET`). Backend kirim push "Update Serumah {v} tersedia" ke semua anggota yang punya `pushToken`. Non-fatal kalau gagal.
 - Manifest shape:
 
 ```json

@@ -205,4 +205,26 @@ export class NotificationsService {
       deepLink: '/',
     });
   }
+
+  /**
+   * Ada versi baru Serumah tersedia — broadcast ke semua anggota yang punya
+   * push token (dipicu GitHub Actions setelah release).
+   */
+  async notifyUpdateAvailable(
+    versionName: string,
+    notes?: string,
+  ): Promise<void> {
+    const members = await this.prisma.anggota.findMany({
+      where: { pushToken: { not: null } },
+      select: { id: true },
+    });
+    await this.sendToAnggota(
+      members.map((m) => m.id),
+      {
+        title: `Update Serumah ${versionName} tersedia`,
+        body: notes || 'Versi baru udah rilis — ketuk buat update.',
+        deepLink: '/',
+      },
+    );
+  }
 }

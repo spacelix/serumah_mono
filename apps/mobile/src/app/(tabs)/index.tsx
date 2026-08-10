@@ -19,6 +19,7 @@ import {
   type WeekDayKey,
 } from '@/features/dashboard/api/dashboard';
 import {
+  firstName,
   formatCurrency,
   formatDayNumber,
   formatMonthYear,
@@ -126,7 +127,7 @@ function WeekendCard({ data }: { data: DashboardData }) {
                 m.status === 'Pulang' && styles.weekendOtherItemMuted,
               ]}
             >
-              {m.nama} · {m.status}
+              {firstName(m.nama)} · {m.status}
             </Text>
           ))}
         </ScrollView>

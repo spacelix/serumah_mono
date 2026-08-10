@@ -102,3 +102,17 @@ jobs:
             release/serumah-app.apk
             release/version.json
           generate_release_notes: true
+
+      - name: Announce update via push notification
+        if: env.ANNOUNCE_SECRET != '' && env.API_URL != ''
+        env:
+          ANNOUNCE_SECRET: ${{ secrets.ANNOUNCE_SECRET }}
+          API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+        working-directory: apps/mobile
+        run: |
+          VERSION_NAME=$(node -e "console.log(require('./app.json').expo.version)")
+          NOTES=$(git log -1 --pretty=%s | tr -d '"')
+          curl -sS -X POST "$API_URL/update/announce" \
+            -H "Content-Type: application/json" \
+            -H "x-announce-secret: $ANNOUNCE_SECRET" \
+            -d "{\"versionName\":\"$VERSION_NAME\",\"notes\":\"$NOTES\"}" || echo "announce failed (non-fatal)"

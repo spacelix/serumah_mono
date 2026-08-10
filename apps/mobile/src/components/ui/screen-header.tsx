@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useProfile } from '@/features/profile/api/profile';
 import { mediaSource } from '@/lib/api-client';
+import { firstName } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -105,7 +106,7 @@ export function AvatarChip({
         )}
       </View>
       <Text style={styles.avatarName} numberOfLines={1}>
-        {nama ?? 'Kamu'}
+        {firstName(nama ?? 'Kamu')}
       </Text>
     </Pressable>
   );

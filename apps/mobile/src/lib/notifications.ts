@@ -4,6 +4,17 @@ import { Platform } from 'react-native';
 
 import { apiClient } from '@/lib/api-client';
 
+// Show notifications while the app is in the foreground (banner + alert).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
 // Deep link keys we send from the backend: piket, swap, tagihan, beranda.
 export function routeForDeepLink(deepLink?: string): string | null {
   if (!deepLink) return null;

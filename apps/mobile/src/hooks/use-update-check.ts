@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import {
   fetchUpdateManifest,
@@ -12,8 +13,6 @@ import {
 export interface UpdateCheckResult {
   decision: UpdateDecision;
   checking: boolean;
-  dismissed: boolean;
-  dismiss: () => void;
   recheck: () => void;
 }
 
@@ -22,7 +21,6 @@ export function useUpdateCheck(): UpdateCheckResult {
     type: 'uptodate',
   });
   const [checking, setChecking] = useState(true);
-  const [dismissed, setDismissed] = useState(false);
   const inFlight = useRef(false);
 
   const check = async () => {
@@ -43,18 +41,25 @@ export function useUpdateCheck(): UpdateCheckResult {
     }
   };
 
+  // Check on mount + re-check every time the app returns to the foreground
+  // (e.g. user taps the "update available" push notification → app opens →
+  // dialog shows even if the app was already running in background).
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       void check();
     });
-    return () => cancelAnimationFrame(id);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void check();
+    });
+    return () => {
+      cancelAnimationFrame(id);
+      sub.remove();
+    };
   }, []);
 
   return {
     decision,
     checking,
-    dismissed,
-    dismiss: () => setDismissed(true),
     recheck: () => void check(),
   };
 }

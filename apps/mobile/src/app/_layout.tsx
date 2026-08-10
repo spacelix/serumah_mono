@@ -22,7 +22,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const fontsLoaded = useSerumahFonts();
-  const { decision, checking, dismissed, dismiss } = useUpdateCheck();
+  const { decision, checking, recheck } = useUpdateCheck();
   const stage = useAuthStore((s) => s.stage);
   const hydrate = useAuthStore((s) => s.hydrate);
   const [ready, setReady] = useState(false);
@@ -124,10 +124,9 @@ export default function RootLayout() {
         )}
         {manifest && (
           <UpdateDialog
-            visible={!checking && !dismissed && updateVisible}
-            force={decision.type === 'force'}
+            visible={!checking && updateVisible}
             manifest={manifest}
-            onDismiss={dismiss}
+            onDismiss={recheck}
           />
         )}
       </ThemeProvider>

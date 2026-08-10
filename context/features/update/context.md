@@ -39,17 +39,16 @@ No DB tables. Uses:
 Locked decisions:
 
 - Check only in **release** mode, skip in debug/dev.
-- Check once on app open (after first frame).
-- Force update: non-dismissible dialog.
+- Check once on app open (after first frame) + **re-check setiap app kembali aktif** (foreground) — supaya tap notif "update tersedia" memunculkan dialog walau app sudah berjalan.
+- **Update selalu wajib (locked 2026-08-11):** dialog tidak punya tombol "Nanti saja", tidak bisa ditutup (non-dismissible), badge WAJIB selalu tampil. `onRequestClose` (tombol back) hanya re-check, tidak menutup.
 - **Release trigger = tag `v*` pushed to GitHub** (locked decision, option 1). A plain commit/code change does NOT trigger an update — only bumping `app.json` version + pushing a `v{versionName}` tag starts the build.
 - Release: bump version (app.json) → tag `v{versionName}` → GitHub Actions (`release.yml`) builds APK + generates `version.json` + publishes release.
 - **Signed APK**: keystore from GitHub secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). No unsigned builds.
 
 ## 5. UI Spec (React Native)
 
-- `UpdateDialog`: title "Update tersedia" + description + progress bar while downloading. Optional → "Nanti saja" + "Update Sekarang" buttons. Force → only "Update Sekarang".
-- **WAJIB** badge for forced updates.
-- Check in `app/_layout.tsx` (root) after mount.
+- `UpdateDialog`: title "Update tersedia" + description "Versi sebelumnya tidak lagi didukung. Silakan perbaharui untuk melanjutkan." + badge **WAJIB** + progress bar while downloading. Hanya satu tombol: **"Update Sekarang"**. Tidak ada "Nanti saja", tidak bisa ditutup.
+- Check in `app/_layout.tsx` (root) after mount + pada foreground (AppState).
 
 ## 6. Constraints / Prohibited
 

@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { IuranController } from './iuran.controller';
 import { IuranService } from './iuran.service';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [forwardRef(() => NotificationsModule)],
   controllers: [IuranController],
   providers: [IuranService],
   exports: [IuranService],

@@ -1,4 +1,5 @@
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -23,6 +24,14 @@ export function routeForDeepLink(deepLink?: string): string | null {
   return valid.includes(key) ? key : null;
 }
 
+/** Expo project id — required by getExpoPushTokenAsync. Injected by EAS build
+ * (extra.eas.projectId) or fallback to EXPO_PUBLIC_EAS_PROJECT_ID. */
+export function expoProjectId(): string {
+  const fromConfig = Constants.expoConfig?.extra?.eas?.projectId;
+  const fromEnv = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+  return fromConfig ?? fromEnv ?? '';
+}
+
 /** Ask permission (Android 13+) and return true when notifications allowed. */
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (!Device.isDevice) return false;
@@ -41,27 +50,30 @@ export async function ensureNotificationPermission(): Promise<boolean> {
  * Register the device push token with the backend. Uses the Expo push token
  * (`getExpoPushTokenAsync`) — Expo Push Service relays it to FCM/APNs for us,
  * so the backend only needs to call the Expo Push API (no FCM credentials).
- * No-op on simulator / no permission / not configured.
+ * No-op on simulator / no permission / no project id.
  */
 export async function registerPushToken(): Promise<void> {
   if (!Device.isDevice) return;
   const granted = await ensureNotificationPermission();
-  if (!granted) {
-    console.log('[notifications] izin notifikasi ditolak');
+  if (!granted) return;
+  const projectId = expoProjectId();
+  if (!projectId) {
+    if (__DEV__) {
+      console.warn('[notifications] projectId tidak ditemukan (extra.eas.projectId / EXPO_PUBLIC_EAS_PROJECT_ID).');
+    }
     return;
   }
   try {
-    const token = await Notifications.getExpoPushTokenAsync();
-    console.log('[notifications] token device:', token.data);
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (__DEV__) console.log('[notifications] token ter-register');
     await apiClient.post('/push/token', { token: token.data });
-    console.log('[notifications] token ter-register');
   } catch (e) {
-    // FCM/Expo push not configured on this build (mis. google-services.json
-    // tidak ter-inject) — log biar diagnosa.
-    console.log(
-      '[notifications] gagal dapat token:',
-      e instanceof Error ? e.message : e,
-    );
+    if (__DEV__) {
+      console.warn(
+        '[notifications] gagal dapat token:',
+        e instanceof Error ? e.message : e,
+      );
+    }
   }
 }
 

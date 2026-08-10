@@ -16,6 +16,7 @@ import {
   configureAndroidChannel,
   deepLinkFromResponse,
   registerPushToken,
+  routeForDeepLink,
 } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
@@ -26,8 +27,7 @@ SplashScreen.preventAutoHideAsync();
 
 /** Navigate to a tab when a push notification is tapped. */
 function goToDeepLink(deepLink?: string) {
-  const route = deepLinkFromResponseWithKey(deepLink);
-  if (!route) return;
+  const route = routeForDeepLink(deepLink);
   if (route === 'beranda') {
     router.navigate('/');
   } else if (route === 'piket') {
@@ -37,13 +37,6 @@ function goToDeepLink(deepLink?: string) {
   } else if (route === 'tagihan') {
     router.navigate('/(tabs)/tagihan');
   }
-}
-
-function deepLinkFromResponseWithKey(deepLink?: string) {
-  if (!deepLink) return null;
-  const key = deepLink.replace('/(tabs)/', '').replace(/\//g, '');
-  const valid = ['piket', 'swap', 'tagihan', 'beranda', 'index'];
-  return valid.includes(key) ? key : null;
 }
 
 export default function RootLayout() {

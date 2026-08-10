@@ -89,9 +89,13 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
+  // Push notifications: register the device token after the splash, whenever
+  // the user is authenticated (also refreshes a rotated/expired FCM token on
+  // every app start). Requests notification permission on first run.
   useEffect(() => {
-    if (stage === 'ready') void registerPushToken();
-  }, [stage]);
+    if (!holdDone || stage !== 'ready') return;
+    void registerPushToken();
+  }, [holdDone, stage]);
 
   if (!ready) {
     // While behind the native splash render a plain matching backdrop — the

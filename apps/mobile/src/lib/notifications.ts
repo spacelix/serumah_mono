@@ -17,7 +17,9 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   if (!Device.isDevice) return false;
   const current = await Notifications.getPermissionsAsync();
   if (current.status === 'granted') return true;
-  if (current.status === 'undetermined') {
+  if (current.status === 'undetermined' || current.status === 'denied') {
+    // 'denied' → re-ask (first denial may be a soft dismiss); Android keeps
+    // "don't ask again" only after two denials.
     const req = await Notifications.requestPermissionsAsync();
     return req.status === 'granted';
   }
@@ -32,12 +34,22 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 export async function registerPushToken(): Promise<void> {
   if (!Device.isDevice) return;
   const granted = await ensureNotificationPermission();
-  if (!granted) return;
+  if (!granted) {
+    console.log('[notifications] izin notifikasi ditolak');
+    return;
+  }
   try {
     const token = await Notifications.getDevicePushTokenAsync();
+    console.log('[notifications] token device:', token.data);
     await apiClient.post('/push/token', { token: token.data });
-  } catch {
-    // FCM/Expo push not configured on this build — swallow silently.
+    console.log('[notifications] token ter-register');
+  } catch (e) {
+    // FCM/Expo push not configured on this build (mis. google-services.json
+    // tidak ter-inject) — log biar diagnosa.
+    console.log(
+      '[notifications] gagal dapat token:',
+      e instanceof Error ? e.message : e,
+    );
   }
 }
 

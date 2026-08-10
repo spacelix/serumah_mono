@@ -135,6 +135,61 @@ const TODAY = {
   tanggal: utc(2026, 8, 9), // Minggu
 };
 
+// ── SWAP SEED (deterministic) ─────────────────────────────────────────
+// Swap hanya untuk 1 minggu berjalan (Sen–Min, hanya hari ≥ hari ini).
+// Hari ini = Minggu 9 Agu 2026, jadi request di-seed pada hari piket
+// minggu berjalan (Sen 3 / Rab 5 / Jum 7 Agu) yang sudah lewat — muncul
+// sebagai histori/request masuk, bukan di form (form cuma hari ≥ hari ini).
+const SWAPS: {
+  id: string;
+  dariAnggotaId: string;
+  keAnggotaId: string;
+  tanggal: Date;
+  tanggalKe: Date;
+  status: string;
+  createdAt: Date;
+  resolvedAt?: Date;
+}[] = [
+  {
+    id: '00000000-0000-0000-0000-0000000000e1',
+    dariAnggotaId: memberIds[0]!, // Andi
+    keAnggotaId: memberIds[1]!, // Budi
+    tanggal: utc(2026, 8, 3), // Senin
+    tanggalKe: utc(2026, 8, 5), // Rabu (Budi)
+    status: 'diajukan',
+    createdAt: stamp(2026, 8, 3, 8),
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e2',
+    dariAnggotaId: memberIds[2]!, // Cici
+    keAnggotaId: memberIds[0]!, // Andi
+    tanggal: utc(2026, 8, 7), // Jumat
+    tanggalKe: utc(2026, 8, 3), // Senin (Andi)
+    status: 'diajukan',
+    createdAt: stamp(2026, 8, 7, 9),
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e3',
+    dariAnggotaId: memberIds[1]!, // Budi
+    keAnggotaId: memberIds[0]!, // Andi
+    tanggal: utc(2026, 8, 5), // Rabu
+    tanggalKe: utc(2026, 8, 3), // Senin (Andi)
+    status: 'diterima',
+    createdAt: stamp(2026, 8, 4, 14),
+    resolvedAt: stamp(2026, 8, 5, 9),
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e4',
+    dariAnggotaId: memberIds[0]!, // Andi
+    keAnggotaId: memberIds[2]!, // Cici
+    tanggal: utc(2026, 8, 3), // Senin
+    tanggalKe: utc(2026, 8, 7), // Jumat (Cici)
+    status: 'ditolak',
+    createdAt: stamp(2026, 8, 5, 10),
+    resolvedAt: stamp(2026, 8, 6, 12),
+  },
+];
+
 function makeUser(id: string, email: string): User {
   return { id, email, passwordHash: DEMO_PASSWORD_HASH } as User;
 }
@@ -377,12 +432,39 @@ async function main() {
     },
   });
 
+  // Swap requests (incoming + history).
+  for (const s of SWAPS) {
+    await prisma.swapRequest.upsert({
+      where: { id: s.id },
+      update: {
+        dariAnggotaId: s.dariAnggotaId,
+        keAnggotaId: s.keAnggotaId,
+        tanggal: s.tanggal,
+        tanggalKe: s.tanggalKe,
+        status: s.status,
+        createdAt: s.createdAt,
+        resolvedAt: s.resolvedAt ?? null,
+      },
+      create: {
+        id: s.id,
+        dariAnggotaId: s.dariAnggotaId,
+        keAnggotaId: s.keAnggotaId,
+        tanggal: s.tanggal,
+        tanggalKe: s.tanggalKe,
+        status: s.status,
+        createdAt: s.createdAt,
+        resolvedAt: s.resolvedAt ?? null,
+      },
+    });
+  }
+
   console.log({
     rumah: rumah.nama,
     anggota: anggotaData.map((a) => a.nama),
     ruangan: ROOMS.map((r) => r.nama),
     history: HISTORY.length,
     denda: dendaCount,
+    swap: SWAPS.length,
     today: {
       tanggal: TODAY.tanggal.toISOString().slice(0, 10),
       piket: 'Admin Mawar (Minggu · di_kos)',

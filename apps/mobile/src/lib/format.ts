@@ -57,3 +57,27 @@ export function formatWeekRange(startIso: string, endIso: string): string {
       .replace('.', '');
   return `${fmt(startIso)} – ${fmt(endIso)}`;
 }
+
+/** "16 Jul 21:04" — resolved-at stamp in swap history */
+export function formatDateTimeShort(iso: string): string {
+  const date = new Date(iso);
+  const day = new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+  })
+    .format(date)
+    .replace('.', '');
+  const time = new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .format(date)
+    .replace('.', ':');
+  return `${day} ${time}`;
+}
+
+/** Nama depan (kata pertama) — untuk chip/avatar yang ruangnya sempit. */
+export function firstName(nama: string): string {
+  return nama.trim().split(/\s+/)[0] ?? nama;
+}

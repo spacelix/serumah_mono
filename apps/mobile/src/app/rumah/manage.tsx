@@ -16,7 +16,7 @@ import {
   useAnimatedValue,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -749,6 +749,7 @@ function MemberDetailSheet({
   onRemove: (member: RumahManageMember) => void;
 }) {
   const token = useAuthStore((s) => s.token);
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal
@@ -758,7 +759,13 @@ function MemberDetailSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.memberSheetBackdrop} onPress={onClose}>
-        <View style={styles.memberSheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[
+            styles.memberSheet,
+            { paddingBottom: insets.bottom + 26 },
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.memberSheetHandle} />
           {member && (
             <>
@@ -1780,7 +1787,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius['3xl'],
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 30,
   },
   memberSheetHandle: {
     alignSelf: 'center',

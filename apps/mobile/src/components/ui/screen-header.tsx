@@ -40,7 +40,7 @@ export function ScreenHeader({
   const resolvedKicker =
     kicker ??
     (onBack
-      ? 'Serumah'
+      ? (rumahNama ?? 'Serumah')
       : rumahNama
         ? `Papan piket · ${rumahNama}`
         : 'Papan piket');

@@ -14,7 +14,7 @@ import {
   useAnimatedValue,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -256,6 +256,7 @@ function ReviewSheet({
   onClose: () => void;
 }) {
   const approved = submission?.status === 'approved';
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={submission != null}
@@ -264,7 +265,10 @@ function ReviewSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.sheetHandle} />
           {submission && (
             <>
@@ -1186,7 +1190,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingTop: 8,
     paddingHorizontal: 20,
-    paddingBottom: 12,
     maxHeight: '85%',
     gap: 8,
   },

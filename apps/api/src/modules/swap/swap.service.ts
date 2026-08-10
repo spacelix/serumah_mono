@@ -10,6 +10,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CacheService } from '../redis/cache.service';
 import { CreateSwapDto } from './dto/swap.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5];
@@ -27,6 +28,7 @@ export class SwapService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
+    private readonly cache: CacheService,
   ) {}
 
   private toDate(date: Date | string): Date {
@@ -45,6 +47,13 @@ export class SwapService {
         date.getUTCDate() + days,
       ),
     );
+  }
+
+  /** Senin dari minggu yang memuat `date` (UTC-midnight). Minggu berjalan = Senin..Minggu. */
+  private mondayOf(date: Date): Date {
+    const day = date.getUTCDay();
+    const offset = day === 0 ? -6 : 1 - day;
+    return this.addDays(date, offset);
   }
 
   async list(payload: CurrentUserPayload) {
@@ -78,21 +87,24 @@ export class SwapService {
     if (!anggota.rumahId) return [];
 
     const today = this.toDate(new Date());
-    const twoWeeksAhead = this.addDays(today, 14);
+    const weekEnd = this.addDays(this.mondayOf(today), 6); // Minggu minggu berjalan
 
     const jadwal = await this.prisma.jadwal.findMany({
       where: {
         rumahId: anggota.rumahId,
         anggotaId: anggota.id,
-        tanggal: { gte: today, lte: twoWeeksAhead },
+        tanggal: { gte: today, lte: weekEnd },
       },
-      select: { tanggal: true },
+      select: { tanggal: true, ruangan: true },
     });
 
     const days = jadwal
-      .map((j) => j.tanggal)
-      .filter((d) => PIKET_WEEKDAYS.includes(d.getUTCDay()))
-      .sort((a, b) => a.getTime() - b.getTime());
+      .filter((j) => PIKET_WEEKDAYS.includes(j.tanggal.getUTCDay()))
+      .map((j) => ({
+        tanggal: j.tanggal,
+        ruangan: (j.ruangan as string[]) ?? [],
+      }))
+      .sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
 
     return days;
   }
@@ -106,7 +118,7 @@ export class SwapService {
     if (!anggota.rumahId) return [];
 
     const today = this.toDate(new Date());
-    const twoWeeksAhead = this.addDays(today, 14);
+    const weekEnd = this.addDays(this.mondayOf(today), 6); // Minggu minggu berjalan
 
     const [members, jadwal] = await Promise.all([
       this.prisma.anggota.findMany({
@@ -117,17 +129,23 @@ export class SwapService {
       this.prisma.jadwal.findMany({
         where: {
           rumahId: anggota.rumahId,
-          tanggal: { gte: today, lte: twoWeeksAhead },
+          tanggal: { gte: today, lte: weekEnd },
         },
-        select: { tanggal: true, anggotaId: true },
+        select: { tanggal: true, anggotaId: true, ruangan: true },
       }),
     ]);
 
-    const daysByMember = new Map<string, Date[]>();
+    const daysByMember = new Map<
+      string,
+      { tanggal: Date; ruangan: string[] }[]
+    >();
     for (const j of jadwal) {
       if (!PIKET_WEEKDAYS.includes(j.tanggal.getUTCDay())) continue;
       const list = daysByMember.get(j.anggotaId) ?? [];
-      list.push(j.tanggal);
+      list.push({
+        tanggal: j.tanggal,
+        ruangan: (j.ruangan as string[]) ?? [],
+      });
       daysByMember.set(j.anggotaId, list);
     }
 
@@ -135,7 +153,9 @@ export class SwapService {
       .map((m) => ({
         id: m.id,
         nama: m.nama,
-        days: (daysByMember.get(m.id) ?? []).sort((a, b) => a.getTime() - b.getTime()),
+        days: (daysByMember.get(m.id) ?? []).sort((a, b) =>
+          a.tanggal.getTime() - b.tanggal.getTime(),
+        ),
       }))
       .filter((m) => m.days.length > 0);
   }
@@ -252,7 +272,7 @@ export class SwapService {
       });
       return tx.swapRequest.update({
         where: { id: swap.id },
-        data: { status: 'diterima' },
+        data: { status: 'diterima', resolvedAt: new Date() },
       });
     });
 
@@ -260,6 +280,7 @@ export class SwapService {
       `[SwapService] Swap ${swap.id} diterima oleh ${anggota.nama}`,
     );
     await this.notifications.notifySwapAccepted(swap.dariAnggotaId, anggota.nama);
+    await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { swapRequest: updated };
   }
 
@@ -269,7 +290,7 @@ export class SwapService {
 
     const updated = await this.prisma.swapRequest.update({
       where: { id: swap.id },
-      data: { status: 'ditolak' },
+      data: { status: 'ditolak', resolvedAt: new Date() },
     });
 
     this.logger.log(

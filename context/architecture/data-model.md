@@ -310,6 +310,7 @@ model SwapRequest {
   tanggalKe   DateTime @db.Date          // hari piket si penerima (ke) yang ditukar (mutual, locked 2026-08-10)
   status      String   @default("diajukan") // 'diajukan' | 'diterima' | 'ditolak'
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz // waktu diproses (accept/reject) — untuk Histori swap
 
   dari Anggota @relation("SwapDari", fields: [dariAnggotaId], references: [id])
   ke   Anggota @relation("SwapKe", fields: [keAnggotaId], references: [id])

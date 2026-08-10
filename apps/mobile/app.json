@@ -2,14 +2,14 @@
   "expo": {
     "name": "Serumah",
     "slug": "serumah",
-    "version": "1.8.2",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "serumah",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.serumah.serumah",
-      "versionCode": 14,
+      "versionCode": 15,
       "backgroundColor": "#EFEAE0",
       "googleServicesFile": "./google-services.json",
       "permissions": [
@@ -48,6 +48,8 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#EFEAE0",
           "defaultChannel": "serumah",
           "sounds": []
         }
@@ -57,6 +59,15 @@
         {
           "photosPermission": "Akses foto untuk memilih foto profil.",
           "cameraPermission": "Akses kamera untuk mengambil foto profil."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "cmakeVersion": "3.30.5",
+            "ndkVersion": "26.1.10909125"
+          }
         }
       ]
     ],

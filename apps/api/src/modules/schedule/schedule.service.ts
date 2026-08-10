@@ -8,6 +8,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CacheService } from '../redis/cache.service';
 import { WeekendStatusDto } from './dto/schedule.dto';
 
@@ -28,7 +29,8 @@ export class ScheduleService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly cache: CacheService,
-  ) {}
+    private readonly notifications: NotificationsService,
+  ) { }
 
   // ── DATE HELPERS (UTC-based so @db.Date matches Postgres `date` columns) ──
   // Prisma stores `@db.Date` as a date string derived from the UTC components
@@ -398,6 +400,13 @@ export class ScheduleService {
       `[ScheduleService] ${anggota.nama} ${dto.hari} → ${dto.status}`,
     );
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
+    // Notifikasi ke semua anggota lain (kecuali pengubah status).
+    await this.notifications.notifyWeekendStatus(
+      anggota.rumahId,
+      anggota.nama,
+      dto.hari,
+      dto.status,
+    );
     return { hari: dto.hari, status: dto.status };
   }
 
@@ -536,7 +545,8 @@ export class ScheduleService {
 
   /**
    * Freeze weekend roster Friday 20:00 (per spec). After statuses are frozen
-   * the weekend Jadwal for Sat+Sun is generated for every rumah.
+   * the weekend Jadwal for Sat+Sun is generated for every rumah. Anggota yang
+   * belum konfirmasi status (Sabtu & Minggu) dapat notif "bertanggung jawab".
    */
   @Cron('0 20 * * 5')
   async freezeWeekendCron(): Promise<void> {
@@ -545,6 +555,23 @@ export class ScheduleService {
     for (const rumah of rumahs) {
       for (const offset of [5, 6]) {
         await this.ensureWeekend(rumah.id, this.addDays(monday, offset));
+      }
+
+      // Anggota yang belum pilih Di kos/Pulang sama sekali (dua hari belum
+      // tercatat) → notif tanggung jawab penuh.
+      const members = await this.prisma.anggota.findMany({
+        where: { rumahId: rumah.id },
+        select: { id: true },
+      });
+      const chosenRows = await this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday, anggotaId: { in: members.map((m) => m.id) } },
+        select: { anggotaId: true },
+      });
+      const chosen = new Set(chosenRows.map((r) => r.anggotaId));
+      for (const m of members) {
+        if (!chosen.has(m.id)) {
+          await this.notifications.notifyWeekendMissed(m.id);
+        }
       }
     }
     this.logger.log(

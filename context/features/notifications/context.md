@@ -54,6 +54,23 @@ Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat waj
 - `confirm` di `GalonService.confirm` → setelah `rotateGalon` menentukan next member, kirim: (1) notif "sudah dibeli" ke semua anggota; (2) nudge ke next member.
 - Nudge bisa juga dipicu manual (tombol bel galon di beranda) → `POST /galon/nudge` (dikirim ke member giliran aktif).
 
+### B3. Weekend status — event-driven (hook di `schedule.service.ts` `setWeekendStatus`)
+
+| Pemicu | Penerima | Pesan | Deep link |
+|---|---|---|---|
+| **Status Di kos/Pulang diubah** | **semua anggota rumah** (selain pengubah) | "{nama} pilih Di kos untuk Sabtu" / "{nama} pulang Minggu" | `/(tabs)` (beranda) |
+
+- Hook dipanggil setelah upsert `WeekendStatus` + generate jadwal. Tanpa detail siapa yang dapat piket (keputusan 2026-08-11).
+
+### E. Weekend status — reminder belum pilih (cron Jumat)
+
+- `0 8 * * 5` (Jumat 08:00) + `0 19 * * 5` (Jumat 19:00, 1 jam sebelum freeze 20:00): ke anggota yang **belum punya `WeekendStatus`** untuk hari Sabtu/Minggu **minggu berjalan** (skip hari yang sudah lewat). Pesan "Belum pilih Di kos / Pulang buat {Sabtu/Minggu}. Deadline Jumat 20:00." Deep link `/(tabs)` (beranda).
+- Konsisten dgn freeze Jumat 20:00 (status tidak bisa diubah setelahnya).
+
+### F. Weekend status — tidak konfirmasi saat freeze (cron Jumat 20:00)
+
+- `0 20 * * 5` (`freezeWeekendCron`): setelah jadwal weekend dibekukan, anggota yang **belum punya `WeekendStatus` sama sekali** (Sabtu & Minggu belum tercatat) dapat notif: "Lo ga konfirmasi Pulang atau Di kos, jadi buat weekend ini lo bertanggung jawab sepenuhnya." Deep link `/(tabs)` (beranda).
+
 
 ### C. Denda reminder — cron mingguan
 

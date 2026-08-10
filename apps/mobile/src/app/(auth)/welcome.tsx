@@ -1,12 +1,23 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
+
+/** Durasi tiap step welcome sebelum auto-advance (ms). */
+const STEP_MS = 3500;
 
 interface ObStep {
   key: number;
@@ -42,19 +53,50 @@ const OB_STEPS: ObStep[] = [
 
 /**
  * Welcome screen — Serumah.html onboarding tutorial (3 steps).
- * Matches the prototype: green bg, logo chip + "Serumah" header, step art
- * box, kicker + title + body, dots, "Lewati" skip → login, back/Lanjut, and
- * last step "Mulai · Masuk" → login (email/password, not PIN).
+ * Auto-advance: tiap step tampil STEP_MS lalu lanjut otomatis. Indicator:
+ * segmen aktif mengisi sebagai progress bar, segmen belum = dot kecil, segmen
+ * selesai = terisi penuh. Step terakhir STUCK (tidak auto ke login) — tombol
+ * "Mulai · Masuk" yang menavigasi. Transisi antar step: fade + slide naik.
  */
 export default function WelcomeScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const progress = useAnimatedValue(0);
+  const content = useAnimatedValue(0);
 
   const stepData = OB_STEPS[step];
   const isLast = step === OB_STEPS.length - 1;
-  const isFirst = step === 0;
 
   const goLogin = () => router.replace('/login');
+
+  // Auto-advance: isi progress bar lalu lanjut step. Step terakhir stuck.
+  useEffect(() => {
+    progress.setValue(0);
+    content.setValue(0);
+    Animated.parallel([
+      Animated.timing(content, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: STEP_MS,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    ]).start(({ finished }) => {
+      if (finished && !isLast) setStep((v) => v + 1);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const next = () => {
+    progress.stopAnimation();
+    if (isLast) goLogin();
+    else setStep((v) => v + 1);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -68,46 +110,59 @@ export default function WelcomeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.stage}>
+      <Animated.View
+        style={[
+          styles.stage,
+          {
+            opacity: content,
+            transform: [
+              {
+                translateY: content.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [18, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <StepArt art={stepData.art} />
         <View style={styles.textBlock}>
           <Text style={styles.kicker}>{stepData.kicker}</Text>
           <Text style={styles.title}>{stepData.title}</Text>
           <Text style={styles.body}>{stepData.body}</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.controls}>
         <View style={styles.dots}>
-          {OB_STEPS.map((s) => (
-            <View
-              key={s.key}
-              style={[styles.dot, s.key === step && styles.dotActive]}
-            />
-          ))}
+          {OB_STEPS.map((s) => {
+            const isActive = s.key === step;
+            return (
+              <View
+                key={s.key}
+                style={[styles.dot, isActive && styles.dotTrack]}
+              >
+                {isActive ? (
+                  <Animated.View
+                    style={[
+                      styles.dotFill,
+                      {
+                        width: progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
         </View>
         <View style={styles.actions}>
-          {!isFirst && (
-            <Pressable
-              onPress={() => setStep((v) => Math.max(0, v - 1))}
-              style={({ pressed }) => [
-                styles.backBtn,
-                pressed && styles.backBtnPressed,
-              ]}
-            >
-              <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M15 18l-6-6 6-6"
-                  stroke={colors.paper}
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-            </Pressable>
-          )}
           <Pressable
-            onPress={() => (isLast ? goLogin() : setStep((v) => v + 1))}
+            onPress={next}
             style={({ pressed }) => [
               styles.primaryBtn,
               pressed && styles.primaryBtnPressed,
@@ -298,32 +353,31 @@ const styles = StyleSheet.create({
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
+    alignItems: 'center',
+    gap: 7,
   },
   dot: {
     width: 7,
     height: 7,
-    borderRadius: 20,
+    borderRadius: 4,
     backgroundColor: colors.paper30,
   },
-  dotActive: {
-    width: 18,
+  dotTrack: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.paper30,
+    overflow: 'hidden',
+  },
+  dotFill: {
+    height: '100%',
+    borderRadius: 3,
     backgroundColor: colors.paper,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-  },
-  backBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 17,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: colors.paper30,
-  },
-  backBtnPressed: {
-    backgroundColor: colors.paper16,
   },
   primaryBtn: {
     flex: 1,

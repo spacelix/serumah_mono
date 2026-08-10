@@ -44,6 +44,7 @@ Locked decisions (from the old phase, preserved):
 - The `hari` column = saturday/sunday per row (drift, preserved).
 - **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal (picks one di_kos member round-robin) so the UI shows who piket right away — before the Friday freeze.
 - **Weekday exemption (locked 2026-08-08):** members who hold a weekend Jadwal row that week are **excluded from weekday piket** (Senin/Rabu/Jumat) in the same week — the copy "yang piket Sabtu–Minggu bebas piket Senin–Jumat". `ensureWeekday` filters the round-robin pool with `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows (weekend generated first so the exclusion applies).
+- **Notifikasi status (locked 2026-08-11):** `setWeekendStatus` mengirim push ke **semua anggota lain** ("{nama} pilih Di kos untuk Sabtu" / "{nama} pulang Minggu"), tanpa detail siapa yang dapat piket. Reminder belum pilih via cron Jumat 08:00 + 19:00 (lihat features/notifications).
 
 **Auto-fine:**
 

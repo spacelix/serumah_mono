@@ -152,4 +152,57 @@ export class NotificationsService {
       deepLink: '/(tabs)/piket',
     });
   }
+
+  /**
+   * Weekend status berubah (Di kos/Pulang) → info ke semua anggota lain.
+   * `nama` = yang mengubah status; `hari` = 'sabtu'/'minggu'; `status` =
+   * 'di_kos'/'pulang'. Tanpa detail siapa yang dapat jadwal piket.
+   */
+  async notifyWeekendStatus(
+    rumahId: string,
+    nama: string,
+    hari: 'sabtu' | 'minggu',
+    status: 'di_kos' | 'pulang',
+  ): Promise<void> {
+    const hariLabel = hari === 'sabtu' ? 'Sabtu' : 'Minggu';
+    const statusLabel = status === 'di_kos' ? 'pilih Di kos' : 'pulang';
+    const members = await this.prisma.anggota.findMany({
+      where: { rumahId },
+      select: { id: true, nama: true },
+    });
+    const others = members.filter((m) => m.nama !== nama).map((m) => m.id);
+    await this.sendToAnggota(others, {
+      title: 'Status akhir pekan',
+      body: `${nama} ${statusLabel} untuk ${hariLabel}.`,
+      deepLink: '/',
+    });
+  }
+
+  /**
+   * Reminder belum memilih status weekend (Di kos/Pulang). Ke satu anggota
+   * yang belum punya WeekendStatus untuk minggu ini + hari tersebut.
+   */
+  async notifyWeekendReminder(
+    anggotaId: string,
+    hari: 'sabtu' | 'minggu',
+  ): Promise<void> {
+    const hariLabel = hari === 'sabtu' ? 'Sabtu' : 'Minggu';
+    await this.sendToAnggota([anggotaId], {
+      title: 'Pilih status akhir pekan',
+      body: `Belum pilih Di kos / Pulang buat ${hariLabel}. Deadline Jumat 20:00.`,
+      deepLink: '/',
+    });
+  }
+
+  /**
+   * Freeze tercapai dan anggota belum konfirmasi status weekend sama sekali —
+   * dianggap bertanggung jawab sepenuhnya akhir pekan ini.
+   */
+  async notifyWeekendMissed(anggotaId: string): Promise<void> {
+    await this.sendToAnggota([anggotaId], {
+      title: 'Status akhir pekan lo belum dipilih',
+      body: 'Lo ga konfirmasi Pulang atau Di kos, jadi buat weekend ini lo bertanggung jawab sepenuhnya.',
+      deepLink: '/',
+    });
+  }
 }

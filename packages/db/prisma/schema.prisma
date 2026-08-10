@@ -300,6 +300,7 @@ model SwapRequest {
   tanggalKe   DateTime @db.Date // hari piket si penerima (ke) yang ditukar
   status      String   @default("diajukan")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz
 
   dari Anggota @relation("SwapDari", fields: [dariAnggotaId], references: [id])
   ke   Anggota @relation("SwapKe", fields: [keAnggotaId], references: [id])

@@ -309,6 +309,7 @@ function DendaDetailSheet({
   onClose: () => void;
   onUpload: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const qrisSource = mediaSource(qrisUrl, token);
 
@@ -320,7 +321,10 @@ function DendaDetailSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.sheetHandle} />
           {denda && (
             <>
@@ -1844,7 +1848,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius['3xl'],
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 30,
     maxHeight: '85%',
   },
   sheetHandle: {

@@ -19,6 +19,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { prisma } from '@serumah/db';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 
 interface Skenario {
   key: string;
@@ -200,14 +201,45 @@ async function kirim(
     body: JSON.stringify({ to: token, title, body, data: { deepLink } }),
   });
   const json = (await res.json()) as {
-    data?: { status?: string; details?: { error?: string } }[];
+    data?: { id?: string; status?: string; message?: string }[];
   };
   const ticket = json?.data?.[0];
   if (ticket?.status === 'error') {
-    console.log(`  ${dim('→')} Expo error: ${ticket.details?.error ?? ticket.status}`);
+    console.log(`  ${dim('→')} Expo error: ${ticket.message ?? ticket.status}`);
     return false;
   }
+
+  // Expo mengembalikan status delivery di RECEIPT (bukan ticket). Ticket "ok"
+  // hanya berarti request diterima — DeviceNotRegistered baru terlihat di sini.
+  if (ticket?.id) {
+    await sleep(1500);
+    try {
+      const r = await fetch(EXPO_RECEIPTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [ticket.id] }),
+      });
+      const rr = (await r.json()) as {
+        data?: Record<string, { status: string; message?: string }>;
+      };
+      const receipt = rr?.data?.[ticket.id];
+      if (receipt && receipt.status === 'error') {
+        console.log(
+          `  ${dim('→')} Receipt error: ${receipt.message ?? receipt.status} (token basi?)`,
+        );
+        return false;
+      }
+    } catch (e) {
+      console.log(
+        `  ${dim('→')} Gagal cek receipt: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
   return true;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function main() {

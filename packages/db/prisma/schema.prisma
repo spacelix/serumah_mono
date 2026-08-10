@@ -19,7 +19,6 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   anggota   Anggota?
-  fcmTokens FcmToken[]
 
   @@map("users")
 }
@@ -344,17 +343,3 @@ model LogEntry {
   @@map("log_entries")
 }
 
-// ── NOTIFICATIONS ─────────────────────────────────────────────────────
-model FcmToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  anggotaId String   @map("anggota_id") @db.Uuid
-  token     String
-  platform  String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  user User @relation(fields: [anggotaId], references: [id])
-
-  @@unique([token])
-  @@map("fcm_tokens")
-}

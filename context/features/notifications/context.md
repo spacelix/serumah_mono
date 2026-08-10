@@ -14,6 +14,7 @@ Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat waj
 ## 3. Env & Android Config
 
 - **Backend tidak butuh FCM env** — cukup kirim token Expo ke `exp.host`. (FCM vars tidak diperlukan.)
+- Mobile env: **`EXPO_PUBLIC_EAS_PROJECT_ID`** (Expo project id) — dipakai `getExpoPushTokenAsync({ projectId })`; fallback dari `extra.eas.projectId` (EAS inject saat build).
 - Mobile Android: **`google-services.json`** (dari Firebase console, app `com.serumah.serumah`) → `apps/mobile/google-services.json` (gitignored, di-inject CI via secret `GOOGLE_SERVICES_BASE64`). Di-refer dari `app.json` → `android.googleServicesFile`. Plus **FCM V1 service account key** di EAS (untuk build app, bukan server).
 - Mobile deps: `expo-notifications` (SDK 57 compatible), `expo-device` (sudah ada). **Tidak bisa diuji via Expo Go (push Android dihapus sejak SDK 53) — harus development build / APK.**
 - Token yang dikirim = **Expo push token** (`Notifications.getExpoPushTokenAsync`, format `ExponentPushToken[...]`).
@@ -83,10 +84,11 @@ Hooks di service (kirim notif, bukan endpoint): `piket.service` (submit→review
 
 ## 7. Mobile (expo-notifications)
 
-- `app/_layout.tsx`: `requestPermissionsAsync` saat login/start; **`getExpoPushTokenAsync`** → `POST /push/token`; refresh saat app start; `setNotificationHandler` agar tampil saat foreground.
-- `NotificationResponse` listener → `router.push(data.deepLink)`.
+- `app/_layout.tsx`: `requestPermissionsAsync` saat login/start; **`getExpoPushTokenAsync({ projectId: expoProjectId() })`** → `POST /push/token`; refresh saat app start; `setNotificationHandler` agar tampil saat foreground.
+- `NotificationResponse` listener → `router.push(data.deepLink)` (parser `routeForDeepLink` tunggal di `lib/notifications.ts`).
 - Foreground: banner/toast (handler di atas).
 - Android channel id konsisten (`serumah`).
+- Log push di-gate `__DEV__` (tidak mencetak token di produksi).
 - **Harus development build / APK release** — Expo Go tidak mendukung push Android (SDK 53+).
 
 ## 8. Files

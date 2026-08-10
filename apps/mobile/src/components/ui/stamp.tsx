@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+} from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
@@ -71,7 +77,7 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
   const label = labelOf(status);
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
   const settled = status === 'lunas' || status === 'approved';
-  const stamp = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const stamp = useAnimatedValue(animate ? 0 : 1);
   const prevStatus = useRef(status);
 
   useEffect(() => {

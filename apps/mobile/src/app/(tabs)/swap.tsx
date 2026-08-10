@@ -23,7 +23,6 @@ import {
 } from '@/features/swap/api/swap';
 import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function SwapScreen() {

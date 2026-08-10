@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -566,7 +567,7 @@ function RuanganPiketCard({
   const [previewSlot, setPreviewSlot] = useState<'before' | 'after' | null>(
     null,
   );
-  const fade = useRef(new Animated.Value(1)).current;
+  const fade = useAnimatedValue(1);
   const info = useInfoDialog();
   const wasComplete = useRef(false);
 

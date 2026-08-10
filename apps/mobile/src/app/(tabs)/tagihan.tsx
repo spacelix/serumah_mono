@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1315,7 +1316,7 @@ function ListrikFormCard({
   onSave: () => Promise<boolean>;
   onCreated: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const [closing, setClosing] = useState(false);
   const closedRef = useRef(false);
 
@@ -1704,12 +1705,6 @@ async function pickListrikProof(setBukti: (uri: string | null) => void) {
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : 'Terjadi kesalahan.';
-}
-
-function formatInt(value: number): string {
-  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(
-    value,
-  );
 }
 
 function Loading() {

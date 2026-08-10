@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import {
   Animated,
   Easing,
@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useAnimatedValue,
   View,
 } from 'react-native';
 
@@ -44,15 +45,15 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const rise = useMemo(() => new Animated.Value(0), []);
-  const fade = useMemo(() => new Animated.Value(0), []);
-  const [mounted, setMounted] = useState(visible);
+  const rise = useAnimatedValue(0);
+  const fade = useAnimatedValue(0);
 
+  // Animate in when opened, animate out when closed. Keep the Modal mounted
+  // only while visible to avoid an extra mounted-state render.
   useEffect(() => {
+    rise.setValue(0);
+    fade.setValue(0);
     if (visible) {
-      setMounted(true);
-      rise.setValue(0);
-      fade.setValue(0);
       Animated.parallel([
         Animated.timing(rise, {
           toValue: 1,
@@ -67,11 +68,7 @@ export function ConfirmDialog({
           useNativeDriver: true,
         }),
       ]).start();
-    }
-  }, [visible, rise, fade]);
-
-  useEffect(() => {
-    if (!visible && mounted) {
+    } else {
       Animated.parallel([
         Animated.timing(rise, {
           toValue: 0,
@@ -85,11 +82,11 @@ export function ConfirmDialog({
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start(() => setMounted(false));
+      ]).start();
     }
-  }, [visible, mounted, rise, fade]);
+  }, [visible, rise, fade]);
 
-  if (!mounted) {
+  if (!visible) {
     return null;
   }
 

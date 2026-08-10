@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -533,7 +534,7 @@ function EditProfileCard({
   onPickAvatar: () => void;
   onDeleteAvatar: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
 
   useEffect(() => {
@@ -755,7 +756,7 @@ function ChangePasswordCard({
   onClosed: () => void;
   onSave: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
 
   useEffect(() => {

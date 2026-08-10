@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Check, Pencil, Plus, X } from 'lucide-react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useAnimatedValue,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -293,7 +294,7 @@ function EditRumahCard({
   onClosed: () => void;
   onChange: () => void;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
   const closed = useRef(false);
   const [nama, setNama] = useState(rumah.nama);
   const [alamat, setAlamat] = useState(rumah.alamat);
@@ -314,7 +315,8 @@ function EditRumahCard({
     }).start();
   }, [rise]);
 
-  if (closing) {
+  useEffect(() => {
+    if (!closing) return;
     Animated.timing(rise, {
       toValue: 0,
       duration: 180,
@@ -325,7 +327,7 @@ function EditRumahCard({
         onClosed();
       }
     });
-  }
+  }, [closing, rise, onClosed]);
 
   const save = async () => {
     if (!nama.trim()) {
@@ -1259,7 +1261,7 @@ function AddRoomForm({
   onSave: () => void;
   busy: boolean;
 }) {
-  const rise = useRef(new Animated.Value(0)).current;
+  const rise = useAnimatedValue(0);
 
   useEffect(() => {
     Animated.timing(rise, {

@@ -142,7 +142,7 @@ export class FcmService {
     const subtle = webcrypto.subtle;
     const key = await importCryptoKey(this.privateKey!, subtle);
     const signature = await subtle.sign(
-      { name: 'RSASSA-PKCS1-v1_5' },
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       key,
       new TextEncoder().encode(unsigned),
     );
@@ -162,7 +162,7 @@ async function importCryptoKey(
   return subtle.importKey(
     'pkcs8',
     der,
-    { name: 'RSASSA-PKCS1-v1_5' },
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign'],
   );

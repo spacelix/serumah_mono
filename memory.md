@@ -1,47 +1,56 @@
-# Memory — Serumah: swap mutual, reviewer denda/iuran, listrik, schedule, v1.7.1 (2026-08-10)
+# Memory — Serumah: Push via Expo Push Service, best practice audit, akan pindah D:\sm (2026-08-10)
 
-Last updated: 2026-08-10 (session end)
+Last updated: 2026-08-10 (late session)
 
-## What was built
+## What was built (sesi ini)
 
-**All committed on `development` (8 commits, since `v1.7.1` tag, NOT pushed — push from Windows):**
-- `30dd4b6` **feat(db):** payment reviewerId on Denda + IuranBulanan (migration `add_payment_reviewer`); SwapRequest + `tanggalKe` (migration `swap_mutual_two_day`).
-- `d53b6d9` **feat(api):** `RumahScopeService.assignPaymentReviewer` (member→PJ, PJ→round-robin non-PJ; **PJ's own denda/iuran payment NO LONGER auto-lunas** — goes `menunggu_konfirmasi` + assigned reviewer); approve/reject/confirmLunas validate `reviewerId` (not `@Roles('admin')`). **Listrik even split**: `base=floor(nominal/n)`, sisa rupiah dibagikan rata (rotasi per record), tiap record return `shares: {memberId→share}` + `share` (user's own). **Schedule `selfHealWeek` cron harian 06:00** → ensure current week today→Sunday (idempoten, no past); fixes "Senin tidak tergenerate kalau cron Sabtu terlewat".
-- `bf9ddc6` **feat(api):** swap mutual 2-hari — `POST /swap` `{tanggal, tanggalKe, keAnggotaId}` (validasi kedua hari punya jadwal piket milik masing-masing); `accept` saling pindahkan kedua jadwal; endpoint baru `GET /swap/target-days` → `{id, nama, days[]}[]`.
-- `0f1c16b` **feat(swap):** mobile `swap.tsx` di-rebuild — header kicker "All-or-nothing · 1 hari penuh"; CTA dashed "Ajukan swap baru" (hilang saat form terbuka); form **dark bottom sheet 2-step** (step 1 pilih hari lo dari `available-days` → step 2 pilih hari anggota lain dari `target-days` + "← Ganti hari lo"); kartu incoming "Request masuk" + waktu relatif + dua `DayBox` + ⇄ pine + note + Terima(ink)/Tolak(outline); section **Histori swap · buat audit** (Request lo + stamp). `members.ts` (useIuranMembers) dihapus → `useSwapTargets`.
-- `b34f25c` **feat(tagihan):** denda/iuran pending filter `reviewerId === myId` (bukan isPj); label "Kirim ke reviewer" (PJ) / "Kirim ke PJ" (member); denda card waitNote "nunggu konfirmasi {reviewerNama}" + **"Lihat Detail" button** untuk `menunggu_konfirmasi`/`lunas`; `IuranDetailSheet` (read-only, desain sama upload sheet: header title+amount+stamp kanan, items, bukti, **timeline**); `IuranVerifySheet` (sama desain detail, tanpa timeline, button **"Lunas"**); **Listrik**: summary tanpa progress bar + note rule "Listrik tambahan dibagi rata ke semua. Pembeli dapet kredit, non-pembeli ditambah di tagihan bulan depan." (mono 400 11 pineDeep); button "Tambah Record" dashed; `ListrikFormCard` (top-level, rise-in/out, Rp field kecil, foto preview+clear, preview modal dgn "Ganti foto"); `ListrikRecordCard` (avatar initial pine, nama+tanggal, amount brick, thumb bukti striped) + `ListrikDetailSheet` (foto stripes "pinch buat zoom", info card, share box, kredit/tagihan box).
-- `140f2f8` **feat(mobile):** `EmptyState` action button → dashed (paperDeep/lineDash/pine); `Stamp` `menunggu_konfirmasi` → 2-line "MENUNGGU\nKONFIRMASI" (maxWidth 82, center); Kelola Rumah room card **move up ↑** (sebelumnya hanya down); Beranda **banner "Jadwal piket pekan ini belum dibuat" dihapus** (empty state sudah ada).
-- `0168cde` **docs:** swap context (mutual 2-day), schedule context (self-heal cron), data-model (tanggalKe), progress-tracker.
+**Semua committed di `development`; TIDAK push — push dari Windows + project akan dipindah ke `D:\sm`.**
+
+- `7d4dd25` **refactor(notif):** pindah dari FCM HTTP v1 → **Expo Push Service** (best practice): `FcmService` kini `POST exp.host/--/api/v2/push/send` tanpa auth; mobile pakai `getExpoPushTokenAsync`. FCM env (`FCM_PROJECT_ID` dll) dihapus dari backend — tidak dipakai.
+- `ad93014` **fix(notif):** `getExpoPushTokenAsync({ projectId })` eksplisit (`expoProjectId()` dari `extra.eas.projectId`/`EXPO_PUBLIC_EAS_PROJECT_ID`); log push di-gate `__DEV__` (token tidak bocor); dedup parser deep-link (`routeForDeepLink` tunggal).
+- `6cb7825` **chore:** hapus `react-native-reanimated` + `react-native-worklets` dari `apps/mobile/package.json` — TAPI keduanya tetap ada sbg transitive dep (`expo-modules-core` wajib worklets, `react-native-gesture-handler` wajib reanimated). Jadi **tidak menyelesaikan path CMake**.
+- `2850239` **refactor(permission):** `lib/media-permissions.ts` baru — `ensureCameraPermission()`/`ensureMediaLibraryPermission()` check-then-request sekali + `Linking.openSettings()` saat denied. Dipakai di 6 lokasi (profile, rumah/manage, onboarding/profile, piket, tagihan).
+- `08f8e20` **refactor:** `useAnimatedValue(0)` di toaster + splash (ganti `useMemo(new Animated.Value)` — React Compiler friendly).
+- `30a42d4` **docs:** README + notifications context → Expo Push Service, `EXPO_PUBLIC_EAS_PROJECT_ID`.
+- `32ced46` **chore:** `eas init` → `extra.eas.projectId` (`c033064a-0913-42d1-9218-e8a84297ab93`) + `owner: xavierxxs` di `apps/mobile/app.json`. Root `app.json` duplikat (salah lokasi dr eas init) **dihapus**.
+- `c44aad3` **fix(notif):** `lib/notifications.ts` refactor — **dynamic import** `expo-notifications` + guard `inExpoGo()` (Constants.appOwnership === 'expo'). `setupNotifications()` (handler foreground + channel + deep-link listener), `registerPushToken`, `clearPushToken`. App tetap jalan di Expo Go untuk fitur non-push.
+
+**Notif debugging backend** (sebelum pindah ke Expo Push): `90a7fd1` exchange JWT→access token, `d51bf60` SHA-256 hash, `c2affa4` aud fcm, `7a45476` normalize `\n` — semua obsolete setelah `7d4dd25` (Expo Push Service), tinggal di history.
 
 ## Decisions made
 
-- **Swap = mutual 2-hari (locked 2026-08-10):** bukan transfer 1 hari. Hari pengaju → penerima, hari penerima → pengaju.
-- **PJ payment tidak auto-lunas (locked 2026-08-10):** denda + iuran milik PJ di-review round-robin member lain.
-- **Listrik split** sisa rupiah dibagi rata (selisih maks Rp 1/orang), dirotasi per record; kredit pembeli = `nominal − share`, tagihan non-pembeli = `share`.
-- Cron harian self-heal (06:00) menutup celah pregenerate Sabtu yang terlewat.
-- UI denda: note rejected = `· direject {nama}`; partial = `· direview {nama}`; auto = `· auto-denda deadline 20:00`.
+- **Push = Expo Push Service** (best practice resmi): backend kirim ke `exp.host`, Expo relay ke FCM/APNs. Backend TIDAK butuh FCM credentials. Mobile butuh `extra.eas.projectId` (sudah ada) + `google-services.json` + FCM V1 key di EAS (build app, bukan server).
+- **Expo Go tidak bisa push Android** (SDK 53+) — guard `inExpoGo()` biar app jalan untuk dev non-push.
+- Release APK arm64-v8a only; emulator x86_64 tidak bisa install → test push via dev build x86_64 / device fisik.
+- **Tetap build via GitHub Actions** (gratis, tanpa batas) — EAS build tidak wajib; `eas init` hanya utk projectId. iOS butuh $99/tahun (Apple Developer) jika mau device fisik.
+- `Anggota.push_token` satu-satunya penyimpan token; tabel `fcm_tokens` dihapus.
 
 ## Problems solved
 
-- Senin jadwal tidak tergenerate karena cron Sabtu single-fire → daily self-heal idempoten (tidak generate hari lampau).
-- Swap UI (one-way) vs design (mutual 2-hari) mismatch → backend jadi mutual.
-- PJ denda/iuran auto-lunas (self-confirmation) → reviewer round-robin.
-- Listrik `floor` membuat pembeli selalu menyerap sisa → sisa dibagi rata.
-- Card form listrik re-render tiap ketik (nested component) → di-extract jadi top-level.
+- Push tidak jalan: FCM HTTP v1 JWT auth (UNAUTHENTICATED → Invalid grant) → ganti **Expo Push Service** (hapus semua kerumitan JWT).
+- Expo Go error "Push removed from Expo Go" → dynamic import + guard `inExpoGo`.
+- Izin notif tidak muncul → re-ask `denied` + register tiap app start.
+- **Build lokal Windows masih gagal** (path `.bun` >250 CMake, `build.ninja still dirty`): hapus reanimated/worklets TIDAK cukup (masih transitive dep). `buildStagingDirectory` app-level tidak sentuh module reanimated. **Solusi nyata: pindah project ke path pendek — `D:\sm`.** CI (path pendek) sudah build sukses.
+- Expo Go dev-client error `exp+serumah://expo-development-client` → buka dev build via Metro (`expo start` → `a`), bukan dari icon.
 
 ## Current state
 
-- All committed on `development`; **push pending dari Windows**: `git push origin development` (+ tag v1.7.1 jika belum). Belum ada tag baru untuk commit di atas.
-- Working tree clean. `memory.md` ter-update (belum di-commit — file sesi; kalau mau masuk git, commit terpisah).
+- All committed di `development`; **push pending dari Windows** (`git push origin development --tags`), akan dilakukan setelah pindah ke `D:\sm`.
+- Secret `GOOGLE_SERVICES_BASE64` sudah di-set user di GitHub Actions.
+- `extra.eas.projectId` + `owner` ada di `apps/mobile/app.json`.
+- Migrasi belum apply di DB: `drop_fcm_tokens`, `add_push_token` — butuh `prisma migrate dev`.
+- **Project akan dipindah ke `D:\sm`** (clone ulang atau pindah folder) untuk solve build lokal Windows.
 
 ## Next session starts with
 
-1. **Push dari Windows** (WSL SSH ditolak): `git push origin development && git push origin v1.7.1`.
-2. Pastikan migrasi sudah di-apply lokal: `cd packages/db && bunx prisma migrate dev` (folder migrasi `add_payment_reviewer` + `swap_mutual_two_day` sudah ada; user harus jalankan) lalu `bun run generate && bun run build`.
-3. Uji flow swap mutual end-to-end (form 2-step, accept pindah kedua jadwal), reviewer denda/iuran (PJ bayar → menunggu konfirmasi member lain), listrik split.
-4. Lanjut Phase M5: verifikasi tab Swap & Tagihan di device; kalau perlu bump version + tag baru.
+1. **Pindah project ke `D:\sm`** (path pendek). Cara: clone ulang di `D:\sm`, atau pindahkan folder; lalu `bun install`, `Remove-Item -Recurse -Force android`, `bunx expo run:android`. Ini seharusnya build lokal sukses (path CMake aman).
+2. Push `development --tags` dari Windows (setelah pindah).
+3. Apply migrasi: `cd packages/db && bunx prisma migrate dev`.
+4. Test push end-to-end di device fisik: install APK (google-services + projectId ter-inject) → login → `logcat [notifications]` → cek `anggota.push_token` terisi `ExponentPushToken[...]` → trigger notif (galon nudge/piket/denda).
+5. Set `EXPO_PUBLIC_EAS_PROJECT_ID` di `apps/mobile/.env` LOKAL (untuk dev di luar EAS build) — meski `extra.eas.projectId` sudah cukup.
 
 ## Open questions
 
-- Push tag v1.7.1 sudah ter-push? (release CI APK arm64 ~40-50MB) — cek GitHub Actions.
-- `formatWeekdayDate` memberi "Kam 30 Jul" tanpa koma vs design "Kam, 30 Jul" — kosmetik kecil, belum diubah.
+- Path build lokal: `D:\sm` cukup pendek? (perlu <~30 char root utk aman dgn `.bun` redundan).
+- Test push end-to-end belum diverifikasi (masih butuh test di device fisik setelah build sukses).
+- Revisi swap (sudah lama direncanakan) belum dikerjakan — prioritas berikutnya setelah build jalan.

@@ -66,6 +66,13 @@
     },
     "ios": {
       "bundleIdentifier": "com.serumah.serumah"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c033064a-0913-42d1-9218-e8a84297ab93"
+      }
+    },
+    "owner": "xavierxxs"
   }
 }

@@ -175,11 +175,15 @@ async function importCryptoKey(
   pem: string,
   subtle: typeof webcrypto.subtle,
 ): Promise<Awaited<ReturnType<typeof webcrypto.subtle.importKey>>> {
-  const base64 = pem
+  // Env file sering menyimpan `\n` sebagai literal backslash-n (bukan newline).
+  // Normalisasi dulu supaya base64 decode menghasilkan DER yang benar.
+  const normalized = pem
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '')
     .replace('-----BEGIN PRIVATE KEY-----', '')
     .replace('-----END PRIVATE KEY-----', '')
     .replace(/\s/g, '');
-  const der = Uint8Array.from(Buffer.from(base64, 'base64'));
+  const der = Uint8Array.from(Buffer.from(normalized, 'base64'));
   return subtle.importKey(
     'pkcs8',
     der,

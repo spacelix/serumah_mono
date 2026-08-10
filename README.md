@@ -295,6 +295,8 @@ bun install
 bun run start:dev             # NestJS dev server (http://localhost:3000)
 ```
 
+**Push notification (FCM, opsional):** isi `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` di `apps/api/.env` (ambil dari Firebase Console → Project settings → Service accounts → Generate new private key). Tanpa credential ini notif tidak terkirim tapi app tetap jalan normal. Lihat `apps/api/.env.example`.
+
 ### 4. Mobile (`apps/mobile`)
 
 ```bash

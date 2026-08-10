@@ -79,6 +79,8 @@ model Anggota {
   kontakDarurat String? @map("kontak_darurat")
   alamat       String?
   role         String   @default("anggota")     // 'admin' | 'anggota'
+  pushToken    String?  @map("push_token")      // FCM device token (push notif)
+  pushTokenUpdatedAt DateTime? @map("push_token_updated_at") @db.Timestamptz
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user             User?      @relation(fields: [id], references: [id])

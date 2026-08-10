@@ -1,64 +1,47 @@
-# Memory — Serumah: iuran card redesign + password toggle + v1.7.1 (2026-08-10)
+# Memory — Serumah: swap mutual, reviewer denda/iuran, listrik, schedule, v1.7.1 (2026-08-10)
 
 Last updated: 2026-08-10 (session end)
 
 ## What was built
 
-**Uncommitted — Iuran front card redesign (mobile `app/(tabs)/tagihan.tsx`, typecheck green):**
-- Iuran tab front now shows **ONE card** matching Serumah.html design: icon tile (34×34 paperDeep, `ReceiptText`) + label "Iuran Bulanan — {bulan}" + amount (mono 700 19, ink; inkSoft when lunas) + sub "Rp X ÷ N anggota aktif" + `<Stamp>` status (`belum_bayar`/`menunggu_konfirmasi`/`lunas`, derived from unpaid vs all-lunas) + "Upload Bukti Bayar" button (pine, only when `unpaid.length > 0`) → opens the aggregate upload sheet.
-- Amount = `payTotal` (`unpaidTotal` if any unpaid, else `total`); sub = `payTotal × nAnggota ÷ nAnggota anggota aktif`.
-- Upload sheet (unchanged flow) lists item per kategori (label + nominal) + bottom "Rp {amount} ÷ N anggota aktif" row (`uploadItems` block styles added: `uploadItems/uploadItemRow/uploadItemLabel/uploadItemAmount/uploadShare`).
-- **CRITICAL UX decision (from user feedback):** front has summary + pay info unified into that ONE design card — NOT per-category cards on the tab. Per-category detail lives only inside the sheet.
-- Old `iuranTotalCard`/`iuranSummary*`/`iuranPay*` styles removed; Iuran tab currently: RekeningCard → iuranCard → verify section (PJ).
-
-**Uncommitted — password show/hide toggle + keyboard-cover fixes (mobile, typecheck green):**
-- `components/ui/serumah-input.tsx` — `Eye`/`EyeOff` toggle rendered whenever `secureTextEntry` (`accessibilityLabel` "Tampilkan password"/"Sembunyikan password"), `paddingRight` 44. Auto-covers Login + Register password fields.
-- `app/profile.tsx` — "Ganti password" card rebuilt with a `PasswordField` component (same toggle), replacing 3 raw inputs.
-- **Keyboard-cover fixes (Android edge-to-edge ignored `padding`/`undefined`):** all centered auth/onboarding KAVs (`login`, `register`, `onboarding/profile`, `onboarding/create-rumah`, `onboarding/join-rumah`) → `behavior={Platform.OS === 'ios' ? 'padding' : 'height'}`.
-- Scroll-based screens with inline inputs get KAV wrap + `keyboardShouldPersistTaps="handled"`: Kelola Rumah (`manage.tsx` — Tambah Ruangan / add-jenis), Profile (Ganti password), Tagihan (listrik record form). Added `flex` style + bumped `paddingBottom` in manage content.
-- Docs: auth (toggle bullet), rumah + profile (keyboard bullet), `context/progress/progress-tracker.md` (session 2026-08-09 f), memory.md.
-
-**Committed on `development`, 6 commits + tag `v1.7.1` (NOT pushed):**
-- `28a5b42` **feat(api):** new `modules/tagihan` → `GET /tagihan/months` (`{ months: string[] }`, WIB months with data); `GET /denda` now returns `origin` (`auto`/`partial`/`rejected`) + `reviewerNama` + `tanggal` + `detail: { ruanganNama, fotoBefore, fotoAfter, jenisSelesai[], jenisList[] }[]` per-room cause.
-- `698dafc` **feat(tagihan):** MonthPicker rebuilt as pill → bottom sheet "Pilih bulan" (riseIn 0.24s, only months with data); **QRIS-only payment** (no "Sudah Bayar Cash", no peer payment); payable denda card pressable → **`DendaDetailSheet`** (slide modal: cause per room + chips ✓pine/×brick, QRIS on top, "Upload Bukti Bayar" bottom).
-- `10fa02f` **feat(mobile):** Piket gw `!isMine` → EmptyState "Hari ini giliran {nama}" (Cici no longer sees Admin Mawar's weekend piket); **`Stamp` gets `animate` prop** → stampIn (0.42s: -14° scale 1.6 → -4° .96 → -4° 1) only on approve/reject; **`QrisSection`** in Kelola Rumah (thumbnail for all, "Upload QRIS"/"Ganti QRIS" admin → galeri, no crop); Kelola Rumah open to ALL members (view-only for non-admin; invite row admin-only).
-- `b9ead8d` **fix(mobile):** root Stack `animation: 'slide_from_right'` scoped to `profile`+`rumah/manage`; theme `background`+`card` = `colors.paper` (#EFEAE0); root View paper; `detachInactiveScreens={false}` on Tabs (fixes blank-paper flash on pop); avatar chip hidden on subscreens (`showChip = showAvatar ?? onBack == null`).
-- `c97eb93` **build(mobile):** bump **1.7.1 / versionCode 11**; splash minimum 1400→**2400ms**; release APK now **arm64-v8a only + R8 minify + shrinkResources** (`-P` flags in `release.yml`); paper window bg via **`expo-system-ui`** plugin in app.json (`android.backgroundColor: #EFEAE0`) — survives prebuild (android/ is gitignored & regenerated, so manual styles.xml edits are lost).
-- `b9ead8d`'s docs friend `ecef18b` **docs:** contexts synced (denda/piket/rumah/profile) + progress-tracker + memory.md.
+**All committed on `development` (8 commits, since `v1.7.1` tag, NOT pushed — push from Windows):**
+- `30dd4b6` **feat(db):** payment reviewerId on Denda + IuranBulanan (migration `add_payment_reviewer`); SwapRequest + `tanggalKe` (migration `swap_mutual_two_day`).
+- `d53b6d9` **feat(api):** `RumahScopeService.assignPaymentReviewer` (member→PJ, PJ→round-robin non-PJ; **PJ's own denda/iuran payment NO LONGER auto-lunas** — goes `menunggu_konfirmasi` + assigned reviewer); approve/reject/confirmLunas validate `reviewerId` (not `@Roles('admin')`). **Listrik even split**: `base=floor(nominal/n)`, sisa rupiah dibagikan rata (rotasi per record), tiap record return `shares: {memberId→share}` + `share` (user's own). **Schedule `selfHealWeek` cron harian 06:00** → ensure current week today→Sunday (idempoten, no past); fixes "Senin tidak tergenerate kalau cron Sabtu terlewat".
+- `bf9ddc6` **feat(api):** swap mutual 2-hari — `POST /swap` `{tanggal, tanggalKe, keAnggotaId}` (validasi kedua hari punya jadwal piket milik masing-masing); `accept` saling pindahkan kedua jadwal; endpoint baru `GET /swap/target-days` → `{id, nama, days[]}[]`.
+- `0f1c16b` **feat(swap):** mobile `swap.tsx` di-rebuild — header kicker "All-or-nothing · 1 hari penuh"; CTA dashed "Ajukan swap baru" (hilang saat form terbuka); form **dark bottom sheet 2-step** (step 1 pilih hari lo dari `available-days` → step 2 pilih hari anggota lain dari `target-days` + "← Ganti hari lo"); kartu incoming "Request masuk" + waktu relatif + dua `DayBox` + ⇄ pine + note + Terima(ink)/Tolak(outline); section **Histori swap · buat audit** (Request lo + stamp). `members.ts` (useIuranMembers) dihapus → `useSwapTargets`.
+- `b34f25c` **feat(tagihan):** denda/iuran pending filter `reviewerId === myId` (bukan isPj); label "Kirim ke reviewer" (PJ) / "Kirim ke PJ" (member); denda card waitNote "nunggu konfirmasi {reviewerNama}" + **"Lihat Detail" button** untuk `menunggu_konfirmasi`/`lunas`; `IuranDetailSheet` (read-only, desain sama upload sheet: header title+amount+stamp kanan, items, bukti, **timeline**); `IuranVerifySheet` (sama desain detail, tanpa timeline, button **"Lunas"**); **Listrik**: summary tanpa progress bar + note rule "Listrik tambahan dibagi rata ke semua. Pembeli dapet kredit, non-pembeli ditambah di tagihan bulan depan." (mono 400 11 pineDeep); button "Tambah Record" dashed; `ListrikFormCard` (top-level, rise-in/out, Rp field kecil, foto preview+clear, preview modal dgn "Ganti foto"); `ListrikRecordCard` (avatar initial pine, nama+tanggal, amount brick, thumb bukti striped) + `ListrikDetailSheet` (foto stripes "pinch buat zoom", info card, share box, kredit/tagihan box).
+- `140f2f8` **feat(mobile):** `EmptyState` action button → dashed (paperDeep/lineDash/pine); `Stamp` `menunggu_konfirmasi` → 2-line "MENUNGGU\nKONFIRMASI" (maxWidth 82, center); Kelola Rumah room card **move up ↑** (sebelumnya hanya down); Beranda **banner "Jadwal piket pekan ini belum dibuat" dihapus** (empty state sudah ada).
+- `0168cde` **docs:** swap context (mutual 2-day), schedule context (self-heal cron), data-model (tanggalKe), progress-tracker.
 
 ## Decisions made
 
-- **QRIS-only denda payment (locked):** no cash/peer payment anywhere. Member uploads bukti transfer → `menunggu_konfirmasi` → PJ approve. PJ's own fine auto-`lunas`.
-- Denda rejected = `· direject {nama}`; partial = `· direview {nama}`; auto = `· auto-denda deadline 20:00`.
-- All image pickers now **gallery, no crop** (`launchImageLibraryAsync` without `allowsEditing`).
-- stampIn animation ONLY for approve/reject stamps, not pending/status ones.
-- Release APK arm64-v8a only (modern devices; pre-2017 32-bit unsupported — revisit if needed).
-- Android window background must be set via `expo-system-ui` app.json plugin (prebuild regenerates `android/`, gitignored).
-- Password fields: default hidden, toString → eye icon toggles `secureTextEntry` (both `SerumahInput` and profile `PasswordField`).
-- **Iuran front = ONE design card (user-confirmed, NOT per-kategori):** summary + "yang harus dibayar" are combined into a single card (icon tile + label + share amount + "Rp N ÷ N anggota aktif" sub + Stamp + Upload button). Per-category item rows live only in the upload sheet. No per-category detail sheet — "Upload Bukti Bayar" per-card opens the aggregate upload sheet (all-or-nothing bukti total, locked).
+- **Swap = mutual 2-hari (locked 2026-08-10):** bukan transfer 1 hari. Hari pengaju → penerima, hari penerima → pengaju.
+- **PJ payment tidak auto-lunas (locked 2026-08-10):** denda + iuran milik PJ di-review round-robin member lain.
+- **Listrik split** sisa rupiah dibagi rata (selisih maks Rp 1/orang), dirotasi per record; kredit pembeli = `nominal − share`, tagihan non-pembeli = `share`.
+- Cron harian self-heal (06:00) menutup celah pregenerate Sabtu yang terlewat.
+- UI denda: note rejected = `· direject {nama}`; partial = `· direview {nama}`; auto = `· auto-denda deadline 20:00`.
 
 ## Problems solved
 
-- **Keyboard covering inputs on Android edge-to-edge** — centered forms with `behavior undefined/padding` did nothing; `'height'` is the fix. Scroll-based inputs need KAV wrap + `keyboardShouldPersistTaps="handled"` so taps reach buttons behind an open keyboard.
-- **White/paper flash on subscreen transitions** — four layers: React Navigation theme `background`+`card`→paper, `contentStyle` paper, `detachInactiveScreens={false}` on Tabs, `expo-system-ui` `android.windowBackground` (root cause).
-- **Render Error "DendaDetailSheet doesn't exist"** — duplicate `uploadBtn`/`uploadBtnText` style keys broke the whole `styles` object (StyleSheet.parse failure). Removed dup.
-- **100MB+ APK** — universal APK bundled 4 ABIs + no R8. Fixed via arm64-only + minify/shrink in `release.yml`.
-- **Splash too fast** — `minimum` hold 1400→2400ms so riseIn+wordmark animation reads.
+- Senin jadwal tidak tergenerate karena cron Sabtu single-fire → daily self-heal idempoten (tidak generate hari lampau).
+- Swap UI (one-way) vs design (mutual 2-hari) mismatch → backend jadi mutual.
+- PJ denda/iuran auto-lunas (self-confirmation) → reviewer round-robin.
+- Listrik `floor` membuat pembeli selalu menyerap sisa → sisa dibagi rata.
+- Card form listrik re-render tiap ketik (nested component) → di-extract jadi top-level.
 
 ## Current state
 
-- **Uncommitted working tree:** (a) iuran front card redesign in `app/(tabs)/tagihan.tsx`; (b) password toggle + keyboard fixes. Mobile typecheck clean via `bunx tsc --noEmit`; full build verification pending in sandbox; needs per-item commits.
-- All prior work committed on `development`, tag `v1.7.1`. **Push pending from Windows**: `git push origin development && git push origin v1.7.1` → triggers `release.yml`.
-- Per AGENTS.md: commit per verified item; hand user the exact commands (`bun run lint && bun run typecheck && bun run test` inside `apps/mobile`).
+- All committed on `development`; **push pending dari Windows**: `git push origin development` (+ tag v1.7.1 jika belum). Belum ada tag baru untuk commit di atas.
+- Working tree clean. `memory.md` ter-update (belum di-commit — file sesi; kalau mau masuk git, commit terpisah).
 
 ## Next session starts with
 
-1. **Finish uncommitted items:** user confirms `bun run lint && bun run typecheck && bun run test` green → commit iuran card redesign as one item, password/keyboard fixes as another (each with docs + memory update in same commit).
-2. **Push from Windows** (WSL SSH rejected): `git push origin development && git push origin v1.7.1`.
-3. Confirm GitHub Actions build for v1.7.1 → check APK size (expect arm64-only ~40-50MB vs 100MB+) and test in-app update on device.
-4. Sanity-check redesigned iuran card on device (stamp statuses, "Rp N ÷ N anggota aktif" sub, sheet items) against Serumah.html.
-5. Continue Phase M5 remaining: Swap tab verification against design; Iuran/Listrik month-filter flows.
+1. **Push dari Windows** (WSL SSH ditolak): `git push origin development && git push origin v1.7.1`.
+2. Pastikan migrasi sudah di-apply lokal: `cd packages/db && bunx prisma migrate dev` (folder migrasi `add_payment_reviewer` + `swap_mutual_two_day` sudah ada; user harus jalankan) lalu `bun run generate && bun run build`.
+3. Uji flow swap mutual end-to-end (form 2-step, accept pindah kedua jadwal), reviewer denda/iuran (PJ bayar → menunggu konfirmasi member lain), listrik split.
+4. Lanjut Phase M5: verifikasi tab Swap & Tagihan di device; kalau perlu bump version + tag baru.
 
 ## Open questions
 
-- None blocking.
+- Push tag v1.7.1 sudah ter-push? (release CI APK arm64 ~40-50MB) — cek GitHub Actions.
+- `formatWeekdayDate` memberi "Kam 30 Jul" tanpa koma vs design "Kam, 30 Jul" — kosmetik kecil, belum diubah.

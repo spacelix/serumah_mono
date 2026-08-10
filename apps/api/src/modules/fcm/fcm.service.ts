@@ -131,7 +131,7 @@ export class FcmService {
     const claims = {
       iss: this.clientEmail,
       scope: FCM_SCOPE,
-      aud: 'https://oauth2.googleapis.com/token',
+      aud: 'https://fcm.googleapis.com/',
       iat: now,
       exp: now + 3600,
     };

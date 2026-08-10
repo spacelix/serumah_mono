@@ -1,6 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
@@ -12,32 +11,13 @@ import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
-import {
-  configureAndroidChannel,
-  deepLinkFromResponse,
-  registerPushToken,
-  routeForDeepLink,
-} from '@/lib/notifications';
+import { registerPushToken, setupNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
 import { useSerumahFonts } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
-
-/** Navigate to a tab when a push notification is tapped. */
-function goToDeepLink(deepLink?: string) {
-  const route = routeForDeepLink(deepLink);
-  if (route === 'beranda') {
-    router.navigate('/');
-  } else if (route === 'piket') {
-    router.navigate('/(tabs)/piket');
-  } else if (route === 'swap') {
-    router.navigate('/(tabs)/swap');
-  } else if (route === 'tagihan') {
-    router.navigate('/(tabs)/tagihan');
-  }
-}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -72,14 +52,16 @@ export default function RootLayout() {
     return () => clearTimeout(t);
   }, [ready, holdDone]);
 
-  // Push notifications: Android channel + register the device token once the
-  // user is authenticated, and route taps to the relevant tab.
+  // Push notifications: init handler + channel + deep-link listener (no-op di
+  // Expo Go). Registered once on mount.
   useEffect(() => {
-    void configureAndroidChannel();
-    const sub = Notifications.addNotificationResponseReceivedListener((res) =>
-      goToDeepLink(deepLinkFromResponse(res) ?? undefined),
-    );
-    return () => sub.remove();
+    let cleanup: (() => void) | null = null;
+    void setupNotifications().then((fn) => {
+      cleanup = fn;
+    });
+    return () => {
+      cleanup?.();
+    };
   }, []);
 
   // Push notifications: register the device token after the splash, whenever

@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSwapDto } from './dto/swap.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5];
@@ -25,6 +26,7 @@ export class SwapService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private toDate(date: Date | string): Date {
@@ -213,6 +215,7 @@ export class SwapService {
     this.logger.log(
       `[SwapService] ${anggota.nama} swap ${tanggalLo.toISOString()} ⇄ ${tanggalMereka.toISOString()} (${receiver.nama})`,
     );
+    await this.notifications.notifySwapIncoming(receiver.id, anggota.nama);
     return { swapRequest };
   }
 
@@ -256,6 +259,7 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} diterima oleh ${anggota.nama}`,
     );
+    await this.notifications.notifySwapAccepted(swap.dariAnggotaId, anggota.nama);
     return { swapRequest: updated };
   }
 
@@ -271,6 +275,7 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} ditolak oleh ${anggota.nama}`,
     );
+    await this.notifications.notifySwapRejected(swap.dariAnggotaId, anggota.nama);
     return { swapRequest: updated };
   }
 

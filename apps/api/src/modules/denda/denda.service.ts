@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UploadBuktiDto } from './dto/denda.dto';
 
 // Asia/Jakarta is UTC+7, no DST. The month filter is a WIB calendar month, so
@@ -23,6 +24,7 @@ export class DendaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(payload: CurrentUserPayload, bulan?: string) {
@@ -173,6 +175,7 @@ export class DendaService {
     this.logger.log(
       `[DendaService] Denda ${denda.id} menunggu konfirmasi (reviewer ${reviewerId}).`,
     );
+    await this.notifications.notifyPaymentReviewer(reviewerId, 'denda');
     return { status: 'menunggu_konfirmasi', receiverId: pj.id, reviewerId };
   }
 

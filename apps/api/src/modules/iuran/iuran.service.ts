@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   EnsureBulanDto,
   PelunasanDto,
@@ -55,6 +56,7 @@ export class IuranService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
+    private readonly notifications: NotificationsService,
   ) { }
 
   private monthFromString(bulan: string): Date {
@@ -159,6 +161,11 @@ export class IuranService {
     }
     const month = this.monthFromString(dto.bulan);
     return this.ensureBulan(anggota.rumahId, month);
+  }
+
+  /** Public wrapper for cron (iuran next-month generation on last day of month). */
+  async ensureBulanForRumah(rumahId: string, month: Date) {
+    return this.ensureBulan(rumahId, month);
   }
 
   /** Idempotent: create/repair iuran for the month; recompute on-demand. */
@@ -296,6 +303,7 @@ export class IuranService {
     this.logger.log(
       `[IuranService] ${anggota.nama} bukti ${month.toISOString()} → menunggu_konfirmasi (reviewer ${reviewerId})`,
     );
+    await this.notifications.notifyPaymentReviewer(reviewerId, 'iuran');
     return { status: 'menunggu_konfirmasi', count: pending.length, reviewerId };
   }
 

@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import {
+  apiNudgeGalon,
   useConfirmGalon,
   useDashboard,
   useSetWeekendStatus,
@@ -65,12 +66,6 @@ function WeekendCard({ data }: { data: DashboardData }) {
       return;
     }
     setStatus.mutate({ hari, status });
-  };
-
-  const toggle = (day: WeekDayKey) => {
-    const current =
-      day === 'sabtu' ? data.weekend.saturday : data.weekend.sunday;
-    set(day, current === 'di_kos' ? 'pulang' : 'di_kos');
   };
 
   const sabtuDate = weekendDate(5);
@@ -229,7 +224,10 @@ function GalonWidget({ data }: { data: DashboardData }) {
     });
   };
 
-  const onNudge = () => setNudged(true);
+  const onNudge = () => {
+    setNudged(true);
+    void apiNudgeGalon();
+  };
 
   const hasTurn = giliran.namaAnggota != null;
 

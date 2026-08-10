@@ -82,6 +82,11 @@ export async function apiConfirmGalon(id: string): Promise<void> {
   await apiClient.post(`/galon/${id}/confirm`);
 }
 
+export async function apiNudgeGalon(): Promise<{ ok: boolean }> {
+  const response = await apiClient.post<{ ok: boolean }>('/galon/nudge');
+  return response.data;
+}
+
 export async function apiGenerateRestOfWeek(): Promise<{ count: number }> {
   const response = await apiClient.post<{ count: number }>(
     '/schedule/generate/rest-of-week',

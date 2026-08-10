@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { clearPushToken } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 
 const TOKEN_KEY = 'serumah_token';
@@ -151,6 +152,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       SecureStore.deleteItemAsync(USER_KEY),
       SecureStore.deleteItemAsync('serumah_has_profile'),
       SecureStore.deleteItemAsync('serumah_has_rumah'),
+      clearPushToken(),
     ]);
     set({
       token: null,

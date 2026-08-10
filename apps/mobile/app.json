@@ -11,6 +11,7 @@
       "package": "com.serumah.serumah",
       "versionCode": 11,
       "backgroundColor": "#EFEAE0",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.RECORD_AUDIO"
@@ -44,6 +45,13 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "serumah",
+          "sounds": []
+        }
+      ],
       [
         "expo-image-picker",
         {

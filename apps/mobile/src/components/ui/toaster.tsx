@@ -1,16 +1,16 @@
 import { Check, Info, TriangleAlert } from 'lucide-react-native';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, StyleSheet, Text, useAnimatedValue } from 'react-native';
 
 import { useToastStore, type ToastItem } from '@/stores/toast-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/typography';
 import { radius } from '@/theme/radius';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 
 const ICON_SIZE = 15;
 
 function ToastRow({ item }: { item: ToastItem }) {
-  const progress = useMemo(() => new Animated.Value(0), []);
+  const progress = useAnimatedValue(0);
 
   useEffect(() => {
     Animated.timing(progress, {

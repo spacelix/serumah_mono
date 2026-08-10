@@ -38,9 +38,10 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Register the device push token with the backend. Uses the NATIVE FCM token
- * (`getDevicePushTokenAsync`) so the backend sends directly to Firebase, not
- * through Expo's relay. No-op on simulator / no permission / not configured.
+ * Register the device push token with the backend. Uses the Expo push token
+ * (`getExpoPushTokenAsync`) — Expo Push Service relays it to FCM/APNs for us,
+ * so the backend only needs to call the Expo Push API (no FCM credentials).
+ * No-op on simulator / no permission / not configured.
  */
 export async function registerPushToken(): Promise<void> {
   if (!Device.isDevice) return;
@@ -50,7 +51,7 @@ export async function registerPushToken(): Promise<void> {
     return;
   }
   try {
-    const token = await Notifications.getDevicePushTokenAsync();
+    const token = await Notifications.getExpoPushTokenAsync();
     console.log('[notifications] token device:', token.data);
     await apiClient.post('/push/token', { token: token.data });
     console.log('[notifications] token ter-register');

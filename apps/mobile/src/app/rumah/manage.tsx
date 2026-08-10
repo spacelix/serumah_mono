@@ -25,6 +25,7 @@ import { toast } from '@/stores/toast-store';
 import { dialog } from '@/stores/dialog-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient, mediaSource } from '@/lib/api-client';
+import { ensureMediaLibraryPermission } from '@/lib/media-permissions';
 import {
   apiRefreshFutureRooms,
   useGenerateRestOfWeek,
@@ -485,11 +486,8 @@ function QrisSection({
   const [busy, setBusy] = useState(false);
 
   const pickAndUpload = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      dialog.alert('Izin galeri', 'Izinkan akses galeri untuk pilih gambar QRIS.');
-      return;
-    }
+    const ok = await ensureMediaLibraryPermission();
+    if (!ok) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.7,
     });

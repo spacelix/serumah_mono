@@ -35,6 +35,10 @@ import {
 } from '@/features/profile/api/profile';
 import { formatCurrency, formatLongDate } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
+import {
+  ensureCameraPermission,
+  ensureMediaLibraryPermission,
+} from '@/lib/media-permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import { dialog } from '@/stores/dialog-store';
 import { toast } from '@/stores/toast-store';
@@ -144,11 +148,8 @@ export default function ProfileScreen() {
     setPicking(true);
     try {
       if (source === 'camera') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          dialog.alert('Izin kamera', 'Izinkan kamera untuk foto profil.');
-          return;
-        }
+        const ok = await ensureCameraPermission();
+        if (!ok) return;
         const result = await ImagePicker.launchCameraAsync({
           allowsEditing: true,
           aspect: [1, 1],
@@ -157,12 +158,8 @@ export default function ProfileScreen() {
         if (!result.canceled && result.assets[0])
           await uploadAvatar(result.assets[0].uri);
       } else {
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          dialog.alert('Izin galeri', 'Izinkan akses galeri untuk foto profil.');
-          return;
-        }
+        const ok = await ensureMediaLibraryPermission();
+        if (!ok) return;
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: true,

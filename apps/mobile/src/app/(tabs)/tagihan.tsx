@@ -30,6 +30,7 @@ import {
   formatWeekdayDate,
 } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
+import { ensureMediaLibraryPermission } from '@/lib/media-permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import { dialog } from '@/stores/dialog-store';
 import { toast } from '@/stores/toast-store';
@@ -1682,15 +1683,8 @@ function dendaNote(d: Denda): string {
 }
 
 async function capturePhoto(): Promise<string | null> {
-  const permission =
-    await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    dialog.alert(
-      'Izin galeri',
-      'Izinkan akses galeri untuk memilih bukti pembayaran.',
-    );
-    return null;
-  }
+  const ok = await ensureMediaLibraryPermission();
+  if (!ok) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
     quality: 0.7,
   });

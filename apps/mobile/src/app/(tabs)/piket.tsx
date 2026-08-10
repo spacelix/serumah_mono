@@ -31,6 +31,7 @@ import {
 } from '@/features/piket/api/piket';
 import { formatCurrency, formatWeekdayDate } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
+import { ensureCameraPermission } from '@/lib/media-permissions';
 import { toast } from '@/stores/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { usePiketDraft, type RoomDraft } from '@/stores/piket-draft-store';
@@ -869,10 +870,8 @@ async function pickPhoto(
   slot: 'before' | 'after',
   setPhoto: (roomId: string, slot: 'before' | 'after', uri: string) => void,
 ): Promise<boolean> {
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
-  if (!permission.granted) {
-    return false;
-  }
+  const ok = await ensureCameraPermission();
+  if (!ok) return false;
   const result = await ImagePicker.launchCameraAsync({
     allowsEditing: false,
     quality: 0.7,

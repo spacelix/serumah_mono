@@ -37,12 +37,22 @@ export class FcmService {
     return Boolean(this.projectId && this.clientEmail && this.privateKey);
   }
 
+  /** Human-readable config status (for debugging). */
+  get configSummary(): string {
+    return `enabled=${this.enabled} projectId=${this.projectId ?? '(kosong)'} clientEmail=${this.clientEmail ? '(terisi)' : '(kosong)'} privateKey=${this.privateKey ? '(terisi)' : '(kosong)'}`;
+  }
+
   /**
    * Send a push to a single token. Returns false when the token is invalid
    * (so the caller can clear it). No-op + true when FCM is not configured.
    */
   async sendToToken(token: string, msg: PushMessage): Promise<boolean> {
-    if (!this.enabled) return true; // dev/staging without FCM → silent success
+    if (!this.enabled) {
+      this.logger.warn(
+        `[FcmService] FCM tidak aktif (${this.configSummary}) — notif dilewati.`,
+      );
+      return true;
+    }
     if (token.startsWith('ExponentPushToken[')) {
       return this.sendViaExpo(token, msg);
     }

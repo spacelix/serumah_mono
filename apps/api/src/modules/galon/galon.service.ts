@@ -120,6 +120,9 @@ export class GalonService {
       orderBy: { periodeMulai: 'asc' },
     });
     if (!giliran) return { ok: false };
+    this.logger.log(
+      `[GalonService] Nudge oleh ${anggota.nama} → giliran ${giliran.anggotaId}`,
+    );
     await this.notifications.notifyGalonNudge(giliran.anggotaId);
     return { ok: true };
   }

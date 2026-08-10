@@ -19,11 +19,23 @@ export class NotificationsService {
 
   /** Send to a list of anggota ids; clear tokens that FCM rejects. */
   async sendToAnggota(anggotaIds: string[], msg: PushMessage): Promise<void> {
-    if (anggotaIds.length === 0 || !this.fcm.enabled) return;
+    if (anggotaIds.length === 0) {
+      this.logger.warn('[NotificationsService] Kirim dilewati: tidak ada penerima');
+      return;
+    }
+    if (!this.fcm.enabled) {
+      this.logger.warn(
+        '[NotificationsService] FCM tidak aktif (FCM_PROJECT_ID/FCM_CLIENT_EMAIL/FCM_PRIVATE_KEY belum ter-set) — notif dilewati',
+      );
+      return;
+    }
     const members = await this.prisma.anggota.findMany({
       where: { id: { in: anggotaIds } },
       select: { id: true, pushToken: true },
     });
+    this.logger.log(
+      `[NotificationsService] Kirim "${msg.title}" → ${members.length} anggota`,
+    );
     const invalid: string[] = [];
     for (const m of members) {
       if (!m.pushToken) continue;

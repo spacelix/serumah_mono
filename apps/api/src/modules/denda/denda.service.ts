@@ -10,6 +10,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UploadBuktiDto } from './dto/denda.dto';
 
 // Asia/Jakarta is UTC+7, no DST. The month filter is a WIB calendar month, so
@@ -25,6 +26,7 @@ export class DendaService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   async list(payload: CurrentUserPayload, bulan?: string) {
@@ -176,6 +178,10 @@ export class DendaService {
       `[DendaService] Denda ${denda.id} menunggu konfirmasi (reviewer ${reviewerId}).`,
     );
     await this.notifications.notifyPaymentReviewer(reviewerId, 'denda');
+    this.realtime.emitToRumah(anggota.rumahId!, 'denda:updated', {
+      id: denda.id,
+      status: 'menunggu_konfirmasi',
+    });
     return { status: 'menunggu_konfirmasi', receiverId: pj.id, reviewerId };
   }
 
@@ -202,6 +208,10 @@ export class DendaService {
     ]);
 
     this.logger.log(`[DendaService] Denda ${denda.id} disetujui.`);
+    this.realtime.emitToRumah(anggota.rumahId!, 'denda:updated', {
+      id: denda.id,
+      status: 'lunas',
+    });
     return { denda: { id: denda.id, status: 'lunas' } };
   }
 
@@ -233,6 +243,10 @@ export class DendaService {
     ]);
 
     this.logger.log(`[DendaService] Denda ${denda.id} ditolak.`);
+    this.realtime.emitToRumah(anggota.rumahId!, 'denda:updated', {
+      id: denda.id,
+      status: 'belum_bayar',
+    });
     return { denda: { id: denda.id, status: 'belum_bayar' } };
   }
 

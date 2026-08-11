@@ -9,6 +9,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CacheService } from '../redis/cache.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class GalonService {
     private readonly scope: RumahScopeService,
     private readonly cache: CacheService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   async current(payload: CurrentUserPayload) {
@@ -106,6 +108,10 @@ export class GalonService {
     );
     await this.notifications.notifyGalonNudge(nextMember?.id ?? next.anggotaId);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
+    this.realtime.emitToRumah(anggota.rumahId!, 'galon:updated', {
+      id: giliran.id,
+      nextId: next.anggotaId,
+    });
     return { next };
   }
 

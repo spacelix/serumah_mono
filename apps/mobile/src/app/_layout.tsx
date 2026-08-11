@@ -12,6 +12,7 @@ import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
 import { registerPushToken, setupNotifications } from '@/lib/notifications';
+import { connectRealtime, disconnectRealtime, setupRealtimeListeners } from '@/lib/realtime';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
@@ -71,6 +72,17 @@ export default function RootLayout() {
     if (!holdDone || stage !== 'ready') return;
     void registerPushToken();
   }, [holdDone, stage]);
+
+  // Realtime (Socket.io): connect saat login, disconnect saat logout,
+  // daftarkan listener → invalidate React Query saat event update datang.
+  useEffect(() => {
+    if (stage !== 'ready') {
+      disconnectRealtime();
+      return;
+    }
+    connectRealtime();
+    return setupRealtimeListeners(queryClient);
+  }, [stage]);
 
   if (!ready) {
     // While behind the native splash render a plain matching backdrop — the

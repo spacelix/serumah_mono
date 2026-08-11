@@ -10,6 +10,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import {
   EnsureBulanDto,
   PelunasanDto,
@@ -57,6 +58,7 @@ export class IuranService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) { }
 
   private monthFromString(bulan: string): Date {
@@ -304,6 +306,9 @@ export class IuranService {
       `[IuranService] ${anggota.nama} bukti ${month.toISOString()} → menunggu_konfirmasi (reviewer ${reviewerId})`,
     );
     await this.notifications.notifyPaymentReviewer(reviewerId, 'iuran');
+    this.realtime.emitToRumah(anggota.rumahId, 'iuran:updated', {
+      status: 'menunggu_konfirmasi',
+    });
     return { status: 'menunggu_konfirmasi', count: pending.length, reviewerId };
   }
 
@@ -339,6 +344,10 @@ export class IuranService {
       data: { status: 'lunas' },
     });
     this.logger.log(`[IuranService] Iuran ${iuran.id} lunas (${anggota.nama})`);
+    this.realtime.emitToRumah(anggota.rumahId, 'iuran:updated', {
+      id: iuran.id,
+      status: 'lunas',
+    });
     return { iuran: { id: iuran.id, status: 'lunas' } };
   }
 

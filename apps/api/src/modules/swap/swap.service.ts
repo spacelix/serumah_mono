@@ -10,6 +10,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CacheService } from '../redis/cache.service';
 import { CreateSwapDto } from './dto/swap.dto';
 
@@ -28,6 +29,7 @@ export class SwapService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
     private readonly cache: CacheService,
   ) {}
 
@@ -236,6 +238,10 @@ export class SwapService {
       `[SwapService] ${anggota.nama} swap ${tanggalLo.toISOString()} ⇄ ${tanggalMereka.toISOString()} (${receiver.nama})`,
     );
     await this.notifications.notifySwapIncoming(receiver.id, anggota.nama);
+    this.realtime.emitToRumah(anggota.rumahId!, 'swap:updated', {
+      id: swapRequest.id,
+      status: swapRequest.status,
+    });
     return { swapRequest };
   }
 
@@ -281,11 +287,18 @@ export class SwapService {
     );
     await this.notifications.notifySwapAccepted(swap.dariAnggotaId, anggota.nama);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
+    this.realtime.emitToRumah(anggota.rumahId, 'swap:updated', {
+      id: swap.id,
+      status: 'diterima',
+    });
     return { swapRequest: updated };
   }
 
   async reject(payload: CurrentUserPayload, swapId: string) {
     const anggota = await this.scope.requireAnggota(payload.userId);
+    if (!anggota.rumahId) {
+      throw new BadRequestException('Bergabunglah ke kos terlebih dahulu.');
+    }
     const swap = await this.getOpenSwap(swapId, anggota);
 
     const updated = await this.prisma.swapRequest.update({
@@ -297,6 +310,10 @@ export class SwapService {
       `[SwapService] Swap ${swap.id} ditolak oleh ${anggota.nama}`,
     );
     await this.notifications.notifySwapRejected(swap.dariAnggotaId, anggota.nama);
+    this.realtime.emitToRumah(anggota.rumahId, 'swap:updated', {
+      id: swap.id,
+      status: 'ditolak',
+    });
     return { swapRequest: updated };
   }
 

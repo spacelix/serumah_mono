@@ -10,6 +10,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateSubmissionDto } from './dto/piket.dto';
 
 // Asia/Jakarta is UTC+7, no DST. `jadwal.tanggal` is stored as `@db.Date`
@@ -25,6 +26,7 @@ export class PiketService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) { }
 
   private today(): Date {
@@ -254,6 +256,12 @@ export class PiketService {
     if (reviewerId) {
       await this.notifications.notifyPiketReviewer(reviewerId, anggota.nama);
     }
+    if (anggota.rumahId) {
+      this.realtime.emitToRumah(anggota.rumahId, 'piket:updated', {
+        id: submission.id,
+        status: submission.status,
+      });
+    }
     return { submission };
   }
 
@@ -423,6 +431,10 @@ export class PiketService {
       `[PiketService] Submission ${submission.id} disetujui oleh ${anggota.nama}` +
       (denda ? ` (denda sisa ${denda.nominal})` : ''),
     );
+    this.realtime.emitToRumah(anggota.rumahId, 'piket:updated', {
+      id: submission.id,
+      status: 'approved',
+    });
     return {
       submission: { id: submission.id, status: 'approved' },
       denda,
@@ -471,6 +483,10 @@ export class PiketService {
     this.logger.log(
       `[PiketService] Submission ${submission.id} ditolak, denda ${denda.id}`,
     );
+    this.realtime.emitToRumah(anggota.rumahId, 'piket:updated', {
+      id: submission.id,
+      status: 'rejected',
+    });
     return { submission: { id: submission.id, status: 'rejected' }, denda };
   }
 

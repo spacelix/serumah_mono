@@ -29,6 +29,7 @@ import { FcmModule } from './modules/fcm/fcm.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { UpdateModule } from './modules/update/update.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -65,6 +66,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     DashboardModule,
     UpdateModule,
+    RealtimeModule,
   ],
   controllers: [AppController],
   providers: [

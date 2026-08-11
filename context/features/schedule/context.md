@@ -41,7 +41,7 @@ Locked decisions (from the old phase, preserved):
 **Weekend:**
 
 - Generated from members with status `di_kos`. All `pulang` → day **Free** (no fine).
-- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekend` mengecualikan member yang sudah memegang jadwal weekend hari lainnya (Sabtu vs Minggu beruntun) — sama seperti weekday, satu orang tidak boleh piket 2 hari beruntun. Fallback ke semua di_kos jika pool kosong (cuma 1 orang di_kos). `setWeekendStatus` di_kos meng-generate Sabtu dulu (offset 5) lalu Minggu (offset 6) sehingga exclusion berlaku.
+- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekend` mengecualikan member yang sudah memegang jadwal weekend hari lainnya (Sabtu vs Minggu beruntun) — sama seperti weekday, satu orang tidak boleh piket 2 hari beruntun. **Jika hanya 1 orang di_kos, dia dapat SATU hari (Sabtu); hari lainnya tidak di-generate (Free)** — bukan wajib piket Sabtu & Minggu. `setWeekendStatus` di_kos meng-generate Sabtu dulu (offset 5) lalu Minggu (offset 6) sehingga exclusion berlaku.
 - Freeze: Friday 20:00 (configurable). No update → default to last week's status.
 - **Satu pilihan utk seluruh weekend (locked 2026-08-11):** `WeekendStatusDto` hanya `{ status }` — pilihan Di kos/Pulang berlaku untuk Sabtu DAN Minggu sekaligus (backend set kedua baris `weekend_status`). Jadwal weekend tetap per hari (Sabtu 1 piket, Minggu 1 piket).
 - The `hari` column = saturday/sunday per row (drift, preserved).

@@ -249,7 +249,9 @@ export class ScheduleService {
 
     // No back-to-back: exclude members who already hold a weekend Jadwal for
     // the OTHER weekend day (Sabtu vs Minggu are consecutive). Like weekday,
-    // one person should not piket two days in a row.
+    // one person should not piket two days in a row. Jika hanya 1 orang
+    // di_kos, dia dapat SATU hari (Sabtu); hari satunya tidak di-generate
+    // (Free) — bukan "wajib piket Sabtu & Minggu".
     const otherDay = day.getUTCDay() === 6 ? this.addDays(day, 1) : this.addDays(day, -1);
     const otherRow = await this.prisma.jadwal.findFirst({
       where: { rumahId, tanggal: otherDay },
@@ -257,10 +259,10 @@ export class ScheduleService {
     });
     const otherAssignee = otherRow?.anggotaId ?? null;
 
-    const excludeAssigned = otherAssignee
+    const pool = otherAssignee
       ? diKosMembers.filter((m) => m.id !== otherAssignee)
       : diKosMembers;
-    const pool = excludeAssigned.length > 0 ? excludeAssigned : diKosMembers;
+    if (pool.length === 0) return false; // no one available without back-to-back
 
     const index = this.weekendOrdinal(day) % pool.length;
     const member = pool[index];

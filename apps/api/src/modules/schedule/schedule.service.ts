@@ -210,76 +210,84 @@ export class ScheduleService {
     return count;
   }
 
-  private async ensureWeekend(
-    rumahId: string,
-    weekendDay: Date,
-  ): Promise<boolean> {
-    const day = this.toDate(weekendDay);
-    if (!this.isWeekendDay(day)) return false;
-
-    const monday = this.mondayOf(day);
-    const hari = WEEKEND_HARI[day.getUTCDay()];
-
-    const existing = await this.prisma.jadwal.findFirst({
-      where: { rumahId, tanggal: day },
-    });
-    if (existing) return false;
+  /**
+   * Generate jadwal weekend untuk SATU minggu (Sabtu + Minggu sekaligus).
+   * Semua member berstatus di_kos ikut piket, dibagi MERATA 2 hari dengan
+   * rotasi per minggu (weekendOrdinal) supaya adil lintas minggu:
+   *   - 2 orang → Sabtu 1, Minggu 1
+   *   - 3 orang → Sabtu 2, Minggu 1
+   *   - dst.
+   * Idempoten: member yang sudah memegang jadwal weekend minggu itu di-skip
+   * (no back-to-back), jadwal yang sudah ada per (tanggal, anggota) tidak
+   * digandakan.
+   */
+  private async ensureWeekendWeek(rumahId: string, monday: Date): Promise<number> {
+    const sabtu = this.addDays(monday, 5);
+    const minggu = this.addDays(monday, 6);
 
     // This week's di_kos; fall back to last week's status when none recorded.
     let rows = await this.prisma.weekendStatus.findMany({
-      where: { mingguMulai: monday, hari },
+      where: { mingguMulai: monday },
       select: { anggotaId: true },
     });
     if (rows.length === 0) {
       const lastMonday = this.addDays(monday, -7);
       rows = await this.prisma.weekendStatus.findMany({
-        where: { mingguMulai: lastMonday, hari },
+        where: { mingguMulai: lastMonday },
         select: { anggotaId: true },
       });
     }
+    if (rows.length === 0) return 0;
 
-    const diKosIds = rows.map((r) => r.anggotaId);
+    const diKosIds = [...new Set(rows.map((r) => r.anggotaId))];
     const diKosMembers = await this.prisma.anggota.findMany({
       where: { rumahId, id: { in: diKosIds } },
       orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
+    if (diKosMembers.length === 0) return 0;
 
-    if (diKosMembers.length === 0) return false; // Free day (no fine)
-
-    // No back-to-back: exclude members who already hold a weekend Jadwal for
-    // the OTHER weekend day (Sabtu vs Minggu are consecutive). Like weekday,
-    // one person should not piket two days in a row. Jika hanya 1 orang
-    // di_kos, dia dapat SATU hari (Sabtu); hari satunya tidak di-generate
-    // (Free) — bukan "wajib piket Sabtu & Minggu".
-    const otherDay = day.getUTCDay() === 6 ? this.addDays(day, 1) : this.addDays(day, -1);
-    const otherRow = await this.prisma.jadwal.findFirst({
-      where: { rumahId, tanggal: otherDay },
+    // Members already holding a weekend Jadwal this week are skipped (already
+    // assigned a day, no back-to-back).
+    const existingRows = await this.prisma.jadwal.findMany({
+      where: {
+        rumahId,
+        tanggal: { gte: sabtu, lte: minggu },
+      },
       select: { anggotaId: true },
     });
-    const otherAssignee = otherRow?.anggotaId ?? null;
+    const alreadyAssigned = new Set(existingRows.map((r) => r.anggotaId));
+    const available = diKosMembers.filter((m) => !alreadyAssigned.has(m.id));
+    if (available.length === 0) return 0;
 
-    const pool = otherAssignee
-      ? diKosMembers.filter((m) => m.id !== otherAssignee)
-      : diKosMembers;
-    if (pool.length === 0) return false; // no one available without back-to-back
+    // Rotate so who lands on Sabtu vs Minggu shifts each week.
+    const n = available.length;
+    const rot = this.weekendOrdinal(monday) % n;
+    const rotated = [...available.slice(rot), ...available.slice(0, rot)];
+    const sabtuCount = Math.ceil(n / 2);
+    const sabtuMembers = rotated.slice(0, sabtuCount);
+    const mingguMembers = rotated.slice(sabtuCount);
 
-    const index = this.weekendOrdinal(day) % pool.length;
-    const member = pool[index];
     const rooms = await this.activeRoomNames(rumahId);
-
-    await this.prisma.jadwal.create({
-      data: {
-        rumahId,
-        tanggal: day,
-        anggotaId: member.id,
-        ruangan: rooms,
-      },
-    });
-    this.logger.log(
-      `[ScheduleService] Weekend ${day.toISOString()} → ${member.id}`,
-    );
-    return true;
+    let created = 0;
+    const assign = async (day: Date, members: { id: string }[]) => {
+      for (const m of members) {
+        const exists = await this.prisma.jadwal.findFirst({
+          where: { rumahId, tanggal: day, anggotaId: m.id },
+        });
+        if (exists) continue;
+        await this.prisma.jadwal.create({
+          data: { rumahId, tanggal: day, anggotaId: m.id, ruangan: rooms },
+        });
+        created += 1;
+        this.logger.log(
+          `[ScheduleService] Weekend ${day.toISOString()} → ${m.id}`,
+        );
+      }
+    };
+    await assign(sabtu, sabtuMembers);
+    await assign(minggu, mingguMembers);
+    return created;
   }
 
   private async activeRoomNames(rumahId: string): Promise<string[]> {
@@ -344,15 +352,7 @@ export class ScheduleService {
     let count = 0;
     // Weekend first (so weekend piket assignees are excluded from weekday
     // generation below), then weekday piket days.
-    for (
-      let cursor = today;
-      cursor <= sunday;
-      cursor = this.addDays(cursor, 1)
-    ) {
-      if (this.isWeekendDay(cursor)) {
-        if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
-      }
-    }
+    count += await this.ensureWeekendWeek(anggota.rumahId!, this.mondayOf(today));
     for (
       let cursor = today;
       cursor <= sunday;
@@ -369,12 +369,7 @@ export class ScheduleService {
   async generateWeekend(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const monday = this.mondayOf(new Date());
-    for (const offset of [5, 6]) {
-      const day = this.addDays(monday, offset);
-      if (day >= this.toDate(new Date())) {
-        await this.ensureWeekend(anggota.rumahId!, day);
-      }
-    }
+    await this.ensureWeekendWeek(anggota.rumahId!, monday);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal akhir pekan telah dibuat.' };
   }
@@ -440,10 +435,8 @@ export class ScheduleService {
 
     if (dto.status === 'di_kos') {
       // Locked decision (2026-08-08): choosing Di kos immediately generates
-      // that weekend day's Jadwal so the UI shows who piket right away.
-      for (const offset of [5, 6]) {
-        await this.ensureWeekend(anggota.rumahId, this.addDays(monday, offset));
-      }
+      // the weekend Jadwal so the UI shows who piket right away.
+      await this.ensureWeekendWeek(anggota.rumahId, monday);
     }
 
     // Locked decision (2026-08-08): members assigned a weekend piket this week
@@ -459,7 +452,6 @@ export class ScheduleService {
     await this.notifications.notifyWeekendStatus(
       anggota.rumahId,
       anggota.nama,
-      'sabtu',
       dto.status,
     );
     this.realtime.emitToRumah(anggota.rumahId, 'schedule:updated', {
@@ -541,10 +533,7 @@ export class ScheduleService {
   async runWeekendFreeze(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const monday = this.mondayOf(new Date());
-    for (const offset of [5, 6]) {
-      const day = this.addDays(monday, offset);
-      await this.ensureWeekend(anggota.rumahId!, day);
-    }
+    await this.ensureWeekendWeek(anggota.rumahId!, monday);
     return { message: 'Jadwal akhir pekan telah dibekukan.' };
   }
 
@@ -611,9 +600,7 @@ export class ScheduleService {
     const monday = this.mondayOf(new Date());
     const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
     for (const rumah of rumahs) {
-      for (const offset of [5, 6]) {
-        await this.ensureWeekend(rumah.id, this.addDays(monday, offset));
-      }
+      await this.ensureWeekendWeek(rumah.id, monday);
 
       // Anggota yang belum pilih Di kos/Pulang sama sekali (dua hari belum
       // tercatat) → notif tanggung jawab penuh.

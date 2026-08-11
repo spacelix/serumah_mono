@@ -161,11 +161,10 @@ export class NotificationsService {
   async notifyWeekendStatus(
     rumahId: string,
     nama: string,
-    hari: 'sabtu' | 'minggu',
     status: 'di_kos' | 'pulang',
   ): Promise<void> {
-    const hariLabel = hari === 'sabtu' ? 'Sabtu' : 'Minggu';
-    const statusLabel = status === 'di_kos' ? 'pilih Di kos' : 'pulang';
+    const statusLabel =
+      status === 'di_kos' ? 'Di kos akhir pekan ini' : 'pulang akhir pekan ini';
     const members = await this.prisma.anggota.findMany({
       where: { rumahId },
       select: { id: true, nama: true },
@@ -173,23 +172,19 @@ export class NotificationsService {
     const others = members.filter((m) => m.nama !== nama).map((m) => m.id);
     await this.sendToAnggota(others, {
       title: 'Status akhir pekan',
-      body: `${nama} ${statusLabel} untuk ${hariLabel}.`,
+      body: `${nama} ${statusLabel}.`,
       deepLink: '/',
     });
   }
 
   /**
-   * Reminder belum memilih status weekend (Di kos/Pulang). Ke satu anggota
-   * yang belum punya WeekendStatus untuk minggu ini + hari tersebut.
+   * Reminder belum memilih status weekend (Di kos/Pulang). Karena 1 pilihan
+   * berlaku utk seluruh akhir pekan, reminder dikirim sekali (bukan per hari).
    */
-  async notifyWeekendReminder(
-    anggotaId: string,
-    hari: 'sabtu' | 'minggu',
-  ): Promise<void> {
-    const hariLabel = hari === 'sabtu' ? 'Sabtu' : 'Minggu';
+  async notifyWeekendReminder(anggotaId: string): Promise<void> {
     await this.sendToAnggota([anggotaId], {
       title: 'Pilih status akhir pekan',
-      body: `Belum pilih Di kos / Pulang buat ${hariLabel}. Deadline Jumat 20:00.`,
+      body: 'Belum pilih Di kos / Pulang akhir pekan ini. Deadline Jumat 20:00.',
       deepLink: '/',
     });
   }

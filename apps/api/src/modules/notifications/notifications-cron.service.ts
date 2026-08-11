@@ -83,15 +83,14 @@ export class NotificationsCronService {
 
   // ── E. Weekend status — reminder belum pilih (Jumat) ─────────────────
   // Freeze = Jumat 20:00 WIB. Reminder Jumat 08:00 (nugas awal) + 19:00
-  // (1 jam sebelum deadline) ke anggota yang belum punya WeekendStatus untuk
-  // hari Sabtu/Minggu minggu berjalan.
+  // (1 jam sebelum deadline) ke anggota yang BELUM punya WeekendStatus sama
+  // sekali minggu berjalan. 1 pilihan berlaku utk seluruh akhir pekan, jadi
+  // cukup sekali per anggota (bukan per hari).
   @Cron('0 8 * * 5')
   @Cron('0 19 * * 5')
   async weekendStatusReminder(): Promise<void> {
     const today = this.todayWib();
     const monday = this.mondayOfWib(today);
-    const weekStart = monday;
-    const weekEnd = this.addDays(monday, 6);
 
     const [anggotaRows, existingRows] = await Promise.all([
       this.prisma.anggota.findMany({
@@ -99,29 +98,16 @@ export class NotificationsCronService {
         select: { id: true, rumahId: true },
       }),
       this.prisma.weekendStatus.findMany({
-        where: { mingguMulai: weekStart, hari: { in: ['sabtu', 'minggu'] } },
-        select: { anggotaId: true, hari: true },
+        where: { mingguMulai: monday, hari: { in: ['sabtu', 'minggu'] } },
+        select: { anggotaId: true },
       }),
     ]);
 
-    const chosen = new Map<string, Set<'sabtu' | 'minggu'>>();
-    for (const r of existingRows) {
-      const set = chosen.get(r.anggotaId) ?? new Set();
-      set.add(r.hari as 'sabtu' | 'minggu');
-      chosen.set(r.anggotaId, set);
-    }
-
-    const HARI_KE_BULAN = { sabtu: 5, minggu: 6 } as const;
+    const chosen = new Set(existingRows.map((r) => r.anggotaId));
     for (const a of anggotaRows) {
       if (!a.rumahId) continue;
-      for (const hari of ['sabtu', 'minggu'] as const) {
-        const sudahDipilih = chosen.get(a.id)?.has(hari) ?? false;
-        if (sudahDipilih) continue;
-        // Lewati hari yang sudah lewat (mis. reminder Sabtu saat sudah Minggu).
-        const day = this.addDays(weekStart, HARI_KE_BULAN[hari]);
-        if (day < today) continue;
-        await this.notifications.notifyWeekendReminder(a.id, hari);
-      }
+      if (chosen.has(a.id)) continue;
+      await this.notifications.notifyWeekendReminder(a.id);
     }
     this.logger.log(`[NotificationsCron] Reminder weekend status (Jumat)`);
   }

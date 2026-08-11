@@ -1,6 +1,6 @@
 import { CalendarDays } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
@@ -31,7 +31,7 @@ import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function BerandaScreen() {
-  const { data, isLoading } = useDashboard();
+  const { data, isLoading, refetch, isFetching } = useDashboard();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,6 +39,14 @@ export default function BerandaScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {isLoading || data == null ? (
           <View style={styles.loading}>

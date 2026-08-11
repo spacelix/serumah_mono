@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,7 +31,7 @@ import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function SwapScreen() {
-  const { data, isLoading } = useSwaps();
+  const { data, isLoading, refetch, isFetching } = useSwaps();
   const [showForm, setShowForm] = useState(false);
   const [filterBulan, setFilterBulan] = useState<string | null>(null);
 
@@ -64,6 +65,14 @@ export default function SwapScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {isLoading || data == null ? (
           <View style={styles.loading}>

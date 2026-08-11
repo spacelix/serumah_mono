@@ -8,6 +8,7 @@ import {
   LayoutAnimation,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -69,7 +70,7 @@ function useInfoDialog() {
 }
 
 export default function PiketScreen() {
-  const { data, isLoading } = usePiketToday();
+  const { data, isLoading, refetch, isFetching } = usePiketToday();
   const { drafts } = usePiketDraft();
   const [view, setView] = useState<PiketView>('mine');
 
@@ -83,6 +84,14 @@ export default function PiketScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         <View style={styles.segmented}>
           <Pressable

@@ -10,6 +10,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -66,6 +67,18 @@ const SEGMENTS: { key: Segment; label: string }[] = [
 export default function TagihanScreen() {
   const [bulan, setBulan] = useState(currentMonth());
   const [segment, setSegment] = useState<Segment>('denda');
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    void queryClient
+      .invalidateQueries({ queryKey: tagihanKeys.denda(bulan) })
+      .then(() => queryClient.invalidateQueries({ queryKey: tagihanKeys.iuran(bulan) }))
+      .then(() => queryClient.invalidateQueries({ queryKey: tagihanKeys.listrik(bulan) }))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['tagihan', 'months'] }))
+      .finally(() => setRefreshing(false));
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -96,6 +109,14 @@ export default function TagihanScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {segment === 'denda' && <DendaView bulan={bulan} />}
         {segment === 'iuran' && <IuranView bulan={bulan} />}

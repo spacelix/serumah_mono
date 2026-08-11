@@ -9,6 +9,7 @@ import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CacheService } from '../redis/cache.service';
 import { WeekendStatusDto } from './dto/schedule.dto';
 
@@ -30,6 +31,7 @@ export class ScheduleService {
     private readonly scope: RumahScopeService,
     private readonly cache: CacheService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) { }
 
   // ── DATE HELPERS (UTC-based so @db.Date matches Postgres `date` columns) ──
@@ -138,12 +140,42 @@ export class ScheduleService {
     const memberList = await this.members(rumahId);
     if (memberList.length === 0) return false;
 
+    const monday = this.mondayOf(day);
+
     // Members already holding a weekend piket this week are free from weekday.
-    const weekendIds = await this.weekendAssigneeIds(
-      rumahId,
-      this.mondayOf(day),
+    const weekendIds = await this.weekendAssigneeIds(rumahId, monday);
+
+    // Members who already hold ANOTHER weekday row this week must not get a
+    // second weekday — guarantees no one piket twice in one week, and keeps
+    // the assignment stable when the pool shrinks (e.g. after a weekend
+    // assignee is excluded by reconcileWeekdayForWeekend).
+    const weekRows = await this.prisma.jadwal.findMany({
+      where: {
+        rumahId,
+        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
+      },
+      select: { tanggal: true, anggotaId: true },
+    });
+    const alreadyAssigned = new Set(
+      weekRows
+        .filter(
+          (r) =>
+            this.isPiketDay(r.tanggal) && r.tanggal.getTime() !== day.getTime(),
+        )
+        .map((r) => r.anggotaId),
     );
-    const pool = memberList.filter((m) => !weekendIds.includes(m.id));
+
+    // Prefer members who don't already hold a weekday row this week (avoids
+    // someone piket twice), but if the pool would be empty (fewer members than
+    // piket days, e.g. a 2-member rumah) fall back to all non-weekend members
+    // so the day still gets scheduled.
+    const excludeAssigned = memberList.filter(
+      (m) => !weekendIds.includes(m.id) && !alreadyAssigned.has(m.id),
+    );
+    const pool =
+      excludeAssigned.length > 0
+        ? excludeAssigned
+        : memberList.filter((m) => !weekendIds.includes(m.id));
     if (pool.length === 0) return false;
 
     const index = this.weekdayOrdinal(day) % pool.length;
@@ -407,6 +439,10 @@ export class ScheduleService {
       dto.hari,
       dto.status,
     );
+    this.realtime.emitToRumah(anggota.rumahId, 'schedule:updated', {
+      hari: dto.hari,
+      status: dto.status,
+    });
     return { hari: dto.hari, status: dto.status };
   }
 

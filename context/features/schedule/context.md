@@ -34,6 +34,7 @@ Locked decisions (from the old phase, preserved):
 - Piket days: Senin, Rabu, Jumat (every other day). Selasa+Kamis off.
 - Sort members by `created_at`. Cycle across weeks: A→B→C→D→A…
 - No back-to-back automatically satisfied (Selasa/Kamis gap).
+- **No duplicate weekday in one week (fixed 2026-08-11):** `ensureWeekday` excludes members who already hold another weekday Jadwal row that same week from the pick pool — so no one piket twice on Senin/Rabu/Jumat. This also keeps the assignment stable when the pool shrinks after a weekend assignee is excluded (`reconcileWeekdayForWeekend`). If the exclude-assigned pool would be empty (fewer members than piket days), it falls back to all non-weekend members so the day still gets scheduled.
 - New member joins: continue the cycle from where it left off without reset. Member leaves: skip from the cycle, regenerated schedules are rebuilt.
 - **Cron (locked 2026-08-10):** `pregenerateWeek` Sabtu 06:00 → generate **minggu depan** (Senin+7). **`selfHealWeek` harian 06:00** → ensure **minggu ini** (today→Minggu, tidak pernah hari lampau) — self-heal kalau cron Sabtu terlewat (server down), Senin pagi tetap tergenerate. Keduanya idempoten via `ensureWeekday` (skip baris yang sudah ada). **Independen dari `refreshFutureRooms`** (jenis piket): self-heal hanya membuat baris baru, `refreshFutureRooms` hanya update snapshot `ruangan[]` pada baris masa depan — tidak saling menimpa.
 

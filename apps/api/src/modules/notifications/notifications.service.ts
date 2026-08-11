@@ -222,4 +222,16 @@ export class NotificationsService {
       },
     );
   }
+
+  /**
+   * Akhir bulan: PJ diingatkan untuk generate jadwal bulan baru (manual,
+   * tidak ada auto-generate sejak 2026-08-12).
+   */
+  async notifyPjGenerateReminder(pjId: string): Promise<void> {
+    await this.sendToAnggota([pjId], {
+      title: 'Generate jadwal bulan depan',
+      body: 'Jadwal piket bulan ini mau habis. Tekan Generate Jadwal di Kelola Kos untuk bulan depan.',
+      deepLink: '/(tabs)',
+    });
+  }
 }

@@ -81,6 +81,10 @@ Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat waj
 - Guard `last-day-of-month` (30 utk 30-hari; 28/29 utk Februari) — bukan tepat tgl 30.
 - **Generate iuran bulan depan dulu** via `IuranService.ensureBulan` (bulan berikutnya), lalu kirim ke semua anggota: "Iuran {bulan depan} sudah keluar, tagihan lo {amount}". Deep link `/(tabs)/tagihan`.
 
+### G. Reminder generate jadwal bulan baru — cron **hari terakhir bulan** 08:00
+
+- Jadwal digenerate manual bulanan oleh PJ (no auto-generate sejak 2026-08-12). Hari terakhir bulan, kirim ke PJ (anggota `role=admin`) tiap rumah: "Generate jadwal bulan depan" → deep link `/(tabs)` (beranda).
+
 ## 5. API Contract (NestJS)
 
 Module: `fcm` + `notifications`.

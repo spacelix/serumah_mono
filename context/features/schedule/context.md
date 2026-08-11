@@ -36,18 +36,21 @@ Locked decisions (from the old phase, preserved):
 - No back-to-back automatically satisfied (Selasa/Kamis gap).
 - **No duplicate weekday in one week (fixed 2026-08-11):** `ensureWeekday` excludes members who already hold another weekday Jadwal row that same week from the pick pool — so no one piket twice on Senin/Rabu/Jumat. This also keeps the assignment stable when the pool shrinks after a weekend assignee is excluded (`reconcileWeekdayForWeekend`). If the exclude-assigned pool would be empty (fewer members than piket days), it falls back to all non-weekend members so the day still gets scheduled.
 - New member joins: continue the cycle from where it left off without reset. Member leaves: skip from the cycle, regenerated schedules are rebuilt.
-- **Cron (locked 2026-08-10):** `pregenerateWeek` Sabtu 06:00 → generate **minggu depan** (Senin+7). **`selfHealWeek` harian 06:00** → ensure **minggu ini** (today→Minggu, tidak pernah hari lampau) — self-heal kalau cron Sabtu terlewat (server down), Senin pagi tetap tergenerate. Keduanya idempoten via `ensureWeekday` (skip baris yang sudah ada). **Independen dari `refreshFutureRooms`** (jenis piket): self-heal hanya membuat baris baru, `refreshFutureRooms` hanya update snapshot `ruangan[]` pada baris masa depan — tidak saling menimpa.
+- **Generate manual bulanan (locked 2026-08-12):** TIDAK ada cron jadwal (`pregenerateWeek`/`selfHealWeek`/`freezeWeekendCron` dihapus). PJ menekan **"Generate Jadwal"** → generate **weekday (Sen/Rab/Jum) dari hari ini sampai +1 bulan** sekaligus. Auto-fine cron (22:00) tetap berjalan.
+- **End-of-month reminder (locked 2026-08-12):** menjelang akhir bulan, sistem mengirim notif ke PJ untuk generate jadwal bulan baru. Sebelum jadwal bulan berikutnya digenerate, daftar jadwal menampilkan empty state + tombol Generate.
 
 **Weekend:**
 
 - Generated from members with status `di_kos`. All `pulang` → day **Free** (no fine).
-- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekend` mengecualikan member yang sudah memegang jadwal weekend hari lainnya (Sabtu vs Minggu beruntun) — sama seperti weekday, satu orang tidak boleh piket 2 hari beruntun. **Jika hanya 1 orang di_kos, dia dapat SATU hari (Sabtu); hari lainnya tidak di-generate (Free)** — bukan wajib piket Sabtu & Minggu. `setWeekendStatus` di_kos meng-generate Sabtu dulu (offset 5) lalu Minggu (offset 6) sehingga exclusion berlaku.
+- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekendWeek` membagi semua member di_kos MERATA 2 hari (Sabtu + Minggu) dengan rotasi `weekendOrdinal` agar adil lintas minggu (2 orang: Sabtu 1, Minggu 1; 3: Sabtu 2, Minggu 1). Idempoten (skip member yang sudah pegang jadwal weekend). **Jika hanya 1 orang di_kos, dia dapat SATU hari; hari lain Free**.
+- **Weekend event-driven (locked 2026-08-12):** generate bulan HANYA membuat weekday. Weekend di-generate saat user memilih `di_kos` utk minggu itu (`setWeekendStatus` → `ensureWeekendWeek`). Future weeks tampil Free sampai ada yang pilih.
 - Freeze: Friday 20:00 (configurable). No update → default to last week's status.
-- **Satu pilihan utk seluruh weekend (locked 2026-08-11):** `WeekendStatusDto` hanya `{ status }` — pilihan Di kos/Pulang berlaku untuk Sabtu DAN Minggu sekaligus (backend set kedua baris `weekend_status`). Jadwal weekend tetap per hari (Sabtu 1 piket, Minggu 1 piket).
+- **Satu pilihan utk seluruh weekend (locked 2026-08-11):** `WeekendStatusDto` hanya `{ status }` — pilihan Di kos/Pulang berlaku untuk Sabtu DAN Minggu sekaligus (backend set kedua baris `weekend_status`).
 - The `hari` column = saturday/sunday per row (drift, preserved).
-- **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal (picks one di_kos member round-robin) so the UI shows who piket right away — before the Friday freeze.
-- **Weekday exemption (locked 2026-08-08):** members who hold a weekend Jadwal row that week are **excluded from weekday piket** (Senin/Rabu/Jumat) in the same week — the copy "yang piket Sabtu–Minggu bebas piket Senin–Jumat". `ensureWeekday` filters the round-robin pool with `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows (weekend generated first so the exclusion applies).
-- **Notifikasi status (locked 2026-08-11):** `setWeekendStatus` mengirim push ke **semua anggota lain** ("{nama} pilih Di kos untuk Sabtu" / "{nama} pulang Minggu"), tanpa detail siapa yang dapat piket. Reminder belum pilih via cron Jumat 08:00 + 19:00 (lihat features/notifications).
+- **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal so the UI shows who piket right away.
+- **Pulang menghapus jadwal weekend (locked 2026-08-12):** saat anggota mengubah status dari `di_kos` ke `pulang`, sistem **menghapus baris Jadwal weekend milik anggota tersebut** untuk minggu itu, lalu menjalankan `ensureWeekendWeek` untuk mendistribusikan ulang anggota `di_kos` yang tersisa.
+- **Bebas weekday tanpa regenerate (locked 2026-08-12):** saat user pilih `di_kos`, pada minggu itu dia bebas piket weekday — baris Jadwal weekday miliknya untuk minggu itu **dihapus dan TIDAK digantikan siapa pun** (hari itu jadi tanpa penanggung jawab). Tidak ada regenerasi ulang seperti `reconcileWeekdayForWeekend` yang lama.
+- **Notifikasi status (locked 2026-08-11):** `setWeekendStatus` mengirim push ke **semua anggota lain** ("{nama} Di kos akhir pekan ini." / "{nama} pulang akhir pekan ini.").
 
 **Auto-fine:**
 
@@ -57,7 +60,8 @@ Locked decisions (from the old phase, preserved):
 ## 5. UI Spec (React Native)
 
 - **ScheduleList** (Beranda): 7 rows, status tags (see dashboard).
-- **Rumah Management**: **"Generate Jadwal"** button (admin only) → calls `/schedule/generate/rest-of-week`. Card sits at the **bottom** of Kelola Rumah, **disabled** when the current week is already fully scheduled (`scheduleIncomplete` = false). Pekan depan is generated automatically by cron — the button only backfills today→Sunday.
+- **Rumah Management**: **"Generate Jadwal"** button (admin only) → calls `/schedule/generate/rest-of-week` (generate weekday hari ini → +1 bulan). Card sits at the **bottom** of Kelola Rumah, **disabled** ketika jadwal sudah ada (ada baris weekday di masa depan). Tidak ada auto-generate — PJ harus menekan tombol tiap bulan.
+- **Empty state**: saat jadwal belum digenerate / sudah habis (tidak ada jadwal weekday masa depan), daftar jadwal menampilkan **empty state + tombol Generate** (bukan banner reminder).
 
 **Adding a jenis piket (Kelola Rumah):** after an admin adds a jenis piket, the future days' `ruangan[]` snapshot is stale (new room not yet included). When the admin **leaves** the Kelola Rumah page, a confirm dialog offers to call `/schedule/refresh-future-rooms` — only future days are updated, member assignment kept, so only rooms with an active jenis piket appear in the remaining schedule. If the admin cancels, the dialog is dismissed and no refresh occurs.
 
@@ -77,4 +81,4 @@ Locked decisions (from the old phase, preserved):
 
 ## 8. Status
 
-Not yet implemented (awaiting Phase 2–3). Round-robin logic from the Flutter phase must be ported to a NestJS service.
+Implemented in `apps/api/src/modules/schedule/schedule.service.ts`. Last fix: pulang status now deletes the member's weekend Jadwal rows and regenerates the remaining weekend roster (2026-08-12).

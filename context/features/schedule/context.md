@@ -22,7 +22,7 @@ Module: `schedule`.
 | POST   | `/schedule/generate/rest-of-week`  | — (admin)          | `{ count }`              | **First-time**: backfill the rest of the current week (today→Sunday, weekday + weekend from Di kos). Next week is handled by cron.                                                                                                                                             |
 | POST   | `/schedule/generate/weekend`       | — (admin)          | `{ count }`              | Generate weekend from Di kos status.                                                                                                                                                                                                                                           |
 | POST   | `/schedule/refresh-future-rooms`   | — (admin)          | `{ updated }`            | **Refresh only** the `ruangan[]` snapshot of future Jadwal rows (days after today) so only rooms with an active jenis piket appear. Member assignment is preserved; past days untouched. Triggered from Kelola Rumah when leaving after adding a jenis piket (confirm dialog). |
-| PUT    | `/schedule/weekend-status`         | `{ hari, status }` | `{ weekendStatus }`      | Set Di kos/Pulang. Validates not yet frozen.                                                                                                                                                                                                                                   |
+| PUT    | `/schedule/weekend-status`         | `{ status }`       | `{ status }`           | Set Di kos/Pulang untuk **seluruh weekend** (Sabtu + Minggu di-set bersamaan). Validates not yet frozen. |
 | POST   | `/schedule/run-auto-fine`          | — (internal)       | `{ fined }`              | Cron. Do not expose publicly without a service guard.                                                                                                                                                                                                                          |
 
 ## 4. Business Rules & State Machine
@@ -42,6 +42,7 @@ Locked decisions (from the old phase, preserved):
 
 - Generated from members with status `di_kos`. All `pulang` → day **Free** (no fine).
 - Freeze: Friday 20:00 (configurable). No update → default to last week's status.
+- **Satu pilihan utk seluruh weekend (locked 2026-08-11):** `WeekendStatusDto` hanya `{ status }` — pilihan Di kos/Pulang berlaku untuk Sabtu DAN Minggu sekaligus (backend set kedua baris `weekend_status`). Jadwal weekend tetap per hari (Sabtu 1 piket, Minggu 1 piket).
 - The `hari` column = saturday/sunday per row (drift, preserved).
 - **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal (picks one di_kos member round-robin) so the UI shows who piket right away — before the Friday freeze.
 - **Weekday exemption (locked 2026-08-08):** members who hold a weekend Jadwal row that week are **excluded from weekday piket** (Senin/Rabu/Jumat) in the same week — the copy "yang piket Sabtu–Minggu bebas piket Senin–Jumat". `ensureWeekday` filters the round-robin pool with `weekendAssigneeIds`; `setWeekendStatus`/`generateRestOfWeek` regenerate affected weekday rows (weekend generated first so the exclusion applies).

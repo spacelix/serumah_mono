@@ -16,7 +16,6 @@ import {
   type DashboardData,
   type ScheduleRow,
   type WeekendChoice,
-  type WeekDayKey,
 } from '@/features/dashboard/api/dashboard';
 import {
   firstName,
@@ -69,23 +68,20 @@ function WeekendCard({ data }: { data: DashboardData }) {
   const setStatus = useSetWeekendStatus();
   const [frozenVisible, setFrozenVisible] = useState(false);
 
-  const set = (hari: WeekDayKey, status: WeekendChoice) => {
+  const status = data.weekend.status;
+  const didKos = status === 'di_kos';
+
+  const set = (next: WeekendChoice) => {
     if (data.weekend.frozen) {
       setFrozenVisible(true);
       return;
     }
-    setStatus.mutate({ hari, status });
+    if (setStatus.isPending || next === status) return; // cegah spam/duplikat
+    setStatus.mutate(next);
   };
 
   const sabtuDate = weekendDate(5);
   const mingguDate = weekendDate(6);
-
-  const pickedDays: string[] = [];
-  if (data.weekend.saturday === 'di_kos')
-    pickedDays.push(formatWeekdayDate(sabtuDate));
-  if (data.weekend.sunday === 'di_kos')
-    pickedDays.push(formatWeekdayDate(mingguDate));
-  const didKos = pickedDays.length > 0;
 
   return (
     <View style={styles.weekendCard}>
@@ -97,20 +93,49 @@ function WeekendCard({ data }: { data: DashboardData }) {
       </View>
       <Text style={styles.weekendSub}>
         {didKos
-          ? `Lo ambil piket ${pickedDays.join(' dan ')} — jadi bebas piket Senin–Jumat minggu ini.`
+          ? `Lo ambil piket ${formatWeekdayDate(sabtuDate)} dan ${formatWeekdayDate(mingguDate)} — jadi bebas piket Senin–Jumat minggu ini.`
           : 'Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.'}
       </Text>
-      <View style={styles.weekendDays}>
-        <WeekendDayRow
-          label={formatWeekdayDate(sabtuDate)}
-          value={data.weekend.saturday}
-          onPick={(status) => set('sabtu', status)}
-        />
-        <WeekendDayRow
-          label={formatWeekdayDate(mingguDate)}
-          value={data.weekend.sunday}
-          onPick={(status) => set('minggu', status)}
-        />
+      <View style={styles.weekendDayRow}>
+        <Text style={styles.weekendDayLabel}>
+          {formatWeekdayDate(sabtuDate)} & {formatWeekdayDate(mingguDate)}
+        </Text>
+        <View style={styles.weekendDayBtns}>
+          <Pressable
+            onPress={() => set('di_kos')}
+            disabled={setStatus.isPending || status === 'di_kos'}
+            style={[
+              styles.weekendDayBtn,
+              status === 'di_kos' && styles.weekendDayBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.weekendDayBtnText,
+                status === 'di_kos' && styles.weekendDayBtnTextActive,
+              ]}
+            >
+              Di kos
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => set('pulang')}
+            disabled={setStatus.isPending || status === 'pulang'}
+            style={[
+              styles.weekendDayBtn,
+              status === 'pulang' && styles.weekendDayBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.weekendDayBtnText,
+                status === 'pulang' && styles.weekendDayBtnTextActive,
+              ]}
+            >
+              Pulang
+            </Text>
+          </Pressable>
+        </View>
       </View>
       {didKos && (
         <View style={styles.weekendNotice}>
@@ -163,56 +188,6 @@ function weekendDate(dowOffset: number): string {
   const target = new Date(monday);
   target.setDate(monday.getDate() + dowOffset);
   return target.toISOString();
-}
-
-function WeekendDayRow({
-  label,
-  value,
-  onPick,
-}: {
-  label: string;
-  value: WeekendChoice | null;
-  onPick: (status: WeekendChoice) => void;
-}) {
-  return (
-    <View style={styles.weekendDayRow}>
-      <Text style={styles.weekendDayLabel}>{label}</Text>
-      <View style={styles.weekendDayBtns}>
-        <Pressable
-          onPress={() => onPick('di_kos')}
-          style={[
-            styles.weekendDayBtn,
-            value === 'di_kos' && styles.weekendDayBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.weekendDayBtnText,
-              value === 'di_kos' && styles.weekendDayBtnTextActive,
-            ]}
-          >
-            Di kos
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onPick('pulang')}
-          style={[
-            styles.weekendDayBtn,
-            value === 'pulang' && styles.weekendDayBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.weekendDayBtnText,
-              value === 'pulang' && styles.weekendDayBtnTextActive,
-            ]}
-          >
-            Pulang
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
 }
 
 function GalonWidget({ data }: { data: DashboardData }) {
@@ -276,6 +251,7 @@ function GalonWidget({ data }: { data: DashboardData }) {
         ) : (
           <Pressable
             onPress={onNudge}
+            disabled={nudged}
             accessibilityLabel={`Kirim notif ke ${giliran.namaAnggota ?? ''}`}
             style={({ pressed }) => [
               styles.galonNudgeBtn,

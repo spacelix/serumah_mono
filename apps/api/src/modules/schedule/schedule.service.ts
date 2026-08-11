@@ -399,28 +399,34 @@ export class ScheduleService {
     const monday = this.mondayOf(new Date());
     this.assertNotFrozen(monday);
 
-    await this.prisma.weekendStatus.upsert({
-      where: {
-        anggotaId_mingguMulai_hari: {
+    // 1 pilihan berlaku untuk seluruh weekend: set hari sabtu + minggu dengan
+    // status yang sama (locked 2026-08-11).
+    const hariList = ['sabtu', 'minggu'] as const;
+    for (const hari of hariList) {
+      await this.prisma.weekendStatus.upsert({
+        where: {
+          anggotaId_mingguMulai_hari: {
+            anggotaId: anggota.id,
+            mingguMulai: monday,
+            hari,
+          },
+        },
+        update: { status: dto.status },
+        create: {
           anggotaId: anggota.id,
           mingguMulai: monday,
-          hari: dto.hari,
+          hari,
+          status: dto.status,
         },
-      },
-      update: { status: dto.status },
-      create: {
-        anggotaId: anggota.id,
-        mingguMulai: monday,
-        hari: dto.hari,
-        status: dto.status,
-      },
-    });
+      });
+    }
 
     if (dto.status === 'di_kos') {
       // Locked decision (2026-08-08): choosing Di kos immediately generates
       // that weekend day's Jadwal so the UI shows who piket right away.
-      const offset = dto.hari === 'sabtu' ? 5 : 6;
-      await this.ensureWeekend(anggota.rumahId, this.addDays(monday, offset));
+      for (const offset of [5, 6]) {
+        await this.ensureWeekend(anggota.rumahId, this.addDays(monday, offset));
+      }
     }
 
     // Locked decision (2026-08-08): members assigned a weekend piket this week
@@ -429,21 +435,20 @@ export class ScheduleService {
     await this.reconcileWeekdayForWeekend(anggota.rumahId, monday);
 
     this.logger.log(
-      `[ScheduleService] ${anggota.nama} ${dto.hari} → ${dto.status}`,
+      `[ScheduleService] ${anggota.nama} weekend → ${dto.status}`,
     );
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     // Notifikasi ke semua anggota lain (kecuali pengubah status).
     await this.notifications.notifyWeekendStatus(
       anggota.rumahId,
       anggota.nama,
-      dto.hari,
+      'sabtu',
       dto.status,
     );
     this.realtime.emitToRumah(anggota.rumahId, 'schedule:updated', {
-      hari: dto.hari,
       status: dto.status,
     });
-    return { hari: dto.hari, status: dto.status };
+    return { status: dto.status };
   }
 
   /**

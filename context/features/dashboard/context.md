@@ -23,7 +23,7 @@ Module: `dashboard` (aggregate) or existing endpoints.
 
 Payload composition:
 
-- `weekend`: saturday & sunday status for the current week (`WeekendStatus`).
+- `weekend`: **satu status** (`di_kos`/`pulang`/null) untuk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked 2026-08-11) + `frozen` + `anggotaLain`.
 - `galon`: active turn (`GiliranGalon` + member name).
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
 - `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag }`.
@@ -44,7 +44,7 @@ Locked decisions:
 
 Screen: `app/(tabs)/index.tsx`. Components: `WeekendCard`, `GalonWidget`, `BillingSummary`, `ScheduleList`.
 
-- **WeekendCard** (hero, bg pine): "Minggu ini lo di kos atau pulang?" + per-day toggle (Sabtu, Minggu). States: Di kos / Pulang.
+- **WeekendCard** (hero, bg pine): "Weekend ini lo di kos?" + **satu toggle** Di kos/Pulang yang berlaku untuk Sabtu & Minggu (bukan per-day). States: Di kos / Pulang. Tombol disabled saat status sudah sama / sedang memproses (cegah spam notif).
 - **GalonWidget** (gold accent, 4px left border): "Giliran galon: [Nama]" + **"Sudah Beli"** button (see galon).
 - **BillingSummary**: concise total unpaid + **"Lihat detail"** → navigate to Tagihan tab.
 - **ScheduleList**: 7 rows (Senin–Minggu). Each: date chip (mono, mustard if today), member name, room names, status tag. LIBUR dashed.

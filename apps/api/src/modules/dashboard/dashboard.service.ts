@@ -69,8 +69,7 @@ export class DashboardService {
   }) {
     return {
       weekend: {
-        saturday: null,
-        sunday: null,
+        status: null,
         frozen: false,
         anggotaLain: [],
       },
@@ -129,12 +128,12 @@ export class DashboardService {
       where: { anggotaId, mingguMulai: monday },
     });
 
-    const fetch = (hari: 'sabtu' | 'minggu') =>
-      rows.find((r) => r.hari === hari)?.status ?? null;
+    // 1 pilihan utk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked
+    // 2026-08-11) — ambil status dari hari sabtu (identik dgn minggu).
+    const status = rows.find((r) => r.hari === 'sabtu')?.status ?? null;
 
     return {
-      saturday: fetch('sabtu'),
-      sunday: fetch('minggu'),
+      status,
       frozen: this.isFrozen(monday),
     };
   }

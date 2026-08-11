@@ -355,8 +355,8 @@ function ScheduleList({ data }: { data: DashboardData }) {
           title="Belum ada jadwal pekan ini"
           sub={
             data.isAdmin
-              ? 'Generate jadwal buat ngisi sisa pekan ini — pekan depannya otomatis.'
-              : 'Tunggu PJ Kos membuat jadwal piket pekan ini.'
+              ? 'Generate jadwal bulan ini — jadwal weekday dibuat sekali untuk 1 bulan.'
+              : 'Tunggu PJ Kos membuat jadwal piket.'
           }
           action={
             data.isAdmin

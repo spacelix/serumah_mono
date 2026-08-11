@@ -568,7 +568,9 @@ async function uploadQris(uri: string): Promise<string> {
 function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
   const generate = useGenerateRestOfWeek();
   const { data: dash } = useDashboard();
-  const incomplete = dash?.scheduleIncomplete ?? false;
+  // Jadwal dianggap belum ada jika minggu ini kosong (tidak ada baris jadwal).
+  // Generate bulan: weekday hari ini → +1 bulan (manual, tanpa cron).
+  const needGenerate = (dash?.scheduleWeek.length ?? 0) === 0;
 
   if (!isAdmin) return null;
 
@@ -577,8 +579,8 @@ function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
       onSuccess: (res) => {
         toast.success(
           res.count > 0
-            ? `Jadwal pekan ini berhasil dibuat (${res.count} hari).`
-            : 'Jadwal pekan ini sudah lengkap.',
+            ? `Jadwal bulanan berhasil dibuat (${res.count} hari).`
+            : 'Jadwal sudah lengkap.',
         );
       },
       onError: (e) =>
@@ -591,35 +593,35 @@ function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
       <View style={styles.generateBody}>
         <Text style={styles.generateKicker}>JADWAL PIKET</Text>
         <Text style={styles.generateTitle}>
-          {incomplete
-            ? 'Jadwal pekan ini belum dibuat'
-            : 'Jadwal pekan ini sudah ada'}
+          {needGenerate
+            ? 'Jadwal belum dibuat'
+            : 'Jadwal sudah ada'}
         </Text>
         <Text style={styles.generateSub}>
-          {incomplete
-            ? 'Generate sekali aja buat ngisi sisa pekan ini — dari hari ini sampe Minggu. Pekan depannya di-generate otomatis tiap pekan.'
-            : 'Sisa pekan ini udah penuh. Pekan depannya bakal di-generate otomatis.'}
+          {needGenerate
+            ? 'Generate sekali buat 1 bulan ke depan (Senin/Rabu/Jumat). Weekend diisi lewat status Di kos.'
+            : 'Jadwal weekday sudah dibuat untuk bulan ini. Weekend diisi lewat status Di kos.'}
         </Text>
       </View>
       <Pressable
         onPress={run}
-        disabled={generate.isPending || !incomplete}
+        disabled={generate.isPending || !needGenerate}
         style={({ pressed }) => [
           styles.generateBtn,
-          (generate.isPending || !incomplete) && styles.generateBtnDisabled,
-          pressed && incomplete && styles.generateBtnPressed,
+          (generate.isPending || !needGenerate) && styles.generateBtnDisabled,
+          pressed && needGenerate && styles.generateBtnPressed,
         ]}
       >
         <Text
           style={[
             styles.generateBtnText,
-            (generate.isPending || !incomplete) &&
+            (generate.isPending || !needGenerate) &&
               styles.generateBtnTextDisabled,
           ]}
         >
           {generate.isPending
             ? 'Mengenerate…'
-            : incomplete
+            : needGenerate
               ? 'Generate Jadwal'
               : 'Jadwal Selesai'}
         </Text>

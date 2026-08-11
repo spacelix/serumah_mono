@@ -798,6 +798,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
+    overflow: 'hidden',
   },
   dateChipToday: { backgroundColor: colors.mustard },
   dateChipTodayDim: { color: colors.mustardInkStrong },

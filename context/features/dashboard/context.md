@@ -37,6 +37,7 @@ Locked decisions:
 - Weekday piket only Senin/Rabu/Jumat. Selasa+Kamis labeled **"LIBUR"**.
 - Weekend: tag from `weekend_status` (Di kos / Pulang) or **Free** when everyone is home.
 - Per-day status tag: `Hari ini` | `Selesai` | `Terjadwal` | `Bolong` | `Free` | `LIBUR`.
+- **Weekend di-kos tanpa jadwal = `Terjadwal` (bukan `LIBUR`)** — chip tanggal tetap rounded (paper), bukan transparent; free (semua pulang) = `Free` → chip transparent.
 - Weekend toggle is ONLY available until freeze (Friday 20:00). After that read-only (see `schedule`).
 - Billing summary only for the user (not all members).
 

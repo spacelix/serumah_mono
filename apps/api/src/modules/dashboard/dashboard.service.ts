@@ -312,14 +312,16 @@ export class DashboardService {
       if (isWeekend) {
         const hari = dowIndex === 6 ? 'sabtu' : 'minggu';
         if (diKosByHari.get(hari)) {
-          statusTag = this.submissionTag(record, day, today);
+          // Di kos — kalau jadwal belum generate (record null) tetap
+          // "Terjadwal" (chip rounded), bukan LIBUR (transparent).
+          statusTag = this.submissionTag(record, day, today, true);
         } else {
           statusTag = 'Free'; // everyone Pulang — free day
         }
       } else if (!PIKET_WEEKDAYS.includes(dowIndex)) {
         statusTag = 'LIBUR';
       } else {
-        statusTag = this.submissionTag(record, day, today);
+        statusTag = this.submissionTag(record, day, today, false);
       }
 
       rows.push({
@@ -345,9 +347,13 @@ export class DashboardService {
       | undefined,
     day: Date,
     today: Date,
+    weekendDiKos = false,
   ): StatusTag {
     if (record == null) {
-      return 'LIBUR';
+      // Weekend Di kos tanpa jadwal (belum generate) = "Terjadwal" (chip
+      // rounded). Weekend Di kos DENGAN jadwal tapi belum ada jadwal sama
+      // sekali tetap menunggu. Weekday tanpa jadwal = LIBUR.
+      return weekendDiKos ? 'Terjadwal' : 'LIBUR';
     }
     const status = record.submissions[0]?.status;
     if (status === 'approved') return 'Selesai';

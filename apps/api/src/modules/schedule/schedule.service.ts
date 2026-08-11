@@ -247,8 +247,23 @@ export class ScheduleService {
 
     if (diKosMembers.length === 0) return false; // Free day (no fine)
 
-    const index = this.weekendOrdinal(day) % diKosMembers.length;
-    const member = diKosMembers[index];
+    // No back-to-back: exclude members who already hold a weekend Jadwal for
+    // the OTHER weekend day (Sabtu vs Minggu are consecutive). Like weekday,
+    // one person should not piket two days in a row.
+    const otherDay = day.getUTCDay() === 6 ? this.addDays(day, 1) : this.addDays(day, -1);
+    const otherRow = await this.prisma.jadwal.findFirst({
+      where: { rumahId, tanggal: otherDay },
+      select: { anggotaId: true },
+    });
+    const otherAssignee = otherRow?.anggotaId ?? null;
+
+    const excludeAssigned = otherAssignee
+      ? diKosMembers.filter((m) => m.id !== otherAssignee)
+      : diKosMembers;
+    const pool = excludeAssigned.length > 0 ? excludeAssigned : diKosMembers;
+
+    const index = this.weekendOrdinal(day) % pool.length;
+    const member = pool[index];
     const rooms = await this.activeRoomNames(rumahId);
 
     await this.prisma.jadwal.create({

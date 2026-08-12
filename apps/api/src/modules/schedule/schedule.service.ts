@@ -299,18 +299,24 @@ export class ScheduleService {
       return a.id.localeCompare(b.id);
     });
 
-    // Assign: pemilik hari piket pertama (Rabu) → Sabtu, kedua (Jumat) →
-    // Minggu. Non-owner bergantian mulai Sabtu (PJ → Sabtu bersama A,
-    // C → Minggu bersama B).
+    // Assign: pemilik hari piket pertama minggu ini (Rabu) → Sabtu, kedua
+    // (Jumat) → Minggu. Posisi dihitung GLOBAL (urutan hari piket minggu ini),
+    // bukan urutan dalam daftar di_kos — jadi B (Jumat, posisi 2) selalu Minggu
+    // meski A tidak ikut di_kos. Non-owner bergantian mulai Sabtu.
+    const piketDays: number[] = []; // timestamp hari piket minggu ini, urut
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = this.addDays(monday, offset);
+      if (this.isPiketDay(day)) piketDays.push(day.getTime());
+    }
     const sabtuMembers: { id: string }[] = [];
     const mingguMembers: { id: string }[] = [];
-    let piketDayOrder = 0; // urutan hari piket milik pemilik (1, 2, ...)
     let nonOwnerTurn = 0; // 0=Sabtu, 1=Minggu
     for (const m of ordered) {
       const day = this.weekdayOwnerDay(ownerByDay, m.id);
       if (day !== null) {
-        piketDayOrder += 1;
-        if (piketDayOrder % 2 === 1) sabtuMembers.push(m);
+        // posisi 1-based di piketDays → ganjil Sabtu, genap Minggu
+        const pos = piketDays.indexOf(day) + 1;
+        if (pos % 2 === 1) sabtuMembers.push(m);
         else mingguMembers.push(m);
       } else {
         nonOwnerTurn += 1;

@@ -154,7 +154,9 @@ export class DashboardService {
         orderBy: { nama: 'asc' },
         select: { id: true, nama: true },
       }),
-      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
+      this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday, anggota: { rumahId } },
+      }),
     ]);
 
     return members
@@ -285,7 +287,9 @@ export class DashboardService {
           submissions: { select: { status: true } },
         },
       }),
-      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
+      this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday, anggota: { rumahId } },
+      }),
     ]);
 
     // Pekan belum punya jadwal sama sekali → kosong; Beranda menampilkan

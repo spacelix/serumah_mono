@@ -42,7 +42,7 @@ Locked decisions (from the old phase, preserved):
 **Weekend:**
 
 - Generated from members with status `di_kos`. All `pulang` → day **Free** (no fine).
-- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekendWeek` membagi semua member di_kos MERATA 2 hari (Sabtu + Minggu) dengan rotasi `weekendOrdinal` agar adil lintas minggu (2 orang: Sabtu 1, Minggu 1; 3: Sabtu 2, Minggu 1). Idempoten (skip member yang sudah pegang jadwal weekend). **Jika hanya 1 orang di_kos, dia dapat SATU hari; hari lain Free**.
+- **No back-to-back weekend (fixed 2026-08-11):** `ensureWeekendWeek` membagi semua member di_kos MERATA 2 hari (Sabtu + Minggu) dengan rotasi `weekendOrdinal` agar adil lintas minggu (2 orang: Sabtu 1, Minggu 1; 3: Sabtu 2, Minggu 1). Idempoten (skip member yang sudah pegang jadwal weekend). **Jika hanya 1 orang di_kos, dia dapat SATU hari; hari lain Free**. Query weekendStatus **scoped `status:'di_kos'` + rumah ini** (via relasi anggota) — member `pulang` atau dari rumah lain tidak ikut di-assign (fixed 2026-08-12).
 - **Weekend event-driven (locked 2026-08-12):** generate bulan HANYA membuat weekday. Weekend di-generate saat user memilih `di_kos` utk minggu itu (`setWeekendStatus` → `ensureWeekendWeek`). Future weeks tampil Free sampai ada yang pilih.
 - Freeze: Friday 20:00 (configurable). No update → default to last week's status.
 - **Satu pilihan utk seluruh weekend (locked 2026-08-11):** `WeekendStatusDto` hanya `{ status }` — pilihan Di kos/Pulang berlaku untuk Sabtu DAN Minggu sekaligus (backend set kedua baris `weekend_status`).

@@ -225,15 +225,24 @@ export class ScheduleService {
     const sabtu = this.addDays(monday, 5);
     const minggu = this.addDays(monday, 6);
 
-    // This week's di_kos; fall back to last week's status when none recorded.
+    // This week's di_kos (scoped ke rumah ini via relasi anggota); fall back
+    // to last week's status when none recorded.
     let rows = await this.prisma.weekendStatus.findMany({
-      where: { mingguMulai: monday },
+      where: {
+        mingguMulai: monday,
+        status: 'di_kos',
+        anggota: { rumahId },
+      },
       select: { anggotaId: true },
     });
     if (rows.length === 0) {
       const lastMonday = this.addDays(monday, -7);
       rows = await this.prisma.weekendStatus.findMany({
-        where: { mingguMulai: lastMonday },
+        where: {
+          mingguMulai: lastMonday,
+          status: 'di_kos',
+          anggota: { rumahId },
+        },
         select: { anggotaId: true },
       });
     }

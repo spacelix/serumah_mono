@@ -9,9 +9,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import {
-  apiNudgeGalon,
   useConfirmGalon,
   useDashboard,
+  useNudgeGalon,
   useSetWeekendStatus,
   type DashboardData,
   type ScheduleRow,
@@ -67,17 +67,25 @@ export default function BerandaScreen() {
 function WeekendCard({ data }: { data: DashboardData }) {
   const setStatus = useSetWeekendStatus();
   const [frozenVisible, setFrozenVisible] = useState(false);
+  const [errorVisible, setErrorVisible] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const status = data.weekend.status;
   const didKos = status === 'di_kos';
+  const inCooldown = isCooldownActive(data.weekend.nextChangeAt);
 
   const set = (next: WeekendChoice) => {
     if (data.weekend.frozen) {
       setFrozenVisible(true);
       return;
     }
-    if (setStatus.isPending || next === status) return; // cegah spam/duplikat
-    setStatus.mutate(next);
+    if (setStatus.isPending || inCooldown || next === status) return; // cegah spam/duplikat
+    setStatus.mutate(next, {
+      onError: (e) => {
+        setErrorMsg(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+        setErrorVisible(true);
+      },
+    });
   };
 
   const sabtuDate = weekendDate(5);
@@ -97,19 +105,21 @@ function WeekendCard({ data }: { data: DashboardData }) {
           : 'Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.'}
       </Text>
       <View style={styles.weekendDayRow}>
-        <Text style={styles.weekendDayLabel}>
+        <Text style={styles.weekendDayLabel} numberOfLines={1}>
           {formatWeekdayDate(sabtuDate)} & {formatWeekdayDate(mingguDate)}
         </Text>
         <View style={styles.weekendDayBtns}>
           <Pressable
             onPress={() => set('di_kos')}
-            disabled={setStatus.isPending || status === 'di_kos'}
-            style={[
+            disabled={setStatus.isPending || inCooldown || status === 'di_kos'}
+            style={({ pressed }) => [
               styles.weekendDayBtn,
               status === 'di_kos' && styles.weekendDayBtnActive,
+              pressed && styles.weekendDayBtnPressed,
             ]}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.weekendDayBtnText,
                 status === 'di_kos' && styles.weekendDayBtnTextActive,
@@ -120,10 +130,11 @@ function WeekendCard({ data }: { data: DashboardData }) {
           </Pressable>
           <Pressable
             onPress={() => set('pulang')}
-            disabled={setStatus.isPending || status === 'pulang'}
-            style={[
+            disabled={setStatus.isPending || inCooldown || status === 'pulang'}
+            style={({ pressed }) => [
               styles.weekendDayBtn,
               status === 'pulang' && styles.weekendDayBtnActive,
+              pressed && styles.weekendDayBtnPressed,
             ]}
           >
             <Text
@@ -137,6 +148,11 @@ function WeekendCard({ data }: { data: DashboardData }) {
           </Pressable>
         </View>
       </View>
+      {inCooldown && data.weekend.nextChangeAt && (
+        <Text style={styles.weekendCooldown}>
+          Ganti status lagi {cooldownHint(data.weekend.nextChangeAt)}.
+        </Text>
+      )}
       {didKos && (
         <View style={styles.weekendNotice}>
           <Text style={styles.weekendNoticeText}>
@@ -175,8 +191,33 @@ function WeekendCard({ data }: { data: DashboardData }) {
         onConfirm={() => setFrozenVisible(false)}
         onCancel={() => setFrozenVisible(false)}
       />
+      <ConfirmDialog
+        visible={errorVisible}
+        title="Gagal ubah status"
+        message={errorMsg}
+        confirmText="Tutup"
+        single
+        onConfirm={() => setErrorVisible(false)}
+        onCancel={() => setErrorVisible(false)}
+      />
     </View>
   );
+}
+
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/** True jika `nextChangeAt` (ISO) masih di masa depan. */
+function isCooldownActive(nextChangeAt: string | null): boolean {
+  if (!nextChangeAt) return false;
+  return new Date(nextChangeAt).getTime() > Date.now();
+}
+
+/** "pukul 17:30" — waktu WIB kapan cooldown berakhir. */
+function cooldownHint(nextChangeAt: string): string {
+  const wib = new Date(new Date(nextChangeAt).getTime() + WIB_OFFSET_MS);
+  const hh = String(wib.getUTCHours()).padStart(2, '0');
+  const mm = String(wib.getUTCMinutes()).padStart(2, '0');
+  return `pukul ${hh}:${mm} WIB`;
 }
 
 function weekendDate(dowOffset: number): string {
@@ -192,10 +233,11 @@ function weekendDate(dowOffset: number): string {
 
 function GalonWidget({ data }: { data: DashboardData }) {
   const confirm = useConfirmGalon();
+  const nudge = useNudgeGalon();
   const giliran = data.galon;
   const [error, setError] = useState<string | null>(null);
-  const [nudged, setNudged] = useState(false);
   const [justBought, setJustBought] = useState(false);
+  const nudgedToday = giliran.nudgedToday;
 
   const onBuy = () => {
     if (giliran.giliran == null) return;
@@ -209,8 +251,11 @@ function GalonWidget({ data }: { data: DashboardData }) {
   };
 
   const onNudge = () => {
-    setNudged(true);
-    void apiNudgeGalon();
+    if (nudgedToday || nudge.isPending) return;
+    nudge.mutate(undefined, {
+      onError: (e) =>
+        setError(e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+    });
   };
 
   const hasTurn = giliran.namaAnggota != null;
@@ -251,11 +296,11 @@ function GalonWidget({ data }: { data: DashboardData }) {
         ) : (
           <Pressable
             onPress={onNudge}
-            disabled={nudged}
+            disabled={nudgedToday || nudge.isPending}
             accessibilityLabel={`Kirim notif ke ${giliran.namaAnggota ?? ''}`}
             style={({ pressed }) => [
               styles.galonNudgeBtn,
-              nudged && styles.galonNudgeBtnNudged,
+              nudgedToday && styles.galonNudgeBtnNudged,
               pressed && styles.galonNudgeBtnPressed,
             ]}
           >
@@ -264,7 +309,7 @@ function GalonWidget({ data }: { data: DashboardData }) {
               height={17}
               viewBox="0 0 24 24"
               fill="none"
-              stroke={nudged ? colors.mustard : colors.inkSoft}
+              stroke={nudgedToday ? colors.mustard : colors.inkSoft}
               strokeWidth={1.9}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -275,9 +320,9 @@ function GalonWidget({ data }: { data: DashboardData }) {
         )}
       </View>
       {hasTurn && !giliran.isMine && (
-        <Text style={[styles.galonNote, nudged && styles.galonNoteNudged]}>
-          {nudged
-            ? `Notif sudah dikirim ke ${giliran.namaAnggota}`
+        <Text style={[styles.galonNote, nudgedToday && styles.galonNoteNudged]}>
+          {nudgedToday
+            ? 'Kamu udah colek hari ini. Coba lagi besok.'
             : 'Galon habis? colek dia biar segera beli'}
         </Text>
       )}
@@ -597,14 +642,18 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
     color: colors.paper,
+    flex: 1,
+    minWidth: 0,
   },
-  weekendDayBtns: { flexDirection: 'row', gap: 5 },
+  weekendDayBtns: { flexDirection: 'row', gap: 5, flexShrink: 0 },
   weekendDayBtn: {
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 9,
     backgroundColor: 'rgba(239, 234, 224, 0.14)',
+    flexShrink: 0,
   },
+  weekendDayBtnPressed: { opacity: 0.75 },
   weekendDayBtnActive: { backgroundColor: colors.paper },
   weekendDayBtnText: {
     fontFamily: fontFamilies.body[600],
@@ -612,6 +661,13 @@ const styles = StyleSheet.create({
     color: 'rgba(239, 234, 224, 0.8)',
   },
   weekendDayBtnTextActive: { color: colors.ink },
+  weekendCooldown: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: 'rgba(239, 234, 224, 0.8)',
+    marginTop: 2,
+  },
   weekendOthers: {
     marginTop: 11,
     flexGrow: 0,

@@ -7,6 +7,7 @@ import { GalonService } from '../galon/galon.service';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
 const FREEZE_HOUR = 20; // Jumat 20:00 WIB
+const WEEKEND_STATUS_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 jam (locked 2026-08-12)
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 const DOW_FULL = [
   'Minggu',
@@ -71,6 +72,7 @@ export class DashboardService {
       weekend: {
         status: null,
         frozen: false,
+        nextChangeAt: null,
         anggotaLain: [],
       },
       galon: { giliran: null, namaAnggota: null, isMine: false },
@@ -132,9 +134,23 @@ export class DashboardService {
     // 2026-08-11) — ambil status dari hari sabtu (identik dgn minggu).
     const status = rows.find((r) => r.hari === 'sabtu')?.status ?? null;
 
+    // Cooldown 6 jam (locked 2026-08-12): kapan boleh ganti status lagi.
+    let nextChangeAt: string | null = null;
+    if (rows.length > 0) {
+      const lastChange = rows.reduce<Date>(
+        (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
+        rows[0]!.updatedAt,
+      );
+      const next = new Date(
+        lastChange.getTime() + WEEKEND_STATUS_COOLDOWN_MS,
+      );
+      if (next > new Date()) nextChangeAt = next.toISOString();
+    }
+
     return {
       status,
       frozen: this.isFrozen(monday),
+      nextChangeAt,
     };
   }
 

@@ -23,8 +23,8 @@ Module: `dashboard` (aggregate) or existing endpoints.
 
 Payload composition:
 
-- `weekend`: **satu status** (`di_kos`/`pulang`/null) untuk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked 2026-08-11) + `frozen` + `anggotaLain`.
-- `galon`: active turn (`GiliranGalon` + member name).
+- `weekend`: **satu status** (`di_kos`/`pulang`/null) untuk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked 2026-08-11) + `frozen` + `nextChangeAt` (ISO, waktu WIB kapan cooldown 6 jam berakhir; null bila tidak dalam cooldown, locked 2026-08-12) + `anggotaLain`.
+- `galon`: active turn (`GiliranGalon` + member name) + `nudgedToday` (caller sudah nudge hari ini WIB).
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
 - `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag, anggotaList[], isMine }` — `anggotaList` bisa lebih dari 1 (weekend tumpuk, beberapa orang piket di hari yang sama).
 - `scheduleIncomplete`: true when an upcoming piket day this week (today→Sunday) is not yet scheduled (weekday without Jadwal, or weekend with Di kos members without Jadwal).
@@ -45,7 +45,7 @@ Locked decisions:
 
 Screen: `app/(tabs)/index.tsx`. Components: `WeekendCard`, `GalonWidget`, `BillingSummary`, `ScheduleList`.
 
-- **WeekendCard** (hero, bg pine): "Weekend ini lo di kos?" + **satu toggle** Di kos/Pulang yang berlaku untuk Sabtu & Minggu (bukan per-day). States: Di kos / Pulang. Tombol disabled saat status sudah sama / sedang memproses (cegah spam notif).
+- **WeekendCard** (hero, bg pine): "Weekend ini lo di kos?" + **satu toggle** Di kos/Pulang yang berlaku untuk Sabtu & Minggu (bukan per-day). States: Di kos / Pulang. Tombol disabled saat status sudah sama / sedang memproses (cegah spam notif) / **dalam cooldown 6 jam** (hint "Ganti status lagi pukul HH:MM WIB"). Error mutation ditampilkan via ConfirmDialog (misal ditolak 400/403).
 - **GalonWidget** (gold accent, 4px left border): "Giliran galon: [Nama]" + **"Sudah Beli"** button (see galon).
 - **BillingSummary**: concise total unpaid + **"Lihat detail"** → navigate to Tagihan tab.
 - **ScheduleList**: 7 rows (Senin–Minggu). Each: date chip (mono, mustard if today), member name, room names, status tag. LIBUR dashed.

@@ -20,6 +20,7 @@ const WEEKEND_HARI: Record<number, 'sabtu' | 'minggu'> = {
 };
 const FREEZE_HOUR = 20; // Jumat 20:00 WIB
 const FINE_DEADLINE_HOUR = 20; // 20:00 WIB
+const WEEKEND_STATUS_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 jam (locked 2026-08-12)
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 
 @Injectable()
@@ -224,23 +225,24 @@ export class ScheduleService {
   /**
    * Atur jadwal weekend (locked 2026-08-12):
    * 1. Hapus jadwal weekend tanpa submission (re-distribute penuh).
-   * 2. Urutkan di_kos: pemilik slot weekday minggu ini dulu (A=Rabu → Sabtu,
-   *    B=Jumat → Minggu), lalu non-owner (PJ, C) — berdasar round-robin
-   *    `weekdayOrdinal(day) % n` yang deterministik.
-   * 3. Bergantian Sabtu/Minggu — beberapa orang boleh TUMPUK di hari sama.
+   * 2. Urutkan di_kos berdasar URUTAN MEMILIH (weekendStatus.createdAt) —
+   *    bukan urutan pemilik weekday.
+   * 3. Assign bergantian Sabtu/Minggu: pilih pertama → Sabtu, kedua → Minggu,
+   *    ketiga → Sabtu (tumpuk), dst.
    */
   private async ensureWeekendWeek(rumahId: string, monday: Date): Promise<number> {
     const sabtu = this.addDays(monday, 5);
     const minggu = this.addDays(monday, 6);
 
-    // This week's di_kos (scoped ke rumah ini via relasi anggota); fall back
-    // to last week's status when none recorded.
+    // This week's di_kos (scoped ke rumah ini via relasi anggota), urut by
+    // createdAt (urutan memilih); fall back to last week's status.
     let rows = await this.prisma.weekendStatus.findMany({
       where: {
         mingguMulai: monday,
         status: 'di_kos',
         anggota: { rumahId },
       },
+      orderBy: { createdAt: 'asc' },
       select: { anggotaId: true },
     });
     if (rows.length === 0) {
@@ -251,18 +253,24 @@ export class ScheduleService {
           status: 'di_kos',
           anggota: { rumahId },
         },
+        orderBy: { createdAt: 'asc' },
         select: { anggotaId: true },
       });
     }
     if (rows.length === 0) return 0;
 
-    const diKosIds = [...new Set(rows.map((r) => r.anggotaId))];
+    const orderedIds = rows.map((r) => r.anggotaId);
     const diKosMembers = await this.prisma.anggota.findMany({
-      where: { rumahId, id: { in: diKosIds } },
-      orderBy: { createdAt: 'asc' },
+      where: { rumahId, id: { in: orderedIds } },
       select: { id: true },
     });
     if (diKosMembers.length === 0) return 0;
+
+    // Pertahankan urutan pilihan (rows sudah urut createdAt).
+    const orderIndex = new Map(orderedIds.map((id, i) => [id, i]));
+    const ordered = [...diKosMembers].sort(
+      (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
+    );
 
     // Hapus jadwal weekend tanpa submission (re-distribute penuh).
     const existingRows = await this.prisma.jadwal.findMany({
@@ -276,34 +284,7 @@ export class ScheduleService {
       });
     }
 
-    // Pemilik weekday minggu ini berdasar round-robin: untuk tiap hari piket
-    // yang BELUM LEWAT (≥ hari ini), pemilik = weekdayOrdinal(day) % n.
-    // Deterministik — tidak bergantung pada row yang tersisa.
-    const today = this.toDate(new Date());
-    const allMembers = await this.members(rumahId);
-    const n = allMembers.length;
-    const ownerByDay = new Map<number, string>(); // timestamp → anggotaId
-    for (let offset = 0; offset < 7; offset += 1) {
-      const day = this.addDays(monday, offset);
-      if (!this.isPiketDay(day) || day < today) continue;
-      const index = this.weekdayOrdinal(day) % n;
-      ownerByDay.set(day.getTime(), allMembers[index]!.id);
-    }
-
-    // Urut: pemilik weekday dulu (by day), lalu non-owner (by createdAt).
-    const ordered = [...diKosMembers].sort((a, b) => {
-      const dayA = this.weekdayOwnerDay(ownerByDay, a.id);
-      const dayB = this.weekdayOwnerDay(ownerByDay, b.id);
-      if (dayA !== null && dayB !== null) return dayA - dayB;
-      if (dayA !== null) return -1;
-      if (dayB !== null) return 1;
-      return a.id.localeCompare(b.id);
-    });
-
-    // Assign bergantian Sabtu/Minggu atas daftar `ordered` (pemilik weekday
-    // dulu, lalu non-owner). Jadi jika cuma B yang di_kos → B ke Sabtu (hari
-    // kosong pertama), A+B → A Sabtu & B Minggu, PJ tumpuk Sabtu bersama A,
-    // C tumpuk Minggu bersama B.
+    // Assign bergantian Sabtu/Minggu atas daftar `ordered` (urutan memilih).
     const sabtuMembers: { id: string }[] = [];
     const mingguMembers: { id: string }[] = [];
     ordered.forEach((m, idx) => {
@@ -331,17 +312,6 @@ export class ScheduleService {
     await assign(sabtu, sabtuMembers);
     await assign(minggu, mingguMembers);
     return created;
-  }
-
-  /** Timestamp hari piket minggu ini yang menjadi milik anggotaId, atau null. */
-  private weekdayOwnerDay(
-    ownerByDay: Map<number, string>,
-    anggotaId: string,
-  ): number | null {
-    for (const [ts, owner] of ownerByDay) {
-      if (owner === anggotaId) return ts;
-    }
-    return null;
   }
 
   private async activeRoomNames(rumahId: string): Promise<string[]> {
@@ -498,6 +468,21 @@ export class ScheduleService {
     const monday = this.mondayOf(new Date());
     this.assertNotFrozen(monday);
 
+    // Cooldown 6 jam (locked 2026-08-12): user tidak boleh ganti status
+    // weekend dalam waktu berdekatan (misal pagi pilih, sore baru boleh lagi).
+    const lastChange = await this.lastWeekendStatusChange(anggota.id, monday);
+    if (lastChange) {
+      const elapsed = new Date().getTime() - lastChange.getTime();
+      if (elapsed < WEEKEND_STATUS_COOLDOWN_MS) {
+        const remainingMin = Math.ceil(
+          (WEEKEND_STATUS_COOLDOWN_MS - elapsed) / 60_000,
+        );
+        throw new BadRequestException(
+          `Kamu baru aja ganti status. Tunggu ${remainingMin} menit lagi untuk ganti.`,
+        );
+      }
+    }
+
     // 1 pilihan berlaku untuk seluruh weekend: set hari sabtu + minggu dengan
     // status yang sama (locked 2026-08-11).
     const hariList = ['sabtu', 'minggu'] as const;
@@ -643,6 +628,26 @@ export class ScheduleService {
         'Status akhir pekan telah dibekukan (Jumat 20:00).',
       );
     }
+  }
+
+  /**
+   * Waktu perubahan status weekend terakhir untuk anggota ini pada minggu
+   * tersebut (max updatedAt dari baris sabtu/minggu), atau null bila belum
+   * pernah memilih. Dipakai untuk cooldown 6 jam (locked 2026-08-12).
+   */
+  private async lastWeekendStatusChange(
+    anggotaId: string,
+    monday: Date,
+  ): Promise<Date | null> {
+    const rows = await this.prisma.weekendStatus.findMany({
+      where: { anggotaId, mingguMulai: monday },
+      select: { updatedAt: true },
+    });
+    if (rows.length === 0) return null;
+    return rows.reduce<Date>(
+      (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
+      rows[0]!.updatedAt,
+    );
   }
 
   // ── AUTO-FINE ───────────────────────────────────────────────────────

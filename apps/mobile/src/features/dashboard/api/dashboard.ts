@@ -6,6 +6,7 @@ export type WeekendChoice = 'di_kos' | 'pulang';
 export interface WeekendInfo {
   status: WeekendChoice | null;
   frozen: boolean;
+  nextChangeAt: string | null;
   anggotaLain: { id: string; nama: string; status: string }[];
 }
 
@@ -13,6 +14,7 @@ export interface GalonInfo {
   giliran: { id: string; periodeMulai: string; status: string } | null;
   namaAnggota: string | null;
   isMine: boolean;
+  nudgedToday: boolean;
 }
 
 export interface BillingInfo {
@@ -106,6 +108,15 @@ export function useSetWeekendStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (status: WeekendChoice) => apiSetWeekendStatus(status),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+  });
+}
+
+export function useNudgeGalon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiNudgeGalon,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
   });

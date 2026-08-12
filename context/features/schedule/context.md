@@ -49,7 +49,7 @@ Locked decisions (from the old phase, preserved):
 - The `hari` column = saturday/sunday per row (drift, preserved).
 - **Generate on Di kos (locked 2026-08-08):** choosing `di_kos` for a weekend day immediately generates that day's Jadwal so the UI shows who piket right away.
 - **Pulang menghapus jadwal weekend (locked 2026-08-12):** saat anggota mengubah status dari `di_kos` ke `pulang`, sistem **menghapus baris Jadwal weekend milik anggota tersebut** untuk minggu itu, lalu menjalankan `ensureWeekendWeek` untuk mendistribusikan ulang anggota `di_kos` yang tersisa.
-- **Bebas weekday tanpa regenerate (locked 2026-08-12):** saat user pilih `di_kos`, pada minggu itu dia bebas piket weekday — baris Jadwal weekday miliknya untuk minggu itu **dihapus dan TIDAK digantikan siapa pun** (hari itu jadi tanpa penanggung jawab).
+- **Bebas weekday tanpa regenerate (locked 2026-08-12):** saat user pilih `di_kos`, pada minggu itu dia bebas piket weekday — baris Jadwal weekday miliknya di minggu itu (Sen/Rab/Jum SAJA) **dihapus dan TIDAK digantikan siapa pun**. Weekend yang dibuat `ensureWeekendWeek` **tidak terhapus** (fix 2026-08-12).
 - **Pulang → weekday kembali (locked 2026-08-12):** saat user pilih `pulang`, jadwal weekend miliknya dihapus, lalu `restoreWeekdayForMember` mengisi ulang hari piket (Sen/Rab/Jum) yang **kosong** mulai hari ini sampai akhir bulan berjalan dengan member ini — mengembalikan weekday yang dihapus saat di_kos.
 - **Notifikasi status (locked 2026-08-11):** `setWeekendStatus` mengirim push ke **semua anggota lain** ("{nama} Di kos akhir pekan ini." / "{nama} pulang akhir pekan ini.").
 

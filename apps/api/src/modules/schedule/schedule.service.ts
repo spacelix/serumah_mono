@@ -511,20 +511,27 @@ export class ScheduleService {
   /**
    * Bebas weekday tanpa regenerate (locked 2026-08-12): saat user pilih
    * `di_kos`, pada minggu itu dia bebas piket weekday — hapus baris Jadwal
-   * weekday miliknya di minggu itu. TIDAK digantikan siapa pun (hari jadi
-   * tanpa penanggung jawab). Ini menggantikan `reconcileWeekdayForWeekend`
-   * yang lama (yang meregenerasi ulang dan menyebabkan jadwal berubah).
+   * weekday miliknya di minggu itu (Sen/Rab/Jum SAJA, BUKAN weekend).
+   * TIDAK digantikan siapa pun (hari jadi tanpa penanggung jawab).
    */
   private async clearWeekdayForMember(
     rumahId: string,
     anggotaId: string,
     monday: Date,
   ): Promise<void> {
+    // Hapus hanya hari piket weekday (Sabtu/Minggu di-keep — weekend yang
+    // baru dibuat oleh ensureWeekendWeek tidak boleh terhapus).
+    const weekdayDates: Date[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = this.addDays(monday, offset);
+      if (this.isPiketDay(day)) weekdayDates.push(day);
+    }
+
     const result = await this.prisma.jadwal.deleteMany({
       where: {
         rumahId,
         anggotaId,
-        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
+        tanggal: { in: weekdayDates },
       },
     });
     if (result.count > 0) {

@@ -66,6 +66,16 @@ function todayWib(): Date {
   );
 }
 
+function addDays(date: Date, days: number): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() + days,
+    ),
+  );
+}
+
 const roomNames = ROOMS.map((r) => r.nama);
 
 function makeUser(id: string, email: string): User {
@@ -139,11 +149,12 @@ async function main() {
     }
   }
 
-  // ── JADWAL WEEKDAY: hanya HARI INI (jika hari piket). Tidak ada hari lewat
-  // (tidak ada card piket aktif di hari lampau) dan besok sudah kosong →
-  // alur "jadwal habis" bisa diuji. Semua anggota AWALNYA "belum pilih"
-  // status weekend (tidak ada weekendStatus) → test di_kos/pulang manual.
+  // Generate hari piket weekday MINGGU INI (hari ini → Minggu): Rab 12, Jum 14.
+  // Minggu depan kosong → alur "jadwal habis" teruji. Semua anggota "belum
+  // pilih" weekend → test di_kos/pulang manual di app.
   const today = todayWib();
+  const monday = addDays(today, -((today.getUTCDay() + 6) % 7));
+  const sunday = addDays(monday, 6);
 
   // Clean existing demo schedule + weekend status rows (idempotent re-run).
   await prisma.jadwal.deleteMany({ where: { rumahId: rumah.id } });
@@ -152,15 +163,23 @@ async function main() {
   });
 
   let count = 0;
-  if (PIKET_WEEKDAYS.includes(today.getUTCDay())) {
-    // Round-robin dimulai dari Demo A (seq 1 → anggotaData[1]) agar bukan PJ.
-    const member = anggotaData[1]!.id;
-    const jadwalId = '00000000-0000-0000-0000-0000000d0a00';
+  let seq = 0;
+  for (
+    let cursor = today;
+    cursor <= sunday;
+    cursor = addDays(cursor, 1)
+  ) {
+    if (!PIKET_WEEKDAYS.includes(cursor.getUTCDay())) continue;
+    seq += 1;
+    // Round-robin bergilir PJ → A → B, dimulai dari Demo A agar bukan PJ di
+    // hari pertama (hari ini Rabu 12 = Demo A, Jumat 14 = Demo B).
+    const member = anggotaData[seq % anggotaData.length]!.id;
+    const jadwalId = `00000000-0000-0000-0000-0000000d0a0${seq}`;
     await prisma.jadwal.create({
       data: {
         id: jadwalId,
         rumahId: rumah.id,
-        tanggal: today,
+        tanggal: cursor,
         anggotaId: member,
         ruangan: roomNames,
       },
@@ -176,7 +195,7 @@ async function main() {
     hariIni: today.toISOString().slice(0, 10),
     jadwalWeekday: count,
     catatan:
-      'Jadwal weekday berakhir hari ini — setelah ini kosong. Test: buka app, jadwal kosong + tombol Generate; cron 22:00 kirim notif PJ.',
+      'Jadwal weekday minggu ini (Rab 12 + Jum 14) — minggu depan kosong. Test: di_kos/pulang minggu ini, empty state minggu depan.',
   });
 }
 

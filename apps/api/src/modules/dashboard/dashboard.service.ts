@@ -24,7 +24,7 @@ type StatusTag =
 export interface ScheduleRow {
   tanggal: Date;
   dow: string;
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
   ruangan: string[];
   statusTag: StatusTag;
@@ -293,20 +293,17 @@ export class DashboardService {
       return [];
     }
 
-    const jadwalByDate = new Map(jadwal.map((j) => [this.key(j.tanggal), j]));
-
     const rows: ScheduleRow[] = [];
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
       const dowIndex = day.getUTCDay();
-      const record = jadwalByDate.get(this.key(day));
+      const dayJadwal = jadwal.filter((j) => this.key(j.tanggal) === this.key(day));
+      const record = dayJadwal[0]; // untuk status tag / submission
       const isWeekend = dowIndex === 0 || dowIndex === 6;
 
       let statusTag: StatusTag;
       if (isWeekend) {
         // Weekend aktif HANYA jika ada jadwal (seseorang dapat piket hari itu).
-        // Kalau tidak ada yang dapat (record null) → Free. Ini membuat Sabtu
-        // aktif, Minggu tidak (bila hanya Sabtu yang kebagian).
         if (record) {
           statusTag = this.submissionTag(record, day, today, true);
         } else {
@@ -321,9 +318,9 @@ export class DashboardService {
       rows.push({
         tanggal: day,
         dow: DOW_FULL[dowIndex],
-        anggota: record?.anggota ?? null,
-        isMine: record?.anggota.id === currentAnggotaId,
-        ruangan: record?.ruangan ?? [],
+        anggotaList: dayJadwal.map((j) => j.anggota),
+        isMine: dayJadwal.some((j) => j.anggota.id === currentAnggotaId),
+        ruangan: dayJadwal[0]?.ruangan ?? [],
         statusTag,
       });
     }

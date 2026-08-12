@@ -26,7 +26,7 @@ Payload composition:
 - `weekend`: **satu status** (`di_kos`/`pulang`/null) untuk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked 2026-08-11) + `frozen` + `anggotaLain`.
 - `galon`: active turn (`GiliranGalon` + member name).
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
-- `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag }`.
+- `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag, anggotaList[], isMine }` — `anggotaList` bisa lebih dari 1 (weekend tumpuk, beberapa orang piket di hari yang sama).
 - `scheduleIncomplete`: true when an upcoming piket day this week (today→Sunday) is not yet scheduled (weekday without Jadwal, or weekend with Di kos members without Jadwal).
 - `isAdmin`: whether the caller is the PJ (`role='admin'`).
 

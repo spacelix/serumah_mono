@@ -29,7 +29,7 @@ export type ScheduleTag =
 export interface ScheduleRow {
   tanggal: string;
   dow: string;
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
   ruangan: string[];
   statusTag: ScheduleTag;
@@ -50,7 +50,7 @@ interface ApiScheduleRow {
   dow: string;
   statusTag: ScheduleTag;
   ruangan: string[];
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
 }
 

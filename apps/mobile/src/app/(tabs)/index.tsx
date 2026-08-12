@@ -382,11 +382,14 @@ function ScheduleRowItem({ row }: { row: ScheduleRow }) {
   const today = isToday(row.tanggal);
   const isWeekendDay = row.dow === 'Sabtu' || row.dow === 'Minggu';
   const isLibur = row.statusTag === 'LIBUR' || row.statusTag === 'Free';
-  const hasMember = row.anggota != null && !isLibur;
+  const hasMember = row.anggotaList.length > 0 && !isLibur;
 
-  const name = hasMember
-    ? `${row.anggota!.nama}${row.isMine ? ' (lo)' : ''}`
-    : 'Libur';
+  const names = row.anggotaList.map((a) =>
+    row.isMine && row.anggotaList.length === 1
+      ? `${a.nama} (lo)`
+      : a.nama,
+  );
+  const name = hasMember ? names.join(', ') : 'Libur';
   const sub = hasMember
     ? row.ruangan.join(' · ')
     : liburSubtitle(isWeekendDay, row.dow);

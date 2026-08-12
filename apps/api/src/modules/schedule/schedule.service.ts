@@ -300,32 +300,16 @@ export class ScheduleService {
       return a.id.localeCompare(b.id);
     });
 
-    // Assign: pemilik hari piket pertama yang BELUM LEWAT (Rabu) → Sabtu,
-    // kedua (Jumat) → Minggu. Posisi dihitung GLOBAL (urutan hari piket
-    // tersisa minggu ini), bukan urutan dalam daftar di_kos — jadi B (Jumat,
-    // posisi 2) selalu Minggu meski A tidak ikut di_kos. Non-owner bergantian
-    // mulai Sabtu.
-    const piketDays: number[] = []; // timestamp hari piket tersisa, urut
-    for (let offset = 0; offset < 7; offset += 1) {
-      const day = this.addDays(monday, offset);
-      if (this.isPiketDay(day) && day >= today) piketDays.push(day.getTime());
-    }
+    // Assign bergantian Sabtu/Minggu atas daftar `ordered` (pemilik weekday
+    // dulu, lalu non-owner). Jadi jika cuma B yang di_kos → B ke Sabtu (hari
+    // kosong pertama), A+B → A Sabtu & B Minggu, PJ tumpuk Sabtu bersama A,
+    // C tumpuk Minggu bersama B.
     const sabtuMembers: { id: string }[] = [];
     const mingguMembers: { id: string }[] = [];
-    let nonOwnerTurn = 0; // 0=Sabtu, 1=Minggu
-    for (const m of ordered) {
-      const day = this.weekdayOwnerDay(ownerByDay, m.id);
-      if (day !== null) {
-        // posisi 1-based di piketDays → ganjil Sabtu, genap Minggu
-        const pos = piketDays.indexOf(day) + 1;
-        if (pos % 2 === 1) sabtuMembers.push(m);
-        else mingguMembers.push(m);
-      } else {
-        nonOwnerTurn += 1;
-        if (nonOwnerTurn % 2 === 1) sabtuMembers.push(m);
-        else mingguMembers.push(m);
-      }
-    }
+    ordered.forEach((m, idx) => {
+      if (idx % 2 === 0) sabtuMembers.push(m);
+      else mingguMembers.push(m);
+    });
 
     const rooms = await this.activeRoomNames(rumahId);
     let created = 0;

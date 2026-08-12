@@ -219,6 +219,7 @@ export class NotificationsService {
         title: `Update Serumah ${versionName} tersedia`,
         body: notes || 'Versi baru udah rilis — ketuk buat update.',
         deepLink: '/',
+        action: 'update',
       },
     );
   }

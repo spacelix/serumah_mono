@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
 import { apiClient } from '@/lib/api-client';
+import { emitUpdateCheck } from '@/lib/update-events';
 
 /**
  * Push notifications via Expo Push Service (best practice).
@@ -129,9 +130,15 @@ export async function setupNotifications(): Promise<(() => void) | null> {
   });
   void configureAndroidChannel();
   const sub = Notifications.addNotificationResponseReceivedListener((res) => {
-    const route = routeForDeepLink(
-      (res.notification.request.content.data?.deepLink as string) ?? null,
-    );
+    const data = res.notification.request.content.data as
+      | Record<string, unknown>
+      | undefined;
+    // Notif "update tersedia": selain navigate, langsung paksa re-check update
+    // supaya popup muncul walau app sudah berada di foreground.
+    if (data?.action === 'update') {
+      emitUpdateCheck();
+    }
+    const route = routeForDeepLink((data?.deepLink as string) ?? null);
     if (route) goToRoute(route);
   });
   return () => sub.remove();

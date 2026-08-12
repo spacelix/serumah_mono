@@ -112,7 +112,7 @@ jobs:
         run: |
           VERSION_NAME=$(node -e "console.log(require('./app.json').expo.version)")
           NOTES=$(git log -1 --pretty=%s | tr -d '"')
-          curl -sS -X POST "$API_URL/update/announce" \
+          curl -sS --retry 3 --retry-delay 2 -X POST "$API_URL/api/update/announce" \
             -H "Content-Type: application/json" \
             -H "x-announce-secret: $ANNOUNCE_SECRET" \
             -d "{\"versionName\":\"$VERSION_NAME\",\"notes\":\"$NOTES\"}" || echo "announce failed (non-fatal)"

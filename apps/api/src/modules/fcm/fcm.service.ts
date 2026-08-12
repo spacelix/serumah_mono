@@ -4,6 +4,9 @@ export interface PushMessage {
   title: string;
   body: string;
   deepLink?: string;
+  /** Aksi opsional — client menggunakannya untuk memicu perilaku tertentu
+   * saat notif di-tap (misal `update` → langsung re-check update). */
+  action?: string;
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -41,7 +44,10 @@ export class FcmService {
           to: token,
           title: msg.title,
           body: msg.body,
-          data: msg.deepLink ? { deepLink: msg.deepLink } : {},
+          data: {
+            ...(msg.deepLink ? { deepLink: msg.deepLink } : {}),
+            ...(msg.action ? { action: msg.action } : {}),
+          },
         }),
       });
       const body = (await res.json()) as {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 
 import {
   fetchUpdateManifest,
@@ -9,6 +9,7 @@ import {
   type UpdateDecision,
   type UpdateManifest,
 } from '@/lib/update';
+import { UPDATE_CHECK_EVENT } from '@/lib/update-events';
 
 export interface UpdateCheckResult {
   decision: UpdateDecision;
@@ -43,17 +44,23 @@ export function useUpdateCheck(): UpdateCheckResult {
 
   // Check on mount + re-check every time the app returns to the foreground
   // (e.g. user taps the "update available" push notification → app opens →
-  // dialog shows even if the app was already running in background).
+  // dialog shows even if the app was already running in background). Juga
+  // re-check saat notif "update tersedia" di-tap (emitUpdateCheck) — supaya
+  // popup muncul walau app sudah foreground.
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       void check();
     });
-    const sub = AppState.addEventListener('change', (state) => {
+    const appSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') void check();
+    });
+    const eventSub = DeviceEventEmitter.addListener(UPDATE_CHECK_EVENT, () => {
+      void check();
     });
     return () => {
       cancelAnimationFrame(id);
-      sub.remove();
+      appSub.remove();
+      eventSub.remove();
     };
   }, []);
 

@@ -149,10 +149,32 @@ async function main() {
     }
   }
 
+  // ── WEEKEND STATUS: Demo A di_kos utk minggu berjalan (rule: di_kos →
+  // bebas weekday minggu itu). Set SEBELUM generate weekday supaya konsisten.
+  const today = todayWib();
+  const monday = addDays(today, -((today.getUTCDay() + 6) % 7));
+  for (const hari of ['sabtu', 'minggu'] as const) {
+    await prisma.weekendStatus.upsert({
+      where: {
+        anggotaId_mingguMulai_hari: {
+          anggotaId: memberIds.a,
+          mingguMulai: monday,
+          hari,
+        },
+      },
+      update: { status: 'di_kos' },
+      create: {
+        anggotaId: memberIds.a,
+        mingguMulai: monday,
+        hari,
+        status: 'di_kos',
+      },
+    });
+  }
+
   // ── JADWAL WEEKDAY: masa lalu sampai HARI INI (hari terakhir = hari ini).
   // Mulai 21 hari lalu, generate tiap Sen/Rab/Jum hingga hari ini. Setelah
   // hari ini TIDAK ada jadwal → alur "jadwal habis" bisa diuji.
-  const today = todayWib();
   const start = addDays(today, -21);
 
   // Clean existing demo schedule rows first (idempotent re-run).
@@ -183,27 +205,15 @@ async function main() {
     count += 1;
   }
 
-  // Weekend status minggu berjalan: Demo A di_kos (biar weekend ter-generate
-  // saat status dipilih / ada jadwal yang bisa diuji).
-  const monday = addDays(today, -((today.getUTCDay() + 6) % 7));
-  for (const hari of ['sabtu', 'minggu'] as const) {
-    await prisma.weekendStatus.upsert({
-      where: {
-        anggotaId_mingguMulai_hari: {
-          anggotaId: memberIds.a,
-          mingguMulai: monday,
-          hari,
-        },
-      },
-      update: { status: 'di_kos' },
-      create: {
-        anggotaId: memberIds.a,
-        mingguMulai: monday,
-        hari,
-        status: 'di_kos',
-      },
-    });
-  }
+  // Rule "di_kos → bebas weekday": hapus jadwal weekday Demo A di minggu
+  // berjalan (termasuk hari ini) supaya konsisten dengan setWeekendStatus.
+  await prisma.jadwal.deleteMany({
+    where: {
+      rumahId: rumah.id,
+      anggotaId: memberIds.a,
+      tanggal: { gte: monday, lte: addDays(monday, 6) },
+    },
+  });
 
   console.log({
     rumah: rumah.nama,

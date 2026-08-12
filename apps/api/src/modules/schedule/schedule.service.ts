@@ -221,6 +221,14 @@ export class ScheduleService {
    * (no back-to-back), jadwal yang sudah ada per (tanggal, anggota) tidak
    * digandakan.
    */
+  /**
+   * Atur jadwal weekend (locked 2026-08-12):
+   * 1. Hapus jadwal weekend tanpa submission (re-distribute penuh).
+   * 2. Urutkan di_kos: pemilik slot weekday minggu ini dulu (A=Rabu → Sabtu,
+   *    B=Jumat → Minggu), lalu non-owner (PJ, C) — berdasar round-robin
+   *    `weekdayOrdinal(day) % n` yang deterministik.
+   * 3. Bergantian Sabtu/Minggu — beberapa orang boleh TUMPUK di hari sama.
+   */
   private async ensureWeekendWeek(rumahId: string, monday: Date): Promise<number> {
     const sabtu = this.addDays(monday, 5);
     const minggu = this.addDays(monday, 6);
@@ -256,10 +264,7 @@ export class ScheduleService {
     });
     if (diKosMembers.length === 0) return 0;
 
-    // Re-distribute penuh: hapus jadwal weekend minggu ini yang belum ada
-    // submission, lalu assign ulang semua di_kos merata (Sabtu & Minggu).
-    // Ini membuat pemanggilan ulang (mis. B di_kos setelah A) tetap adil:
-    // 2 orang → Sabtu 1, Minggu 1; bukan menumpuk di Sabtu.
+    // Hapus jadwal weekend tanpa submission (re-distribute penuh).
     const existingRows = await this.prisma.jadwal.findMany({
       where: { rumahId, tanggal: { gte: sabtu, lte: minggu } },
       select: { id: true, submissions: { select: { id: true } } },
@@ -271,13 +276,48 @@ export class ScheduleService {
       });
     }
 
-    // Rotate so who lands on Sabtu vs Minggu shifts each week.
-    const n = diKosMembers.length;
-    const rot = this.weekendOrdinal(monday) % n;
-    const rotated = [...diKosMembers.slice(rot), ...diKosMembers.slice(0, rot)];
-    const sabtuCount = Math.ceil(n / 2);
-    const sabtuMembers = rotated.slice(0, sabtuCount);
-    const mingguMembers = rotated.slice(sabtuCount);
+    // Pemilik weekday minggu ini berdasar round-robin: untuk tiap hari piket,
+    // pemilik = weekdayOrdinal(day) % n. Ini deterministik — tidak bergantung
+    // pada row yang tersisa (yang mungkin sudah dihapus saat di_kos).
+    const allMembers = await this.members(rumahId);
+    const n = allMembers.length;
+    const ownerByDay = new Map<number, string>(); // timestamp → anggotaId
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = this.addDays(monday, offset);
+      if (!this.isPiketDay(day)) continue;
+      const index = this.weekdayOrdinal(day) % n;
+      ownerByDay.set(day.getTime(), allMembers[index]!.id);
+    }
+
+    // Urut: pemilik weekday dulu (by day), lalu non-owner (by createdAt).
+    const ordered = [...diKosMembers].sort((a, b) => {
+      const dayA = this.weekdayOwnerDay(ownerByDay, a.id);
+      const dayB = this.weekdayOwnerDay(ownerByDay, b.id);
+      if (dayA !== null && dayB !== null) return dayA - dayB;
+      if (dayA !== null) return -1;
+      if (dayB !== null) return 1;
+      return a.id.localeCompare(b.id);
+    });
+
+    // Assign: pemilik hari piket pertama (Rabu) → Sabtu, kedua (Jumat) →
+    // Minggu. Non-owner bergantian mulai Sabtu (PJ → Sabtu bersama A,
+    // C → Minggu bersama B).
+    const sabtuMembers: { id: string }[] = [];
+    const mingguMembers: { id: string }[] = [];
+    let piketDayOrder = 0; // urutan hari piket milik pemilik (1, 2, ...)
+    let nonOwnerTurn = 0; // 0=Sabtu, 1=Minggu
+    for (const m of ordered) {
+      const day = this.weekdayOwnerDay(ownerByDay, m.id);
+      if (day !== null) {
+        piketDayOrder += 1;
+        if (piketDayOrder % 2 === 1) sabtuMembers.push(m);
+        else mingguMembers.push(m);
+      } else {
+        nonOwnerTurn += 1;
+        if (nonOwnerTurn % 2 === 1) sabtuMembers.push(m);
+        else mingguMembers.push(m);
+      }
+    }
 
     const rooms = await this.activeRoomNames(rumahId);
     let created = 0;
@@ -299,6 +339,17 @@ export class ScheduleService {
     await assign(sabtu, sabtuMembers);
     await assign(minggu, mingguMembers);
     return created;
+  }
+
+  /** Timestamp hari piket minggu ini yang menjadi milik anggotaId, atau null. */
+  private weekdayOwnerDay(
+    ownerByDay: Map<number, string>,
+    anggotaId: string,
+  ): number | null {
+    for (const [ts, owner] of ownerByDay) {
+      if (owner === anggotaId) return ts;
+    }
+    return null;
   }
 
   private async activeRoomNames(rumahId: string): Promise<string[]> {
@@ -545,10 +596,9 @@ export class ScheduleService {
 
   /**
    * Pulang → weekday kembali (locked 2026-08-12): setelah jadwal weekend
-   * dihapus, regenerate hari piket (Sen/Rab/Jum) yang KOSONG di MINGGU
-   * BERJALAN via `ensureWeekday` (round-robin, exclude member yang masih
-   * di_kos). Bukan mengisi semua slot kosong dengan satu orang — supaya slot
-   * milik anggota lain (yang belum memilih) tidak tertimpa.
+   * dihapus, assign member ini ke hari piket MINGGU BERJALAN yang memang
+   * miliknya berdasar round-robin `weekdayOrdinal(day) % n` (A → Rabu,
+   * B → Jumat). Slot anggota lain TIDAK disentuh.
    */
   private async restoreWeekdayForMember(
     rumahId: string,
@@ -556,19 +606,31 @@ export class ScheduleService {
     monday: Date,
   ): Promise<void> {
     const sunday = this.addDays(monday, 6);
+    const today = this.toDate(new Date());
+    const allMembers = await this.members(rumahId);
+    const n = allMembers.length;
+    const myIndex = allMembers.findIndex((m) => m.id === anggotaId);
+    if (myIndex === -1) return;
+
+    const rooms = await this.activeRoomNames(rumahId);
     let created = 0;
     for (
-      let cursor = monday;
+      let cursor = today; // jangan restore hari lewat
       cursor <= sunday;
       cursor = this.addDays(cursor, 1)
     ) {
       if (!this.isPiketDay(cursor)) continue;
+      // Hanya hari yang memang milik member ini berdasar round-robin.
+      if (this.weekdayOrdinal(cursor) % n !== myIndex) continue;
       const exists = await this.prisma.jadwal.findFirst({
         where: { rumahId, tanggal: cursor },
         select: { id: true },
       });
-      if (exists) continue; // slot sudah terisi
-      if (await this.ensureWeekday(rumahId, cursor)) created += 1;
+      if (exists) continue; // slot sudah terisi (mungkin sudah dikembalikan)
+      await this.prisma.jadwal.create({
+        data: { rumahId, tanggal: cursor, anggotaId, ruangan: rooms },
+      });
+      created += 1;
     }
     if (created > 0) {
       this.logger.log(

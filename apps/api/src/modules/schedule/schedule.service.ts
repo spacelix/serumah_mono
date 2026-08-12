@@ -485,9 +485,11 @@ export class ScheduleService {
     } else {
       // Locked decision (2026-08-12): pulang menghapus jadwal weekend milik
       // anggota ini, lalu regenerate sisa anggota di_kos agar distribusi
-      // weekend tetap valid (tidak ada "pulang" yang masih memegang jadwal).
+      // weekend tetap valid. Weekday yang dihapus saat di_kos DIKEMBALIKAN
+      // (locked 2026-08-12): isi ulang slot weekday kosong untuk member ini.
       await this.deleteMemberWeekendJadwal(anggota.rumahId, anggota.id, monday);
       await this.ensureWeekendWeek(anggota.rumahId, monday);
+      await this.restoreWeekdayForMember(anggota.rumahId, anggota.id, monday);
     }
 
     this.logger.log(
@@ -528,6 +530,57 @@ export class ScheduleService {
     if (result.count > 0) {
       this.logger.log(
         `[ScheduleService] Hapus ${result.count} weekday ${anggotaId} (bebas piket)`,
+      );
+    }
+  }
+
+  /**
+   * Pulang → weekday kembali (locked 2026-08-12): setelah jadwal weekend
+   * dihapus, isi ulang hari piket (Sen/Rab/Jum) yang KOSONG mulai hari ini
+   * sampai akhir bulan berjalan dengan member ini. Slot kosong hanya berasal
+   * dari yang dihapus saat `di_kos`, jadi mengisi semua slot kosong akan
+   * mengembalikan jadwal weekday-nya.
+   */
+  private async restoreWeekdayForMember(
+    rumahId: string,
+    anggotaId: string,
+    monday: Date,
+  ): Promise<void> {
+    const today = this.toDate(new Date());
+    const endOfMonth = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth() + 1,
+        0, // hari terakhir bulan berjalan
+      ),
+    );
+
+    const rooms = await this.activeRoomNames(rumahId);
+    let created = 0;
+    for (
+      let cursor = today;
+      cursor <= endOfMonth;
+      cursor = this.addDays(cursor, 1)
+    ) {
+      if (!this.isPiketDay(cursor)) continue;
+      const exists = await this.prisma.jadwal.findFirst({
+        where: { rumahId, tanggal: cursor },
+        select: { id: true },
+      });
+      if (exists) continue; // slot sudah terisi (bukan milik member ini)
+      await this.prisma.jadwal.create({
+        data: {
+          rumahId,
+          tanggal: cursor,
+          anggotaId,
+          ruangan: rooms,
+        },
+      });
+      created += 1;
+    }
+    if (created > 0) {
+      this.logger.log(
+        `[ScheduleService] Pulang: ${created} weekday ${anggotaId} dikembalikan`,
       );
     }
   }

@@ -276,21 +276,16 @@ export class DashboardService {
     const sunday = this.addDays(monday, 6);
     const today = this.toDay(new Date());
 
-    const [jadwal, weekendRows] = await Promise.all([
-      this.prisma.jadwal.findMany({
-        where: { rumahId, tanggal: { gte: monday, lte: sunday } },
-        orderBy: { tanggal: 'asc' },
-        select: {
-          tanggal: true,
-          anggota: { select: { id: true, nama: true } },
-          ruangan: true,
-          submissions: { select: { status: true } },
-        },
-      }),
-      this.prisma.weekendStatus.findMany({
-        where: { mingguMulai: monday, anggota: { rumahId } },
-      }),
-    ]);
+    const jadwal = await this.prisma.jadwal.findMany({
+      where: { rumahId, tanggal: { gte: monday, lte: sunday } },
+      orderBy: { tanggal: 'asc' },
+      select: {
+        tanggal: true,
+        anggota: { select: { id: true, nama: true } },
+        ruangan: true,
+        submissions: { select: { status: true } },
+      },
+    });
 
     // Pekan belum punya jadwal sama sekali → kosong; Beranda menampilkan
     // empty state (anggota) / banner pengingat (admin) alih-alih baris palsu.
@@ -299,11 +294,6 @@ export class DashboardService {
     }
 
     const jadwalByDate = new Map(jadwal.map((j) => [this.key(j.tanggal), j]));
-    const diKosByHari = new Map<'sabtu' | 'minggu', boolean>();
-    for (const r of weekendRows) {
-      if (r.status === 'di_kos')
-        diKosByHari.set(r.hari as 'sabtu' | 'minggu', true);
-    }
 
     const rows: ScheduleRow[] = [];
     for (let offset = 0; offset < 7; offset += 1) {
@@ -314,13 +304,13 @@ export class DashboardService {
 
       let statusTag: StatusTag;
       if (isWeekend) {
-        const hari = dowIndex === 6 ? 'sabtu' : 'minggu';
-        if (diKosByHari.get(hari)) {
-          // Di kos — kalau jadwal belum generate (record null) tetap
-          // "Terjadwal" (chip rounded), bukan LIBUR (transparent).
+        // Weekend aktif HANYA jika ada jadwal (seseorang dapat piket hari itu).
+        // Kalau tidak ada yang dapat (record null) → Free. Ini membuat Sabtu
+        // aktif, Minggu tidak (bila hanya Sabtu yang kebagian).
+        if (record) {
           statusTag = this.submissionTag(record, day, today, true);
         } else {
-          statusTag = 'Free'; // everyone Pulang — free day
+          statusTag = 'Free'; // tidak ada yang dapat piket hari itu
         }
       } else if (!PIKET_WEEKDAYS.includes(dowIndex)) {
         statusTag = 'LIBUR';

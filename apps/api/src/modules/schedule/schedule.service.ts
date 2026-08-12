@@ -543,30 +543,22 @@ export class ScheduleService {
 
   /**
    * Pulang → weekday kembali (locked 2026-08-12): setelah jadwal weekend
-   * dihapus, isi ulang hari piket (Sen/Rab/Jum) yang KOSONG mulai hari ini
-   * sampai akhir bulan berjalan dengan member ini. Slot kosong hanya berasal
-   * dari yang dihapus saat `di_kos`, jadi mengisi semua slot kosong akan
-   * mengembalikan jadwal weekday-nya.
+   * dihapus, isi ulang hari piket (Sen/Rab/Jum) yang KOSONG di MINGGU
+   * BERJALAN saja (monday..monday+6) dengan member ini. Hanya minggu itu
+   * weekday-nya dihapus saat di_kos; minggu lain TIDAK disentuh.
    */
   private async restoreWeekdayForMember(
     rumahId: string,
     anggotaId: string,
     monday: Date,
   ): Promise<void> {
-    const today = this.toDate(new Date());
-    const endOfMonth = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth() + 1,
-        0, // hari terakhir bulan berjalan
-      ),
-    );
+    const sunday = this.addDays(monday, 6);
 
     const rooms = await this.activeRoomNames(rumahId);
     let created = 0;
     for (
-      let cursor = today;
-      cursor <= endOfMonth;
+      let cursor = monday;
+      cursor <= sunday;
       cursor = this.addDays(cursor, 1)
     ) {
       if (!this.isPiketDay(cursor)) continue;

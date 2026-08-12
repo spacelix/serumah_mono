@@ -76,13 +76,15 @@ export function Stamp({ status, animate }: { status: string; animate?: boolean }
   const s = STATUS_STYLE[key];
   const label = labelOf(status);
   const dashed = status === 'menunggu_konfirmasi' || status === 'menunggu';
-  const settled = status === 'lunas' || status === 'approved';
+  const settled =
+    status === 'lunas' || status === 'approved' || status === 'ditolak';
   const stamp = useAnimatedValue(animate ? 0 : 1);
   const prevStatus = useRef(status);
 
   useEffect(() => {
-    // stampIn dipicu saat stamp "lunas"/"approved" baru tercapai (transisi
-    // status) atau saat diminta eksplisit via `animate` — pola Serumah.html.
+    // stampIn dipicu saat stamp "lunas"/"approved"/"ditolak" baru tercapai
+    // (transisi status) atau saat diminta eksplisit via `animate` — pola
+    // Serumah.html.
     const becameSettled = settled && prevStatus.current !== status;
     prevStatus.current = status;
     if (!animate && !becameSettled) return;

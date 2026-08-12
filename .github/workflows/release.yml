@@ -34,11 +34,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Android NDK + licenses
+      - name: Install Android NDK + licenses + CMake 3.30.5
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/bin:$PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "ndk;27.1.12297006"
+          # expo-build-properties sets android.cmakeVersion=3.30.5 (fix build.ninja
+          # still dirty on CMake 3.22.1) — must be present in the SDK for CI.
+          sdkmanager "cmake;3.30.5"
 
       - name: Create mobile .env
         working-directory: apps/mobile
@@ -99,3 +102,17 @@ jobs:
             release/serumah-app.apk
             release/version.json
           generate_release_notes: true
+
+      - name: Announce update via push notification
+        if: env.ANNOUNCE_SECRET != '' && env.API_URL != ''
+        env:
+          ANNOUNCE_SECRET: ${{ secrets.ANNOUNCE_SECRET }}
+          API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+        working-directory: apps/mobile
+        run: |
+          VERSION_NAME=$(node -e "console.log(require('./app.json').expo.version)")
+          NOTES=$(git log -1 --pretty=%s | tr -d '"')
+          curl -sS --retry 3 --retry-delay 2 -X POST "$API_URL/api/update/announce" \
+            -H "Content-Type: application/json" \
+            -H "x-announce-secret: $ANNOUNCE_SECRET" \
+            -d "{\"versionName\":\"$VERSION_NAME\",\"notes\":\"$NOTES\"}" || echo "announce failed (non-fatal)"

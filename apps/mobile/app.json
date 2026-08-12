@@ -2,14 +2,14 @@
   "expo": {
     "name": "Serumah",
     "slug": "serumah",
-    "version": "1.8.2",
+    "version": "1.9.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "serumah",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.serumah.serumah",
-      "versionCode": 14,
+      "versionCode": 20,
       "backgroundColor": "#EFEAE0",
       "googleServicesFile": "./google-services.json",
       "permissions": [
@@ -48,6 +48,8 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#3D6B5C",
           "defaultChannel": "serumah",
           "sounds": []
         }
@@ -58,6 +60,15 @@
           "photosPermission": "Akses foto untuk memilih foto profil.",
           "cameraPermission": "Akses kamera untuk mengambil foto profil."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "cmakeVersion": "3.30.5",
+            "ndkVersion": "26.1.10909125"
+          }
+        }
       ]
     ],
     "experiments": {
@@ -66,6 +77,13 @@
     },
     "ios": {
       "bundleIdentifier": "com.serumah.serumah"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c033064a-0913-42d1-9218-e8a84297ab93"
+      }
+    },
+    "owner": "xavierxxs"
   }
 }

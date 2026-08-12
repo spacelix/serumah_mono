@@ -81,6 +81,44 @@ export class NotificationsCronService {
     return m ? Number(m[1]) : -1;
   }
 
+  // ── E. Weekend status — reminder belum pilih (Jumat) ─────────────────
+  // Freeze = Jumat 20:00 WIB. Reminder Jumat 08:00 (nugas awal) + 19:00
+  // (1 jam sebelum deadline) ke anggota yang BELUM punya WeekendStatus sama
+  // sekali minggu berjalan. 1 pilihan berlaku utk seluruh akhir pekan, jadi
+  // cukup sekali per anggota (bukan per hari).
+  @Cron('0 8 * * 5')
+  @Cron('0 19 * * 5')
+  async weekendStatusReminder(): Promise<void> {
+    const today = this.todayWib();
+    const monday = this.mondayOfWib(today);
+
+    const [anggotaRows, existingRows] = await Promise.all([
+      this.prisma.anggota.findMany({
+        where: { rumahId: { not: null } },
+        select: { id: true, rumahId: true },
+      }),
+      this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday, hari: { in: ['sabtu', 'minggu'] } },
+        select: { anggotaId: true },
+      }),
+    ]);
+
+    const chosen = new Set(existingRows.map((r) => r.anggotaId));
+    for (const a of anggotaRows) {
+      if (!a.rumahId) continue;
+      if (chosen.has(a.id)) continue;
+      await this.notifications.notifyWeekendReminder(a.id);
+    }
+    this.logger.log(`[NotificationsCron] Reminder weekend status (Jumat)`);
+  }
+
+  /** Senin dari minggu yang memuat `date` (UTC-midnight). */
+  private mondayOfWib(date: Date): Date {
+    const day = date.getUTCDay();
+    const offset = day === 0 ? -6 : 1 - day;
+    return this.addDays(date, offset);
+  }
+
   // ── C. Denda reminder mingguan ──────────────────────────────────────
   @Cron('0 8 * * 1')
   async dendaWeekly(): Promise<void> {

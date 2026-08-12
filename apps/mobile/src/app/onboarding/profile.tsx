@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'lucide-react-native';
+import { ensureMediaLibraryPermission } from '@/lib/media-permissions';
 
 import { SerumahButton } from '@/components/ui/serumah-button';
 import { SerumahInput } from '@/components/ui/serumah-input';
@@ -34,14 +35,8 @@ export default function OnboardingProfileScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const pickPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      dialog.alert(
-        'Butuh izin',
-        'Izinkan akses galeri untuk memilih foto profil.',
-      );
-      return;
-    }
+    const ok = await ensureMediaLibraryPermission();
+    if (!ok) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,

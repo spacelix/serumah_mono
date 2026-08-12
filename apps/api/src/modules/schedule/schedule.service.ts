@@ -8,6 +8,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@serumah/db/prisma';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { RumahScopeService } from '../../common/services/rumah-scope.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CacheService } from '../redis/cache.service';
 import { WeekendStatusDto } from './dto/schedule.dto';
 
@@ -18,6 +20,7 @@ const WEEKEND_HARI: Record<number, 'sabtu' | 'minggu'> = {
 };
 const FREEZE_HOUR = 20; // Jumat 20:00 WIB
 const FINE_DEADLINE_HOUR = 20; // 20:00 WIB
+const WEEKEND_STATUS_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 jam (locked 2026-08-12)
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 
 @Injectable()
@@ -28,7 +31,9 @@ export class ScheduleService {
     private readonly prisma: PrismaService,
     private readonly scope: RumahScopeService,
     private readonly cache: CacheService,
-  ) {}
+    private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeGateway,
+  ) { }
 
   // ── DATE HELPERS (UTC-based so @db.Date matches Postgres `date` columns) ──
   // Prisma stores `@db.Date` as a date string derived from the UTC components
@@ -136,12 +141,42 @@ export class ScheduleService {
     const memberList = await this.members(rumahId);
     if (memberList.length === 0) return false;
 
+    const monday = this.mondayOf(day);
+
     // Members already holding a weekend piket this week are free from weekday.
-    const weekendIds = await this.weekendAssigneeIds(
-      rumahId,
-      this.mondayOf(day),
+    const weekendIds = await this.weekendAssigneeIds(rumahId, monday);
+
+    // Members who already hold ANOTHER weekday row this week must not get a
+    // second weekday — guarantees no one piket twice in one week, and keeps
+    // the assignment stable when the pool shrinks (e.g. after a weekend
+    // assignee is excluded by reconcileWeekdayForWeekend).
+    const weekRows = await this.prisma.jadwal.findMany({
+      where: {
+        rumahId,
+        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
+      },
+      select: { tanggal: true, anggotaId: true },
+    });
+    const alreadyAssigned = new Set(
+      weekRows
+        .filter(
+          (r) =>
+            this.isPiketDay(r.tanggal) && r.tanggal.getTime() !== day.getTime(),
+        )
+        .map((r) => r.anggotaId),
     );
-    const pool = memberList.filter((m) => !weekendIds.includes(m.id));
+
+    // Prefer members who don't already hold a weekday row this week (avoids
+    // someone piket twice), but if the pool would be empty (fewer members than
+    // piket days, e.g. a 2-member rumah) fall back to all non-weekend members
+    // so the day still gets scheduled.
+    const excludeAssigned = memberList.filter(
+      (m) => !weekendIds.includes(m.id) && !alreadyAssigned.has(m.id),
+    );
+    const pool =
+      excludeAssigned.length > 0
+        ? excludeAssigned
+        : memberList.filter((m) => !weekendIds.includes(m.id));
     if (pool.length === 0) return false;
 
     const index = this.weekdayOrdinal(day) % pool.length;
@@ -176,59 +211,107 @@ export class ScheduleService {
     return count;
   }
 
-  private async ensureWeekend(
-    rumahId: string,
-    weekendDay: Date,
-  ): Promise<boolean> {
-    const day = this.toDate(weekendDay);
-    if (!this.isWeekendDay(day)) return false;
+  /**
+   * Generate jadwal weekend untuk SATU minggu (Sabtu + Minggu sekaligus).
+   * Semua member berstatus di_kos ikut piket, dibagi MERATA 2 hari dengan
+   * rotasi per minggu (weekendOrdinal) supaya adil lintas minggu:
+   *   - 2 orang → Sabtu 1, Minggu 1
+   *   - 3 orang → Sabtu 2, Minggu 1
+   *   - dst.
+   * Idempoten: member yang sudah memegang jadwal weekend minggu itu di-skip
+   * (no back-to-back), jadwal yang sudah ada per (tanggal, anggota) tidak
+   * digandakan.
+   */
+  /**
+   * Atur jadwal weekend (locked 2026-08-12):
+   * 1. Hapus jadwal weekend tanpa submission (re-distribute penuh).
+   * 2. Urutkan di_kos berdasar URUTAN MEMILIH (weekendStatus.createdAt) —
+   *    bukan urutan pemilik weekday.
+   * 3. Assign bergantian Sabtu/Minggu: pilih pertama → Sabtu, kedua → Minggu,
+   *    ketiga → Sabtu (tumpuk), dst.
+   */
+  private async ensureWeekendWeek(rumahId: string, monday: Date): Promise<number> {
+    const sabtu = this.addDays(monday, 5);
+    const minggu = this.addDays(monday, 6);
 
-    const monday = this.mondayOf(day);
-    const hari = WEEKEND_HARI[day.getUTCDay()];
-
-    const existing = await this.prisma.jadwal.findFirst({
-      where: { rumahId, tanggal: day },
-    });
-    if (existing) return false;
-
-    // This week's di_kos; fall back to last week's status when none recorded.
+    // This week's di_kos (scoped ke rumah ini via relasi anggota), urut by
+    // createdAt (urutan memilih); fall back to last week's status.
     let rows = await this.prisma.weekendStatus.findMany({
-      where: { mingguMulai: monday, hari },
+      where: {
+        mingguMulai: monday,
+        status: 'di_kos',
+        anggota: { rumahId },
+      },
+      orderBy: { createdAt: 'asc' },
       select: { anggotaId: true },
     });
     if (rows.length === 0) {
       const lastMonday = this.addDays(monday, -7);
       rows = await this.prisma.weekendStatus.findMany({
-        where: { mingguMulai: lastMonday, hari },
+        where: {
+          mingguMulai: lastMonday,
+          status: 'di_kos',
+          anggota: { rumahId },
+        },
+        orderBy: { createdAt: 'asc' },
         select: { anggotaId: true },
       });
     }
+    if (rows.length === 0) return 0;
 
-    const diKosIds = rows.map((r) => r.anggotaId);
+    const orderedIds = rows.map((r) => r.anggotaId);
     const diKosMembers = await this.prisma.anggota.findMany({
-      where: { rumahId, id: { in: diKosIds } },
-      orderBy: { createdAt: 'asc' },
+      where: { rumahId, id: { in: orderedIds } },
       select: { id: true },
     });
+    if (diKosMembers.length === 0) return 0;
 
-    if (diKosMembers.length === 0) return false; // Free day (no fine)
-
-    const index = this.weekendOrdinal(day) % diKosMembers.length;
-    const member = diKosMembers[index];
-    const rooms = await this.activeRoomNames(rumahId);
-
-    await this.prisma.jadwal.create({
-      data: {
-        rumahId,
-        tanggal: day,
-        anggotaId: member.id,
-        ruangan: rooms,
-      },
-    });
-    this.logger.log(
-      `[ScheduleService] Weekend ${day.toISOString()} → ${member.id}`,
+    // Pertahankan urutan pilihan (rows sudah urut createdAt).
+    const orderIndex = new Map(orderedIds.map((id, i) => [id, i]));
+    const ordered = [...diKosMembers].sort(
+      (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
     );
-    return true;
+
+    // Hapus jadwal weekend tanpa submission (re-distribute penuh).
+    const existingRows = await this.prisma.jadwal.findMany({
+      where: { rumahId, tanggal: { gte: sabtu, lte: minggu } },
+      select: { id: true, submissions: { select: { id: true } } },
+    });
+    const deletable = existingRows.filter((r) => r.submissions.length === 0);
+    if (deletable.length > 0) {
+      await this.prisma.jadwal.deleteMany({
+        where: { id: { in: deletable.map((r) => r.id) } },
+      });
+    }
+
+    // Assign bergantian Sabtu/Minggu atas daftar `ordered` (urutan memilih).
+    const sabtuMembers: { id: string }[] = [];
+    const mingguMembers: { id: string }[] = [];
+    ordered.forEach((m, idx) => {
+      if (idx % 2 === 0) sabtuMembers.push(m);
+      else mingguMembers.push(m);
+    });
+
+    const rooms = await this.activeRoomNames(rumahId);
+    let created = 0;
+    const assign = async (day: Date, members: { id: string }[]) => {
+      for (const m of members) {
+        const exists = await this.prisma.jadwal.findFirst({
+          where: { rumahId, tanggal: day, anggotaId: m.id },
+        });
+        if (exists) continue;
+        await this.prisma.jadwal.create({
+          data: { rumahId, tanggal: day, anggotaId: m.id, ruangan: rooms },
+        });
+        created += 1;
+        this.logger.log(
+          `[ScheduleService] Weekend ${day.toISOString()} → ${m.id}`,
+        );
+      }
+    };
+    await assign(sabtu, sabtuMembers);
+    await assign(minggu, mingguMembers);
+    return created;
   }
 
   private async activeRoomNames(rumahId: string): Promise<string[]> {
@@ -238,6 +321,32 @@ export class ScheduleService {
       select: { nama: true },
     });
     return rooms.map((r) => r.nama);
+  }
+
+  /**
+   * Hapus semua baris Jadwal weekend (Sabtu+Minggu) milik satu anggota untuk
+   * minggu yang dimaksud. Dipakai saat anggota mengubah status jadi `pulang`.
+   */
+  private async deleteMemberWeekendJadwal(
+    rumahId: string,
+    anggotaId: string,
+    monday: Date,
+  ): Promise<number> {
+    const sabtu = this.addDays(monday, 5);
+    const minggu = this.addDays(monday, 6);
+    const result = await this.prisma.jadwal.deleteMany({
+      where: {
+        rumahId,
+        anggotaId,
+        tanggal: { gte: sabtu, lte: minggu },
+      },
+    });
+    if (result.count > 0) {
+      this.logger.log(
+        `[ScheduleService] Hapus weekend jadwal anggota ${anggotaId}: ${result.count} baris`,
+      );
+    }
+    return result.count;
   }
 
   // ── PUBLIC API ──────────────────────────────────────────────────────
@@ -280,50 +389,44 @@ export class ScheduleService {
   }
 
   /**
-   * First-time generation (admin): backfills the REST of the current week
-   * from today until Sunday — weekday piket days + weekend (from Di kos
-   * status). Next week is handled by the regular cron (`pregenerateWeek`
-   * Saturday + `freezeWeekendCron` Friday), so we never double-write here.
+   * Generate jadwal weekday (Sen/Rab/Jum) dari hari ini sampai AKHIR BULAN
+   * BERIKUTNYA (batas kalender). Weekend TIDAK di-generate di sini —
+   * event-driven saat user pilih di_kos per minggu (setWeekendStatus).
+   * Tidak ada auto-generate / cron jadwal.
    */
   async generateRestOfWeek(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const today = this.toDate(new Date());
-    const sunday = this.addDays(this.mondayOf(today), 6);
+    // End of NEXT calendar month (UTC-midnight).
+    const endOfNextMonth = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth() + 2,
+        0, // day 0 bulan setelahnya = hari terakhir bulan berikutnya
+      ),
+    );
 
     let count = 0;
-    // Weekend first (so weekend piket assignees are excluded from weekday
-    // generation below), then weekday piket days.
     for (
       let cursor = today;
-      cursor <= sunday;
-      cursor = this.addDays(cursor, 1)
-    ) {
-      if (this.isWeekendDay(cursor)) {
-        if (await this.ensureWeekend(anggota.rumahId!, cursor)) count += 1;
-      }
-    }
-    for (
-      let cursor = today;
-      cursor <= sunday;
+      cursor <= endOfNextMonth;
       cursor = this.addDays(cursor, 1)
     ) {
       if (this.isPiketDay(cursor)) {
         if (await this.ensureWeekday(anggota.rumahId!, cursor)) count += 1;
       }
     }
+
+    // Reset marker "jadwal habis sudah dinotif" — bulan baru digenerate.
+    await this.cache.invalidate('schedule', `exhausted:${anggota.rumahId}`);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
-    return { message: 'Jadwal pekan ini telah dibuat.', count };
+    return { message: 'Jadwal bulanan telah dibuat.', count };
   }
 
   async generateWeekend(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const monday = this.mondayOf(new Date());
-    for (const offset of [5, 6]) {
-      const day = this.addDays(monday, offset);
-      if (day >= this.toDate(new Date())) {
-        await this.ensureWeekend(anggota.rumahId!, day);
-      }
-    }
+    await this.ensureWeekendWeek(anggota.rumahId!, monday);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal akhir pekan telah dibuat.' };
   }
@@ -365,73 +468,150 @@ export class ScheduleService {
     const monday = this.mondayOf(new Date());
     this.assertNotFrozen(monday);
 
-    await this.prisma.weekendStatus.upsert({
-      where: {
-        anggotaId_mingguMulai_hari: {
+    // Cooldown 6 jam (locked 2026-08-12): user tidak boleh ganti status
+    // weekend dalam waktu berdekatan (misal pagi pilih, sore baru boleh lagi).
+    const lastChange = await this.lastWeekendStatusChange(anggota.id, monday);
+    if (lastChange) {
+      const elapsed = new Date().getTime() - lastChange.getTime();
+      if (elapsed < WEEKEND_STATUS_COOLDOWN_MS) {
+        const remainingMin = Math.ceil(
+          (WEEKEND_STATUS_COOLDOWN_MS - elapsed) / 60_000,
+        );
+        throw new BadRequestException(
+          `Kamu baru aja ganti status. Tunggu ${remainingMin} menit lagi untuk ganti.`,
+        );
+      }
+    }
+
+    // 1 pilihan berlaku untuk seluruh weekend: set hari sabtu + minggu dengan
+    // status yang sama (locked 2026-08-11).
+    const hariList = ['sabtu', 'minggu'] as const;
+    for (const hari of hariList) {
+      await this.prisma.weekendStatus.upsert({
+        where: {
+          anggotaId_mingguMulai_hari: {
+            anggotaId: anggota.id,
+            mingguMulai: monday,
+            hari,
+          },
+        },
+        update: { status: dto.status },
+        create: {
           anggotaId: anggota.id,
           mingguMulai: monday,
-          hari: dto.hari,
+          hari,
+          status: dto.status,
         },
-      },
-      update: { status: dto.status },
-      create: {
-        anggotaId: anggota.id,
-        mingguMulai: monday,
-        hari: dto.hari,
-        status: dto.status,
-      },
-    });
+      });
+    }
 
     if (dto.status === 'di_kos') {
       // Locked decision (2026-08-08): choosing Di kos immediately generates
-      // that weekend day's Jadwal so the UI shows who piket right away.
-      const offset = dto.hari === 'sabtu' ? 5 : 6;
-      await this.ensureWeekend(anggota.rumahId, this.addDays(monday, offset));
+      // the weekend Jadwal so the UI shows who piket right away.
+      await this.ensureWeekendWeek(anggota.rumahId, monday);
+      // Locked decision (2026-08-12): di_kos → bebas weekday minggu itu.
+      // Hapus weekday milik user, TIDAK digantikan siapa pun.
+      await this.clearWeekdayForMember(anggota.rumahId, anggota.id, monday);
+    } else {
+      // Locked decision (2026-08-12): pulang menghapus jadwal weekend milik
+      // anggota ini, lalu regenerate sisa anggota di_kos agar distribusi
+      // weekend tetap valid. Weekday yang dihapus saat di_kos DIKEMBALIKAN
+      // (locked 2026-08-12): isi ulang slot weekday kosong untuk member ini.
+      await this.deleteMemberWeekendJadwal(anggota.rumahId, anggota.id, monday);
+      await this.ensureWeekendWeek(anggota.rumahId, monday);
+      await this.restoreWeekdayForMember(anggota.rumahId, anggota.id, monday);
     }
 
-    // Locked decision (2026-08-08): members assigned a weekend piket this week
-    // are free from weekday piket the same week — regenerate any affected
-    // weekday rows so the weekend assignee is swapped out of the round-robin.
-    await this.reconcileWeekdayForWeekend(anggota.rumahId, monday);
-
     this.logger.log(
-      `[ScheduleService] ${anggota.nama} ${dto.hari} → ${dto.status}`,
+      `[ScheduleService] ${anggota.nama} weekend → ${dto.status}`,
     );
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
-    return { hari: dto.hari, status: dto.status };
+    // Notifikasi ke semua anggota lain (kecuali pengubah status).
+    await this.notifications.notifyWeekendStatus(
+      anggota.rumahId,
+      anggota.nama,
+      dto.status,
+    );
+    this.realtime.emitToRumah(anggota.rumahId, 'schedule:updated', {
+      status: dto.status,
+    });
+    return { status: dto.status };
   }
 
   /**
-   * After a weekend piket is assigned (Di kos), the assignee must not appear on
-   * weekday piket that same week. Regenerate this week's weekday rows, picking
-   * from the pool that EXCLUDES every member who holds a weekend Jadwal row.
+   * Bebas weekday tanpa regenerate (locked 2026-08-12): saat user pilih
+   * `di_kos`, pada minggu itu dia bebas piket weekday — hapus baris Jadwal
+   * weekday miliknya di minggu itu (Sen/Rab/Jum SAJA, BUKAN weekend).
+   * TIDAK digantikan siapa pun (hari jadi tanpa penanggung jawab).
    */
-  private async reconcileWeekdayForWeekend(
+  private async clearWeekdayForMember(
     rumahId: string,
+    anggotaId: string,
     monday: Date,
   ): Promise<void> {
-    const weekendAssignees = await this.weekendAssigneeIds(rumahId, monday);
-    if (weekendAssignees.length === 0) return;
-
-    const weekDays = await this.prisma.jadwal.findMany({
-      where: {
-        rumahId,
-        tanggal: { gte: monday, lte: this.addDays(monday, 6) },
-      },
-      select: { id: true, tanggal: true, anggotaId: true },
-    });
-
-    let regenerated = 0;
-    for (const row of weekDays) {
-      if (!this.isPiketDay(row.tanggal)) continue;
-      if (!weekendAssignees.includes(row.anggotaId)) continue;
-      await this.prisma.jadwal.delete({ where: { id: row.id } });
-      if (await this.ensureWeekday(rumahId, row.tanggal)) regenerated += 1;
+    // Hapus hanya hari piket weekday (Sabtu/Minggu di-keep — weekend yang
+    // baru dibuat oleh ensureWeekendWeek tidak boleh terhapus).
+    const weekdayDates: Date[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = this.addDays(monday, offset);
+      if (this.isPiketDay(day)) weekdayDates.push(day);
     }
 
-    if (regenerated > 0) {
+    const result = await this.prisma.jadwal.deleteMany({
+      where: {
+        rumahId,
+        anggotaId,
+        tanggal: { in: weekdayDates },
+      },
+    });
+    if (result.count > 0) {
       this.logger.log(
-        `[ScheduleService] Reconcile weekday (${regenerated}) setelah piket weekend`,
+        `[ScheduleService] Hapus ${result.count} weekday ${anggotaId} (bebas piket)`,
+      );
+    }
+  }
+
+  /**
+   * Pulang → weekday kembali (locked 2026-08-12): setelah jadwal weekend
+   * dihapus, assign member ini ke hari piket MINGGU BERJALAN yang memang
+   * miliknya berdasar round-robin `weekdayOrdinal(day) % n` (A → Rabu,
+   * B → Jumat). Slot anggota lain TIDAK disentuh.
+   */
+  private async restoreWeekdayForMember(
+    rumahId: string,
+    anggotaId: string,
+    monday: Date,
+  ): Promise<void> {
+    const sunday = this.addDays(monday, 6);
+    const today = this.toDate(new Date());
+    const allMembers = await this.members(rumahId);
+    const n = allMembers.length;
+    const myIndex = allMembers.findIndex((m) => m.id === anggotaId);
+    if (myIndex === -1) return;
+
+    const rooms = await this.activeRoomNames(rumahId);
+    let created = 0;
+    for (
+      let cursor = today; // jangan restore hari lewat
+      cursor <= sunday;
+      cursor = this.addDays(cursor, 1)
+    ) {
+      if (!this.isPiketDay(cursor)) continue;
+      // Hanya hari yang memang milik member ini berdasar round-robin.
+      if (this.weekdayOrdinal(cursor) % n !== myIndex) continue;
+      const exists = await this.prisma.jadwal.findFirst({
+        where: { rumahId, tanggal: cursor },
+        select: { id: true },
+      });
+      if (exists) continue; // slot sudah terisi (mungkin sudah dikembalikan)
+      await this.prisma.jadwal.create({
+        data: { rumahId, tanggal: cursor, anggotaId, ruangan: rooms },
+      });
+      created += 1;
+    }
+    if (created > 0) {
+      this.logger.log(
+        `[ScheduleService] Pulang: ${created} weekday ${anggotaId} dikembalikan`,
       );
     }
   }
@@ -450,6 +630,26 @@ export class ScheduleService {
     }
   }
 
+  /**
+   * Waktu perubahan status weekend terakhir untuk anggota ini pada minggu
+   * tersebut (max updatedAt dari baris sabtu/minggu), atau null bila belum
+   * pernah memilih. Dipakai untuk cooldown 6 jam (locked 2026-08-12).
+   */
+  private async lastWeekendStatusChange(
+    anggotaId: string,
+    monday: Date,
+  ): Promise<Date | null> {
+    const rows = await this.prisma.weekendStatus.findMany({
+      where: { anggotaId, mingguMulai: monday },
+      select: { updatedAt: true },
+    });
+    if (rows.length === 0) return null;
+    return rows.reduce<Date>(
+      (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
+      rows[0]!.updatedAt,
+    );
+  }
+
   // ── AUTO-FINE ───────────────────────────────────────────────────────
   /**
    * Daily 22:00. Fines ANY scheduled day (weekday or weekend) that has no
@@ -460,6 +660,50 @@ export class ScheduleService {
   async runAutoFineCron(): Promise<void> {
     const today = new Date();
     await this.autoFineProcess(today);
+  }
+
+  /**
+   * Daily 22:00 — cek jadwal weekday masa depan. Jika TIDAK ada lagi jadwal
+   * weekday (hari ini ke depan), jadwal bulan habis → kirim notif ke PJ
+   * (sekali, via Redis marker) agar generate jadwal baru. Empty state di
+   * mobile otomatis muncul karena minggu kosong.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_10PM)
+  async scheduleExhaustedReminder(): Promise<void> {
+    const today = this.toDate(new Date());
+    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
+
+    for (const rumah of rumahs) {
+      const futureWeekday = await this.prisma.jadwal.findFirst({
+        where: {
+          rumahId: rumah.id,
+          tanggal: { gte: today },
+        },
+        select: { id: true },
+      });
+      if (futureWeekday) continue; // masih ada jadwal
+
+      // Habis — notif sekali (marker). Redis TTL ~45 hari cukup menutup gap
+      // antar generate.
+      const already = await this.cache.get<{ sent: boolean }>(
+        'schedule',
+        `exhausted:${rumah.id}`,
+      );
+      if (already) continue;
+      await this.cache.set(
+        'schedule',
+        `exhausted:${rumah.id}`,
+        { sent: true },
+        45 * 24 * 60 * 60,
+      );
+
+      const pj = await this.prisma.anggota.findFirst({
+        where: { rumahId: rumah.id, role: 'admin' },
+        select: { id: true },
+      });
+      if (pj) await this.notifications.notifyPjGenerateReminder(pj.id);
+    }
+    this.logger.log('[ScheduleService] Cek jadwal habis (22:00) selesai');
   }
 
   /** Manual guarded endpoint: runs the fine pass for a specific date. */
@@ -474,10 +718,7 @@ export class ScheduleService {
   async runWeekendFreeze(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const monday = this.mondayOf(new Date());
-    for (const offset of [5, 6]) {
-      const day = this.addDays(monday, offset);
-      await this.ensureWeekend(anggota.rumahId!, day);
-    }
+    await this.ensureWeekendWeek(anggota.rumahId!, monday);
     return { message: 'Jadwal akhir pekan telah dibekukan.' };
   }
 
@@ -493,64 +734,17 @@ export class ScheduleService {
   /**
    * Weekly pre-generation (Decision 5B): ensure next week's weekday roster for
    * every rumah. Runs Saturday 06:00 server time. Idempotent via ensureWeekday.
+   * [REMOVED 2026-08-12] — jadwal digenerate manual bulanan oleh PJ. Tidak ada
+   * cron jadwal lagi.
    */
-  @Cron('0 6 * * 6')
-  async pregenerateWeek(): Promise<void> {
-    const monday = this.addDays(this.mondayOf(new Date()), 7);
-    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
-    for (const rumah of rumahs) {
-      await this.ensureWeekdayWeek(rumah.id, monday);
-    }
-    this.logger.log(
-      `[ScheduleService] Pra-generasi jadwal pekan ${monday.toISOString()}`,
-    );
-  }
 
   /**
    * Daily self-heal (2026-08-10): ensure the current week's weekday roster
    * exists for today → Sunday (never past days). Idempotent via ensureWeekday,
    * so a missed Saturday pregenerate (server down) is caught up the next
    * morning — Monday no longer requires a manual "Generate Jadwal".
+   * [REMOVED 2026-08-12] — jadwal digenerate manual bulanan oleh PJ.
    */
-  @Cron('0 6 * * *')
-  async selfHealWeek(): Promise<void> {
-    const today = this.toDate(new Date());
-    const sunday = this.addDays(this.mondayOf(today), 6);
-    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
-    let count = 0;
-    for (const rumah of rumahs) {
-      for (
-        let cursor = today;
-        cursor <= sunday;
-        cursor = this.addDays(cursor, 1)
-      ) {
-        if (this.isPiketDay(cursor)) {
-          if (await this.ensureWeekday(rumah.id, cursor)) count += 1;
-        }
-      }
-    }
-    this.logger.log(
-      `[ScheduleService] Self-heal jadwal pekan berjalan ${today.toISOString()} (${count} baris baru)`,
-    );
-  }
-
-  /**
-   * Freeze weekend roster Friday 20:00 (per spec). After statuses are frozen
-   * the weekend Jadwal for Sat+Sun is generated for every rumah.
-   */
-  @Cron('0 20 * * 5')
-  async freezeWeekendCron(): Promise<void> {
-    const monday = this.mondayOf(new Date());
-    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
-    for (const rumah of rumahs) {
-      for (const offset of [5, 6]) {
-        await this.ensureWeekend(rumah.id, this.addDays(monday, offset));
-      }
-    }
-    this.logger.log(
-      `[ScheduleService] Jadwal akhir pekan dibekukan ${monday.toISOString()}`,
-    );
-  }
 
   private async autoFineForRumah(rumahId: string, date: Date): Promise<number> {
     const jadwal = await this.prisma.jadwal.findFirst({

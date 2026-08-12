@@ -61,6 +61,7 @@ model Anggota {
   role          String   @default("anggota")
   pushToken     String?  @map("push_token")
   pushTokenUpdatedAt DateTime? @map("push_token_updated_at") @db.Timestamptz
+  lastNudgeAt   DateTime? @map("last_nudge_at") @db.Timestamptz
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user              User?             @relation(fields: [id], references: [id])
@@ -120,6 +121,8 @@ model WeekendStatus {
   mingguMulai DateTime @map("minggu_mulai") @db.Date
   hari        String
   status      String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   anggota Anggota @relation(fields: [anggotaId], references: [id])
 
@@ -300,6 +303,7 @@ model SwapRequest {
   tanggalKe   DateTime @db.Date // hari piket si penerima (ke) yang ditukar
   status      String   @default("diajukan")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz
 
   dari Anggota @relation("SwapDari", fields: [dariAnggotaId], references: [id])
   ke   Anggota @relation("SwapKe", fields: [keAnggotaId], references: [id])

@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-export type WeekDayKey = 'sabtu' | 'minggu';
 export type WeekendChoice = 'di_kos' | 'pulang';
 
 export interface WeekendInfo {
-  saturday: WeekendChoice | null;
-  sunday: WeekendChoice | null;
+  status: WeekendChoice | null;
   frozen: boolean;
+  nextChangeAt: string | null;
   anggotaLain: { id: string; nama: string; status: string }[];
 }
 
@@ -15,6 +14,7 @@ export interface GalonInfo {
   giliran: { id: string; periodeMulai: string; status: string } | null;
   namaAnggota: string | null;
   isMine: boolean;
+  nudgedToday: boolean;
 }
 
 export interface BillingInfo {
@@ -31,7 +31,7 @@ export type ScheduleTag =
 export interface ScheduleRow {
   tanggal: string;
   dow: string;
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
   ruangan: string[];
   statusTag: ScheduleTag;
@@ -52,7 +52,7 @@ interface ApiScheduleRow {
   dow: string;
   statusTag: ScheduleTag;
   ruangan: string[];
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
 }
 
@@ -72,10 +72,9 @@ export async function apiGetDashboard(): Promise<ApiDashboard> {
 }
 
 export async function apiSetWeekendStatus(
-  hari: WeekDayKey,
   status: WeekendChoice,
 ): Promise<void> {
-  await apiClient.put('/schedule/weekend-status', { hari, status });
+  await apiClient.put('/schedule/weekend-status', { status });
 }
 
 export async function apiConfirmGalon(id: string): Promise<void> {
@@ -108,8 +107,16 @@ export function useDashboard() {
 export function useSetWeekendStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (args: { hari: WeekDayKey; status: WeekendChoice }) =>
-      apiSetWeekendStatus(args.hari, args.status),
+    mutationFn: (status: WeekendChoice) => apiSetWeekendStatus(status),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+  });
+}
+
+export function useNudgeGalon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiNudgeGalon,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
   });

@@ -16,7 +16,7 @@ import {
   useAnimatedValue,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -25,6 +25,7 @@ import { toast } from '@/stores/toast-store';
 import { dialog } from '@/stores/dialog-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient, mediaSource } from '@/lib/api-client';
+import { ensureMediaLibraryPermission } from '@/lib/media-permissions';
 import {
   apiRefreshFutureRooms,
   useGenerateRestOfWeek,
@@ -485,11 +486,8 @@ function QrisSection({
   const [busy, setBusy] = useState(false);
 
   const pickAndUpload = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      dialog.alert('Izin galeri', 'Izinkan akses galeri untuk pilih gambar QRIS.');
-      return;
-    }
+    const ok = await ensureMediaLibraryPermission();
+    if (!ok) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.7,
     });
@@ -570,7 +568,9 @@ async function uploadQris(uri: string): Promise<string> {
 function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
   const generate = useGenerateRestOfWeek();
   const { data: dash } = useDashboard();
-  const incomplete = dash?.scheduleIncomplete ?? false;
+  // Jadwal dianggap belum ada jika minggu ini kosong (tidak ada baris jadwal).
+  // Generate bulan: weekday hari ini → +1 bulan (manual, tanpa cron).
+  const needGenerate = (dash?.scheduleWeek.length ?? 0) === 0;
 
   if (!isAdmin) return null;
 
@@ -579,8 +579,8 @@ function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
       onSuccess: (res) => {
         toast.success(
           res.count > 0
-            ? `Jadwal pekan ini berhasil dibuat (${res.count} hari).`
-            : 'Jadwal pekan ini sudah lengkap.',
+            ? `Jadwal bulanan berhasil dibuat (${res.count} hari).`
+            : 'Jadwal sudah lengkap.',
         );
       },
       onError: (e) =>
@@ -593,35 +593,35 @@ function GenerateJadwalSection({ isAdmin }: { isAdmin: boolean }) {
       <View style={styles.generateBody}>
         <Text style={styles.generateKicker}>JADWAL PIKET</Text>
         <Text style={styles.generateTitle}>
-          {incomplete
-            ? 'Jadwal pekan ini belum dibuat'
-            : 'Jadwal pekan ini sudah ada'}
+          {needGenerate
+            ? 'Jadwal belum dibuat'
+            : 'Jadwal sudah ada'}
         </Text>
         <Text style={styles.generateSub}>
-          {incomplete
-            ? 'Generate sekali aja buat ngisi sisa pekan ini — dari hari ini sampe Minggu. Pekan depannya di-generate otomatis tiap pekan.'
-            : 'Sisa pekan ini udah penuh. Pekan depannya bakal di-generate otomatis.'}
+          {needGenerate
+            ? 'Generate sekali buat 1 bulan ke depan (Senin/Rabu/Jumat). Weekend diisi lewat status Di kos.'
+            : 'Jadwal weekday sudah dibuat untuk bulan ini. Weekend diisi lewat status Di kos.'}
         </Text>
       </View>
       <Pressable
         onPress={run}
-        disabled={generate.isPending || !incomplete}
+        disabled={generate.isPending || !needGenerate}
         style={({ pressed }) => [
           styles.generateBtn,
-          (generate.isPending || !incomplete) && styles.generateBtnDisabled,
-          pressed && incomplete && styles.generateBtnPressed,
+          (generate.isPending || !needGenerate) && styles.generateBtnDisabled,
+          pressed && needGenerate && styles.generateBtnPressed,
         ]}
       >
         <Text
           style={[
             styles.generateBtnText,
-            (generate.isPending || !incomplete) &&
+            (generate.isPending || !needGenerate) &&
               styles.generateBtnTextDisabled,
           ]}
         >
           {generate.isPending
             ? 'Mengenerate…'
-            : incomplete
+            : needGenerate
               ? 'Generate Jadwal'
               : 'Jadwal Selesai'}
         </Text>
@@ -751,6 +751,7 @@ function MemberDetailSheet({
   onRemove: (member: RumahManageMember) => void;
 }) {
   const token = useAuthStore((s) => s.token);
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal
@@ -760,7 +761,13 @@ function MemberDetailSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.memberSheetBackdrop} onPress={onClose}>
-        <View style={styles.memberSheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[
+            styles.memberSheet,
+            { paddingBottom: insets.bottom + 26 },
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.memberSheetHandle} />
           {member && (
             <>
@@ -1782,7 +1789,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius['3xl'],
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 30,
   },
   memberSheetHandle: {
     alignSelf: 'center',

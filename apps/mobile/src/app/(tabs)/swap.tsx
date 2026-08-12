@@ -1,8 +1,9 @@
-import { ArrowLeftRight, CalendarDays, Plus, X } from 'lucide-react-native';
+import { CalendarDays, Plus, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,8 +13,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Stamp } from '@/components/ui/stamp';
-import { formatWeekdayDate } from '@/lib/format';
+import { AnimatedSheet } from '@/components/ui/animated-sheet';
+import { formatDateTimeShort, firstName, formatWeekdayDate } from '@/lib/format';
 import {
   useSwapAvailableDays,
   useSwapMutations,
@@ -21,13 +22,39 @@ import {
   useSwaps,
   type SwapRequest,
 } from '@/features/swap/api/swap';
+import {
+  currentMonth,
+  formatMonthLabel,
+} from '@/features/tagihan/api/tagihan';
 import { dialog } from '@/stores/dialog-store';
 import { colors } from '@/theme/colors';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function SwapScreen() {
-  const { data, isLoading } = useSwaps();
+  const { data, isLoading, refetch, isFetching } = useSwaps();
   const [showForm, setShowForm] = useState(false);
+  const [filterBulan, setFilterBulan] = useState<string | null>(null);
+
+  const incoming = data?.incoming ?? [];
+  const minePending = (data?.mine ?? []).filter(
+    (s) => s.status === 'diajukan',
+  );
+  const history = (data?.mine ?? []).filter(
+    (s) => s.status === 'diterima' || s.status === 'ditolak',
+  );
+  const months = useMemo(() => {
+    const set = new Set<string>([currentMonth()]);
+    for (const s of history) {
+      const t = s.resolvedAt ?? s.createdAt;
+      set.add(t.slice(0, 7));
+    }
+    return [...set].sort().reverse();
+  }, [history]);
+  const aktifBulan = filterBulan ?? months[0] ?? currentMonth();
+  const filteredHistory = history.filter((s) => {
+    const t = (s.resolvedAt ?? s.createdAt).slice(0, 7);
+    return t === aktifBulan;
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -38,6 +65,14 @@ export default function SwapScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {isLoading || data == null ? (
           <View style={styles.loading}>
@@ -45,6 +80,52 @@ export default function SwapScreen() {
           </View>
         ) : (
           <>
+            {incoming.map((s) => (
+              <IncomingCard key={s.id} swap={s} />
+            ))}
+            {minePending.map((s) => (
+              <PendingCard key={s.id} swap={s} />
+            ))}
+
+            {incoming.length === 0 && minePending.length === 0 && (
+              <EmptyState
+                icon={
+                  <CalendarDays
+                    color={colors.inkSoft}
+                    size={22}
+                    strokeWidth={2}
+                  />
+                }
+                title="Tidak ada permintaan swap"
+                sub="Kalau ada yang mau tukar jadwal sama lo, bakal muncul di sini."
+              />
+            )}
+
+            <Section title="Histori swap" sub="buat audit">
+              <MonthFilter
+                months={months}
+                value={aktifBulan}
+                onChange={setFilterBulan}
+              />
+              {filteredHistory.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <CalendarDays
+                      color={colors.inkSoft}
+                      size={22}
+                      strokeWidth={2}
+                    />
+                  }
+                  title="Belum ada histori di bulan ini"
+                  sub="Ajukan swap buat nuker jadwal piket sama anggota lain."
+                />
+              ) : (
+                filteredHistory.map((s) => (
+                  <HistoryItem key={s.id} swap={s} />
+                ))
+              )}
+            </Section>
+
             {!showForm && (
               <Pressable
                 onPress={() => setShowForm(true)}
@@ -62,42 +143,6 @@ export default function SwapScreen() {
             )}
 
             {showForm && <SwapForm onClose={() => setShowForm(false)} />}
-
-            <Section title="DIAJUKAN KE LO">
-              {data.incoming.length === 0 ? (
-                <EmptyState
-                  icon={
-                    <ArrowLeftRight
-                      color={colors.inkSoft}
-                      size={22}
-                      strokeWidth={2}
-                    />
-                  }
-                  title="Tidak ada permintaan swap masuk"
-                  sub="Kalau ada yang mau tukar jadwal sama lo, bakal muncul di sini."
-                />
-              ) : (
-                data.incoming.map((s) => <IncomingCard key={s.id} swap={s} />)
-              )}
-            </Section>
-
-            <Section title="HISTORI SWAP" sub="buat audit">
-              {data.mine.length === 0 ? (
-                <EmptyState
-                  icon={
-                    <CalendarDays
-                      color={colors.inkSoft}
-                      size={22}
-                      strokeWidth={2}
-                    />
-                  }
-                  title="Lo belum punya riwayat swap"
-                  sub="Ajukan swap buat nuker jadwal piket sama anggota lain."
-                />
-              ) : (
-                data.mine.map((s) => <MineCard key={s.id} swap={s} />)
-              )}
-            </Section>
           </>
         )}
       </ScrollView>
@@ -125,6 +170,124 @@ function Section({
   );
 }
 
+/** Filter bulan Histori swap — bar chevron + sheet pilih bulan (pola tagihan). */
+function MonthFilter({
+  months,
+  value,
+  onChange,
+}: {
+  months: string[];
+  value: string;
+  onChange: (bulan: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const onSelect = (bulan: string) => {
+    onChange(bulan);
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <View style={styles.mfBar}>
+        <Pressable
+          onPress={() => {
+            const i = months.indexOf(value);
+            if (i < months.length - 1) onChange(months[i + 1] ?? null);
+          }}
+          hitSlop={6}
+          disabled={months.indexOf(value) >= months.length - 1}
+          style={styles.mfNav}
+        >
+          <Text
+            style={[
+              styles.mfNavText,
+              months.indexOf(value) >= months.length - 1 &&
+                styles.mfNavTextDisabled,
+            ]}
+          >
+            ‹
+          </Text>
+        </Pressable>
+        <Pressable onPress={() => setOpen(true)} style={styles.mfCenter}>
+          <Text style={styles.mfLabel}>{formatMonthLabel(value)}</Text>
+          <Text style={styles.mfDrop}>▼</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            const i = months.indexOf(value);
+            if (i > 0) onChange(months[i - 1] ?? null);
+          }}
+          hitSlop={6}
+          disabled={months.indexOf(value) <= 0}
+          style={styles.mfNav}
+        >
+          <Text
+            style={[
+              styles.mfNavText,
+              months.indexOf(value) <= 0 && styles.mfNavTextDisabled,
+            ]}
+          >
+            ›
+          </Text>
+        </Pressable>
+      </View>
+
+      {open && (
+        <AnimatedSheet
+          visible
+          onClose={() => setOpen(false)}
+          sheetStyle={[styles.mfSheet, { paddingBottom: insets.bottom + 12 }]}
+        >
+          <View style={styles.mfSheetHead}>
+            <Text style={styles.mfSheetTitle}>Pilih bulan</Text>
+            <Pressable
+              onPress={() => setOpen(false)}
+              hitSlop={6}
+              style={styles.mfSheetClose}
+            >
+              <Text style={styles.mfSheetCloseText}>×</Text>
+            </Pressable>
+          </View>
+          <View style={styles.mfList}>
+            {months.map((bulan) => {
+              const active = bulan === value;
+              return (
+                <Pressable
+                  key={bulan}
+                  onPress={() => onSelect(bulan)}
+                  style={[styles.mfRow, active && styles.mfRowActive]}
+                >
+                  <Text
+                    style={[
+                      styles.mfRowLabel,
+                      active && styles.mfRowLabelActive,
+                    ]}
+                  >
+                    {formatMonthLabel(bulan)}
+                  </Text>
+                  {bulan === currentMonth() && (
+                    <Text
+                      style={[
+                        styles.mfRowStatus,
+                        active && styles.mfRowStatusActive,
+                      ]}
+                    >
+                      Bulan ini
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </AnimatedSheet>
+      )}
+    </>
+  );
+}
+
+/** Kartu "Request masuk" — swap diajukan ke user, ada tombol Terima/Tolak. */
 function IncomingCard({ swap }: { swap: SwapRequest }) {
   const { accept, reject } = useSwapMutations();
   const onAccept = () =>
@@ -153,9 +316,7 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
 
       <View style={styles.swapPair}>
         <DayBox date={swap.tanggal} nama={swap.dari.nama} />
-        <View style={styles.swapArrow}>
-          <ArrowLeftRight size={20} color={colors.pine} strokeWidth={2.4} />
-        </View>
+        <Text style={styles.swapArrow}>⇄</Text>
         <DayBox date={swap.tanggalKe} nama={swap.ke.nama} isLo />
       </View>
 
@@ -186,17 +347,8 @@ function IncomingCard({ swap }: { swap: SwapRequest }) {
   );
 }
 
-function MineCard({ swap }: { swap: SwapRequest }) {
-  const note = useMemo(() => {
-    if (swap.status === 'diterima') {
-      return `Swap disetujui — ${swap.tanggal} resmi pindah ke ${swap.ke.nama}, ${swap.tanggalKe} jadi jadwal lo.`;
-    }
-    if (swap.status === 'ditolak') {
-      return `Swap ditolak — jadwal balik ke ${swap.dari.nama}.`;
-    }
-    return `Nunggu ${swap.ke.nama} nerima. Kalau ditolak, jadwal balik ke lo.`;
-  }, [swap]);
-
+/** Kartu "Request lo" (masih diajukan) — tanpa tombol, menunggu penerima. */
+function PendingCard({ swap }: { swap: SwapRequest }) {
   return (
     <View style={styles.swapCard}>
       <View style={styles.cardHead}>
@@ -206,17 +358,38 @@ function MineCard({ swap }: { swap: SwapRequest }) {
 
       <View style={styles.swapPair}>
         <DayBox date={swap.tanggal} nama={swap.dari.nama} isLo />
-        <View style={styles.swapArrow}>
-          <ArrowLeftRight size={20} color={colors.pine} strokeWidth={2.4} />
-        </View>
+        <Text style={styles.swapArrow}>⇄</Text>
         <DayBox date={swap.tanggalKe} nama={swap.ke.nama} />
       </View>
 
-      <Text style={styles.swapNote}>{note}</Text>
+      <Text style={styles.swapNote}>
+        Nunggu {swap.ke.nama} nerima. Kalau ditolak, jadwal balik ke lo.
+      </Text>
+    </View>
+  );
+}
 
-      <View style={styles.mineStamp}>
-        <Stamp status={swap.status} />
-      </View>
+/** Item histori kompak — hanya swap yang sudah diproses (diterima/ditolak). */
+function HistoryItem({ swap }: { swap: SwapRequest }) {
+  const diterima = swap.status === 'diterima';
+  const timestamp = swap.resolvedAt ?? swap.createdAt;
+  const firstLine = useMemo(() => {
+    if (diterima) {
+      return `${formatWeekdayDate(swap.tanggal)} · piket asli ${swap.dari.nama} → dikerjain ${swap.ke.nama}`;
+    }
+    return `${formatWeekdayDate(swap.tanggal)} · piket asli ${swap.dari.nama} → batal`;
+  }, [diterima, swap]);
+
+  return (
+    <View style={styles.historyItem}>
+      <Text style={styles.historyText}>
+        {firstLine}
+        {'\n'}
+        <Text style={styles.historyStamp}>
+          {diterima ? 'Diterima' : 'Ditolak'} {swap.ke.nama} ·{' '}
+          {formatDateTimeShort(timestamp)}
+        </Text>
+      </Text>
     </View>
   );
 }
@@ -234,25 +407,29 @@ function DayBox({
     <View style={styles.dayBox}>
       <Text style={styles.dayBoxDate}>{formatWeekdayDate(date)}</Text>
       <Text style={styles.dayBoxName}>
-        {isLo ? `Lo (${nama})` : nama}
+        {isLo ? `Lo (${firstName(nama)})` : firstName(nama)}
       </Text>
     </View>
   );
 }
 
-/** Form 2-step: pilih hari lo → pilih hari anggota lain (mutual). */
+/** Form 3-langkah: pilih hari lo → pilih hari anggota lain → ringkasan (mutual). */
 function SwapForm({ onClose }: { onClose: () => void }) {
   const { data: myDays, isLoading: daysLoading } = useSwapAvailableDays();
   const { data: targets, isLoading: targetsLoading } = useSwapTargets();
   const { create } = useSwapMutations();
   const insets = useSafeAreaInsets();
 
-  const [step, setStep] = useState<1 | 2>(1);
-  const [myDay, setMyDay] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [myDay, setMyDay] = useState<{
+    tanggal: string;
+    ruangan: string[];
+  } | null>(null);
   const [target, setTarget] = useState<{
     memberId: string;
     nama: string;
-    day: string;
+    tanggal: string;
+    ruangan: string[];
   } | null>(null);
 
   const canSubmit = myDay != null && target != null && !create.isPending;
@@ -260,7 +437,11 @@ function SwapForm({ onClose }: { onClose: () => void }) {
   const onSubmit = () => {
     if (!myDay || !target) return;
     create.mutate(
-      { tanggal: myDay, tanggalKe: target.day, keAnggotaId: target.memberId },
+      {
+        tanggal: myDay.tanggal,
+        tanggalKe: target.tanggal,
+        keAnggotaId: target.memberId,
+      },
       {
         onSuccess: () => {
           onClose();
@@ -294,12 +475,14 @@ function SwapForm({ onClose }: { onClose: () => void }) {
           <View style={styles.formHead}>
             <View style={styles.formHeadText}>
               <Text style={styles.formKicker}>
-                Langkah {step} dari 2
+                Langkah {step} dari 3
               </Text>
               <Text style={styles.formTitle}>
                 {step === 1
-                  ? 'Pilih hari lo yang mau ditukar'
-                  : 'Mau tukar sama hari siapa?'}
+                  ? 'Pilih hari piket lo'
+                  : step === 2
+                    ? 'Mau tukar sama hari siapa?'
+                    : 'Cek sekali lagi'}
               </Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8} style={styles.formClose}>
@@ -307,56 +490,47 @@ function SwapForm({ onClose }: { onClose: () => void }) {
             </Pressable>
           </View>
 
+          <Text style={styles.formHint}>
+            {step === 1
+              ? 'Satu hari penuh — semua jenis piket di hari itu ikut pindah.'
+              : step === 2
+                ? 'Cuma hari yang sudah ada penanggung jawabnya bisa ditukar.'
+                : 'Request dikirim ke penerima. Kalau ditolak, jadwal balik ke lo.'}
+          </Text>
+
           {step === 1 ? (
+            <View style={styles.dayList}>
+              {daysLoading ? (
+                <Text style={styles.formHint}>Memuat hari…</Text>
+              ) : (myDays ?? []).length === 0 ? (
+                <Text style={styles.formHint}>
+                  Tidak ada hari tersedia untuk swap
+                </Text>
+              ) : (
+                (myDays ?? []).map((d) => (
+                  <Pressable
+                    key={d.tanggal}
+                    onPress={() => {
+                      setMyDay(d);
+                      setStep(2);
+                    }}
+                    style={({ pressed }) => [
+                      styles.formOption,
+                      pressed && styles.formOptionPressed,
+                    ]}
+                  >
+                    <Text style={styles.formOptionTitle}>
+                      {formatWeekdayDate(d.tanggal)}
+                    </Text>
+                    <Text style={styles.formOptionSub}>
+                      {d.ruangan.join(' · ')}
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : step === 2 ? (
             <>
-              <Text style={styles.formHint}>
-                Cuma hari piket yang sudah terjadwal bisa ditukar.
-              </Text>
-              <View style={styles.dayList}>
-                {daysLoading ? (
-                  <Text style={styles.formHint}>Memuat hari…</Text>
-                ) : (myDays ?? []).length === 0 ? (
-                  <Text style={styles.formHint}>
-                    Tidak ada hari tersedia untuk swap
-                  </Text>
-                ) : (
-                  (myDays ?? []).map((d) => (
-                    <Pressable
-                      key={d}
-                      onPress={() => setMyDay(d)}
-                      style={[
-                        styles.dayOption,
-                        myDay === d && styles.dayOptionActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayOptionText,
-                          myDay === d && styles.dayOptionTextActive,
-                        ]}
-                      >
-                        {formatWeekdayDate(d)}
-                      </Text>
-                    </Pressable>
-                  ))
-                )}
-              </View>
-              <Pressable
-                onPress={() => myDay != null && setStep(2)}
-                disabled={myDay == null}
-                style={[
-                  styles.submitBtn,
-                  myDay == null && styles.submitBtnDisabled,
-                ]}
-              >
-                <Text style={styles.submitText}>Lanjut</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.formHint}>
-                Cuma hari yang sudah ada penanggung jawabnya bisa ditukar.
-              </Text>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 style={styles.targetScroll}
@@ -370,54 +544,83 @@ function SwapForm({ onClose }: { onClose: () => void }) {
                   </Text>
                 ) : (
                   (targets ?? []).flatMap((t) =>
-                    t.days.map((d) => {
-                      const active =
-                        target != null &&
-                        target.memberId === t.id &&
-                        target.day === d;
-                      return (
-                        <Pressable
-                          key={`${t.id}-${d}`}
-                          onPress={() =>
-                            setTarget({ memberId: t.id, nama: t.nama, day: d })
-                          }
-                          style={[
-                            styles.targetOption,
-                            active && styles.targetOptionActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.targetOptionText,
-                              active && styles.targetOptionTextActive,
-                            ]}
-                          >
-                            {formatWeekdayDate(d)} · {t.nama}
-                          </Text>
-                        </Pressable>
-                      );
-                    }),
+                    t.days.map((d) => (
+                      <Pressable
+                        key={`${t.id}-${d.tanggal}`}
+                        onPress={() => {
+                          setTarget({
+                            memberId: t.id,
+                            nama: t.nama,
+                            tanggal: d.tanggal,
+                            ruangan: d.ruangan,
+                          });
+                          setStep(3);
+                        }}
+                        style={({ pressed }) => [
+                          styles.formOption,
+                          pressed && styles.formOptionPressed,
+                        ]}
+                      >
+                        <Text style={styles.formOptionTitle}>
+                          {formatWeekdayDate(d.tanggal)} · {t.nama}
+                        </Text>
+                        <Text style={styles.formOptionSub}>
+                          {d.ruangan.join(' · ')}
+                        </Text>
+                      </Pressable>
+                    )),
                   )
                 )}
               </ScrollView>
+              <Pressable onPress={() => setStep(1)} style={styles.backBtn}>
+                <Text style={styles.backText}>← Ganti hari lo</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <View style={styles.summaryPair}>
+                <View style={styles.summaryBox}>
+                  <Text style={styles.summaryLabel}>LO KASIH</Text>
+                  <Text style={styles.summaryDate}>
+                    {myDay && formatWeekdayDate(myDay.tanggal)}
+                  </Text>
+                  <Text style={styles.summaryRooms}>
+                    {myDay?.ruangan.join(' · ')}
+                  </Text>
+                </View>
+                <Text style={styles.summaryArrow}>⇄</Text>
+                <View style={styles.summaryBox}>
+                  <Text style={styles.summaryLabel}>LO AMBIL</Text>
+                  <Text style={styles.summaryDate}>
+                    {target && formatWeekdayDate(target.tanggal)}
+                  </Text>
+                  <Text style={styles.summaryRooms}>
+                    {target?.ruangan.join(' · ')}
+                  </Text>
+                </View>
+              </View>
               <View style={styles.formActions}>
-                <Pressable
-                  onPress={() => setStep(1)}
-                  style={styles.backBtn}
-                >
-                  <Text style={styles.backText}>← Ganti hari lo</Text>
-                </Pressable>
                 <Pressable
                   onPress={() => void onSubmit()}
                   disabled={!canSubmit}
                   style={[
-                    styles.submitBtn,
-                    !canSubmit && styles.submitBtnDisabled,
+                    styles.kirimBtn,
+                    !canSubmit && styles.kirimBtnDisabled,
                   ]}
                 >
-                  <Text style={styles.submitText}>
-                    {create.isPending ? 'Mengirim…' : 'Ajukan'}
+                  <Text
+                    style={[
+                      styles.kirimText,
+                      !canSubmit && styles.kirimTextDisabled,
+                    ]}
+                  >
+                    {create.isPending
+                      ? 'Mengirim…'
+                      : `Kirim ke ${target?.nama ?? ''}`}
                   </Text>
+                </Pressable>
+                <Pressable onPress={() => setStep(2)} style={styles.ubahBtn}>
+                  <Text style={styles.ubahText}>Ubah</Text>
                 </Pressable>
               </View>
             </>
@@ -446,7 +649,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 6,
     paddingBottom: 108,
-    gap: 12,
+    gap: 13,
   },
   loading: { paddingVertical: 60, alignItems: 'center' },
   loadingText: { ...type.body, color: colors.inkSoft },
@@ -520,12 +723,13 @@ const styles = StyleSheet.create({
   swapPair: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   swapArrow: {
     flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontFamily: fontFamilies.display[600],
+    fontSize: 20,
+    color: colors.pine,
   },
   dayBox: {
     flex: 1,
-    backgroundColor: colors.paperDeep,
+    backgroundColor: colors.paper,
     borderRadius: 13,
     padding: 11,
     flexDirection: 'column',
@@ -573,7 +777,30 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.ink,
   },
-  mineStamp: { alignSelf: 'flex-end' },
+
+  historyItem: {
+    backgroundColor: colors.paperDeep,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  historyText: {
+    flex: 1,
+    fontFamily: fontFamilies.body[500],
+    fontSize: 11.5,
+    lineHeight: 16.5,
+    color: colors.ink,
+  },
+  historyStamp: {
+    fontFamily: fontFamilies.mono[400],
+    fontSize: 10.5,
+    color: colors.inkSoft,
+  },
 
   formBackdrop: {
     flex: 1,
@@ -623,63 +850,207 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: colors.paperFaint,
   },
-  dayList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayOption: {
+  dayList: { flexDirection: 'column', gap: 7 },
+  formOption: {
     borderWidth: 1,
     borderColor: 'rgba(239, 234, 224, 0.18)',
     backgroundColor: 'rgba(239, 234, 224, 0.08)',
     borderRadius: 13,
     paddingVertical: 11,
     paddingHorizontal: 13,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
   },
-  dayOptionActive: {
-    borderColor: colors.pine,
-    backgroundColor: colors.pine,
-  },
-  dayOptionText: {
+  formOptionPressed: { backgroundColor: 'rgba(239, 234, 224, 0.2)' },
+  formOptionTitle: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
     color: colors.paper,
   },
-  dayOptionTextActive: { color: colors.paper },
+  formOptionSub: {
+    fontFamily: fontFamilies.mono[400],
+    fontSize: 10.5,
+    color: colors.paper60,
+  },
   targetScroll: { flexGrow: 0 },
   targetList: { flexDirection: 'column', gap: 7 },
-  targetOption: {
-    borderWidth: 1,
-    borderColor: 'rgba(239, 234, 224, 0.18)',
-    backgroundColor: 'rgba(239, 234, 224, 0.08)',
-    borderRadius: 13,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
-  },
-  targetOptionActive: {
-    borderColor: colors.pine,
-    backgroundColor: colors.pine,
-  },
-  targetOptionText: {
-    fontFamily: fontFamilies.body[600],
-    fontSize: 12.5,
-    color: colors.paper,
-  },
-  targetOptionTextActive: { color: colors.paper },
-  formActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backBtn: { paddingVertical: 4 },
+  formActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
   backText: {
     fontFamily: fontFamilies.body[500],
     fontSize: 11.5,
+    color: colors.paper70,
+  },
+  summaryPair: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 9,
+  },
+  summaryBox: {
+    flex: 1,
+    backgroundColor: 'rgba(239, 234, 224, 0.1)',
+    borderRadius: 13,
+    padding: 11,
+    flexDirection: 'column',
+    gap: 3,
+  },
+  summaryLabel: {
+    fontFamily: fontFamilies.mono[400],
+    fontSize: 9.5,
     color: colors.paperFaint,
   },
-  submitBtn: {
+  summaryDate: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12,
+    color: colors.paper,
+  },
+  summaryRooms: {
+    fontFamily: fontFamilies.body[400],
+    fontSize: 10,
+    lineHeight: 13.5,
+    color: colors.paper60,
+  },
+  summaryArrow: {
+    flexShrink: 0,
+    alignSelf: 'center',
+    fontFamily: fontFamilies.display[600],
+    fontSize: 20,
+    color: colors.paper,
+  },
+  kirimBtn: {
     flex: 1,
-    backgroundColor: colors.pine,
+    backgroundColor: colors.paper,
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
   },
-  submitBtnDisabled: { backgroundColor: colors.disabledBg },
-  submitText: {
+  kirimBtnDisabled: { backgroundColor: colors.paper50 },
+  kirimText: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  kirimTextDisabled: { color: colors.paperFaint },
+  ubahBtn: {
+    borderWidth: 1,
+    borderColor: 'rgba(239, 234, 224, 0.3)',
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  ubahText: {
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
     color: colors.paper,
   },
+
+  mfBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 11,
+    padding: 3,
+  },
+  mfNav: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mfNavText: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 17,
+    lineHeight: 18,
+    color: colors.inkSoft,
+  },
+  mfNavTextDisabled: { color: colors.lineDash },
+  mfCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  mfLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 12.5,
+    color: colors.ink,
+  },
+  mfDrop: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 8,
+    color: colors.inkSoft,
+  },
+  mfSheet: {
+    width: '100%',
+    maxHeight: '50%',
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  mfSheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mfSheetTitle: {
+    fontFamily: fontFamilies.display[600],
+    fontSize: 14.5,
+    letterSpacing: -0.14,
+    color: colors.ink,
+  },
+  mfSheetClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.paperDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mfSheetCloseText: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 15,
+    lineHeight: 15,
+    color: colors.inkSoft,
+  },
+  mfList: { gap: 7 },
+  mfRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    borderRadius: 11,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+  },
+  mfRowActive: { backgroundColor: colors.ink },
+  mfRowLabel: {
+    fontFamily: fontFamilies.body[600],
+    fontSize: 13,
+    color: colors.ink,
+  },
+  mfRowLabelActive: { color: colors.paper },
+  mfRowStatus: {
+    fontFamily: fontFamilies.mono[500],
+    fontSize: 9.5,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+  },
+  mfRowStatusActive: { color: 'rgba(239, 234, 224, 0.6)' },
 });

@@ -1,6 +1,6 @@
 import { CalendarDays } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
@@ -9,16 +9,16 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import {
-  apiNudgeGalon,
   useConfirmGalon,
   useDashboard,
+  useNudgeGalon,
   useSetWeekendStatus,
   type DashboardData,
   type ScheduleRow,
   type WeekendChoice,
-  type WeekDayKey,
 } from '@/features/dashboard/api/dashboard';
 import {
+  firstName,
   formatCurrency,
   formatDayNumber,
   formatMonthYear,
@@ -30,7 +30,7 @@ import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function BerandaScreen() {
-  const { data, isLoading } = useDashboard();
+  const { data, isLoading, refetch, isFetching } = useDashboard();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -38,6 +38,14 @@ export default function BerandaScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {isLoading || data == null ? (
           <View style={styles.loading}>
@@ -59,24 +67,29 @@ export default function BerandaScreen() {
 function WeekendCard({ data }: { data: DashboardData }) {
   const setStatus = useSetWeekendStatus();
   const [frozenVisible, setFrozenVisible] = useState(false);
+  const [errorVisible, setErrorVisible] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const set = (hari: WeekDayKey, status: WeekendChoice) => {
+  const status = data.weekend.status;
+  const didKos = status === 'di_kos';
+  const inCooldown = isCooldownActive(data.weekend.nextChangeAt);
+
+  const set = (next: WeekendChoice) => {
     if (data.weekend.frozen) {
       setFrozenVisible(true);
       return;
     }
-    setStatus.mutate({ hari, status });
+    if (setStatus.isPending || inCooldown || next === status) return; // cegah spam/duplikat
+    setStatus.mutate(next, {
+      onError: (e) => {
+        setErrorMsg(e instanceof Error ? e.message : 'Terjadi kesalahan.');
+        setErrorVisible(true);
+      },
+    });
   };
 
   const sabtuDate = weekendDate(5);
   const mingguDate = weekendDate(6);
-
-  const pickedDays: string[] = [];
-  if (data.weekend.saturday === 'di_kos')
-    pickedDays.push(formatWeekdayDate(sabtuDate));
-  if (data.weekend.sunday === 'di_kos')
-    pickedDays.push(formatWeekdayDate(mingguDate));
-  const didKos = pickedDays.length > 0;
 
   return (
     <View style={styles.weekendCard}>
@@ -88,21 +101,58 @@ function WeekendCard({ data }: { data: DashboardData }) {
       </View>
       <Text style={styles.weekendSub}>
         {didKos
-          ? `Lo ambil piket ${pickedDays.join(' dan ')} — jadi bebas piket Senin–Jumat minggu ini.`
+          ? `Lo ambil piket ${formatWeekdayDate(sabtuDate)} dan ${formatWeekdayDate(mingguDate)} — jadi bebas piket Senin–Jumat minggu ini.`
           : 'Kalau lo di kos dan piket di Sabtu/Minggu, lo bebas piket Senin–Jumat minggu itu.'}
       </Text>
-      <View style={styles.weekendDays}>
-        <WeekendDayRow
-          label={formatWeekdayDate(sabtuDate)}
-          value={data.weekend.saturday}
-          onPick={(status) => set('sabtu', status)}
-        />
-        <WeekendDayRow
-          label={formatWeekdayDate(mingguDate)}
-          value={data.weekend.sunday}
-          onPick={(status) => set('minggu', status)}
-        />
+      <View style={styles.weekendDayRow}>
+        <Text style={styles.weekendDayLabel} numberOfLines={1}>
+          {formatWeekdayDate(sabtuDate)} & {formatWeekdayDate(mingguDate)}
+        </Text>
+        <View style={styles.weekendDayBtns}>
+          <Pressable
+            onPress={() => set('di_kos')}
+            disabled={setStatus.isPending || inCooldown || status === 'di_kos'}
+            style={({ pressed }) => [
+              styles.weekendDayBtn,
+              status === 'di_kos' && styles.weekendDayBtnActive,
+              pressed && styles.weekendDayBtnPressed,
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.weekendDayBtnText,
+                status === 'di_kos' && styles.weekendDayBtnTextActive,
+              ]}
+            >
+              Di kos
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => set('pulang')}
+            disabled={setStatus.isPending || inCooldown || status === 'pulang'}
+            style={({ pressed }) => [
+              styles.weekendDayBtn,
+              status === 'pulang' && styles.weekendDayBtnActive,
+              pressed && styles.weekendDayBtnPressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.weekendDayBtnText,
+                status === 'pulang' && styles.weekendDayBtnTextActive,
+              ]}
+            >
+              Pulang
+            </Text>
+          </Pressable>
+        </View>
       </View>
+      {inCooldown && data.weekend.nextChangeAt && (
+        <Text style={styles.weekendCooldown}>
+          Ganti status lagi {cooldownHint(data.weekend.nextChangeAt)}.
+        </Text>
+      )}
       {didKos && (
         <View style={styles.weekendNotice}>
           <Text style={styles.weekendNoticeText}>
@@ -126,7 +176,7 @@ function WeekendCard({ data }: { data: DashboardData }) {
                 m.status === 'Pulang' && styles.weekendOtherItemMuted,
               ]}
             >
-              {m.nama} · {m.status}
+              {firstName(m.nama)} · {m.status}
             </Text>
           ))}
         </ScrollView>
@@ -141,8 +191,33 @@ function WeekendCard({ data }: { data: DashboardData }) {
         onConfirm={() => setFrozenVisible(false)}
         onCancel={() => setFrozenVisible(false)}
       />
+      <ConfirmDialog
+        visible={errorVisible}
+        title="Gagal ubah status"
+        message={errorMsg}
+        confirmText="Tutup"
+        single
+        onConfirm={() => setErrorVisible(false)}
+        onCancel={() => setErrorVisible(false)}
+      />
     </View>
   );
+}
+
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/** True jika `nextChangeAt` (ISO) masih di masa depan. */
+function isCooldownActive(nextChangeAt: string | null): boolean {
+  if (!nextChangeAt) return false;
+  return new Date(nextChangeAt).getTime() > Date.now();
+}
+
+/** "pukul 17:30" — waktu WIB kapan cooldown berakhir. */
+function cooldownHint(nextChangeAt: string): string {
+  const wib = new Date(new Date(nextChangeAt).getTime() + WIB_OFFSET_MS);
+  const hh = String(wib.getUTCHours()).padStart(2, '0');
+  const mm = String(wib.getUTCMinutes()).padStart(2, '0');
+  return `pukul ${hh}:${mm} WIB`;
 }
 
 function weekendDate(dowOffset: number): string {
@@ -156,62 +231,13 @@ function weekendDate(dowOffset: number): string {
   return target.toISOString();
 }
 
-function WeekendDayRow({
-  label,
-  value,
-  onPick,
-}: {
-  label: string;
-  value: WeekendChoice | null;
-  onPick: (status: WeekendChoice) => void;
-}) {
-  return (
-    <View style={styles.weekendDayRow}>
-      <Text style={styles.weekendDayLabel}>{label}</Text>
-      <View style={styles.weekendDayBtns}>
-        <Pressable
-          onPress={() => onPick('di_kos')}
-          style={[
-            styles.weekendDayBtn,
-            value === 'di_kos' && styles.weekendDayBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.weekendDayBtnText,
-              value === 'di_kos' && styles.weekendDayBtnTextActive,
-            ]}
-          >
-            Di kos
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onPick('pulang')}
-          style={[
-            styles.weekendDayBtn,
-            value === 'pulang' && styles.weekendDayBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.weekendDayBtnText,
-              value === 'pulang' && styles.weekendDayBtnTextActive,
-            ]}
-          >
-            Pulang
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 function GalonWidget({ data }: { data: DashboardData }) {
   const confirm = useConfirmGalon();
+  const nudge = useNudgeGalon();
   const giliran = data.galon;
   const [error, setError] = useState<string | null>(null);
-  const [nudged, setNudged] = useState(false);
   const [justBought, setJustBought] = useState(false);
+  const nudgedToday = giliran.nudgedToday;
 
   const onBuy = () => {
     if (giliran.giliran == null) return;
@@ -225,8 +251,11 @@ function GalonWidget({ data }: { data: DashboardData }) {
   };
 
   const onNudge = () => {
-    setNudged(true);
-    void apiNudgeGalon();
+    if (nudgedToday || nudge.isPending) return;
+    nudge.mutate(undefined, {
+      onError: (e) =>
+        setError(e instanceof Error ? e.message : 'Terjadi kesalahan.'),
+    });
   };
 
   const hasTurn = giliran.namaAnggota != null;
@@ -267,10 +296,11 @@ function GalonWidget({ data }: { data: DashboardData }) {
         ) : (
           <Pressable
             onPress={onNudge}
+            disabled={nudgedToday || nudge.isPending}
             accessibilityLabel={`Kirim notif ke ${giliran.namaAnggota ?? ''}`}
             style={({ pressed }) => [
               styles.galonNudgeBtn,
-              nudged && styles.galonNudgeBtnNudged,
+              nudgedToday && styles.galonNudgeBtnNudged,
               pressed && styles.galonNudgeBtnPressed,
             ]}
           >
@@ -279,7 +309,7 @@ function GalonWidget({ data }: { data: DashboardData }) {
               height={17}
               viewBox="0 0 24 24"
               fill="none"
-              stroke={nudged ? colors.mustard : colors.inkSoft}
+              stroke={nudgedToday ? colors.mustard : colors.inkSoft}
               strokeWidth={1.9}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -290,9 +320,9 @@ function GalonWidget({ data }: { data: DashboardData }) {
         )}
       </View>
       {hasTurn && !giliran.isMine && (
-        <Text style={[styles.galonNote, nudged && styles.galonNoteNudged]}>
-          {nudged
-            ? `Notif sudah dikirim ke ${giliran.namaAnggota}`
+        <Text style={[styles.galonNote, nudgedToday && styles.galonNoteNudged]}>
+          {nudgedToday
+            ? 'Kamu udah colek hari ini. Coba lagi besok.'
             : 'Galon habis? colek dia biar segera beli'}
         </Text>
       )}
@@ -370,8 +400,8 @@ function ScheduleList({ data }: { data: DashboardData }) {
           title="Belum ada jadwal pekan ini"
           sub={
             data.isAdmin
-              ? 'Generate jadwal buat ngisi sisa pekan ini — pekan depannya otomatis.'
-              : 'Tunggu PJ Kos membuat jadwal piket pekan ini.'
+              ? 'Generate jadwal bulan ini — jadwal weekday dibuat sekali untuk 1 bulan.'
+              : 'Tunggu PJ Kos membuat jadwal piket.'
           }
           action={
             data.isAdmin
@@ -397,11 +427,14 @@ function ScheduleRowItem({ row }: { row: ScheduleRow }) {
   const today = isToday(row.tanggal);
   const isWeekendDay = row.dow === 'Sabtu' || row.dow === 'Minggu';
   const isLibur = row.statusTag === 'LIBUR' || row.statusTag === 'Free';
-  const hasMember = row.anggota != null && !isLibur;
+  const hasMember = row.anggotaList.length > 0 && !isLibur;
 
-  const name = hasMember
-    ? `${row.anggota!.nama}${row.isMine ? ' (lo)' : ''}`
-    : 'Libur';
+  const names = row.anggotaList.map((a) =>
+    row.isMine && row.anggotaList.length === 1
+      ? `${a.nama} (lo)`
+      : a.nama,
+  );
+  const name = hasMember ? names.join(', ') : 'Libur';
   const sub = hasMember
     ? row.ruangan.join(' · ')
     : liburSubtitle(isWeekendDay, row.dow);
@@ -609,14 +642,18 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body[600],
     fontSize: 12.5,
     color: colors.paper,
+    flex: 1,
+    minWidth: 0,
   },
-  weekendDayBtns: { flexDirection: 'row', gap: 5 },
+  weekendDayBtns: { flexDirection: 'row', gap: 5, flexShrink: 0 },
   weekendDayBtn: {
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 9,
     backgroundColor: 'rgba(239, 234, 224, 0.14)',
+    flexShrink: 0,
   },
+  weekendDayBtnPressed: { opacity: 0.75 },
   weekendDayBtnActive: { backgroundColor: colors.paper },
   weekendDayBtnText: {
     fontFamily: fontFamilies.body[600],
@@ -624,6 +661,13 @@ const styles = StyleSheet.create({
     color: 'rgba(239, 234, 224, 0.8)',
   },
   weekendDayBtnTextActive: { color: colors.ink },
+  weekendCooldown: {
+    fontFamily: fontFamilies.body[500],
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: 'rgba(239, 234, 224, 0.8)',
+    marginTop: 2,
+  },
   weekendOthers: {
     marginTop: 11,
     flexGrow: 0,
@@ -814,10 +858,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 1,
   },
-  dateChipToday: { backgroundColor: colors.mustard },
+  dateChipToday: { backgroundColor: colors.mustard, borderRadius: 11 },
   dateChipTodayDim: { color: colors.mustardInkStrong },
-  dateChipPlan: { backgroundColor: colors.paperDeep },
-  dateChipFree: { backgroundColor: 'transparent' },
+  dateChipPlan: { backgroundColor: colors.paperDeep, borderRadius: 11 },
+  dateChipFree: { backgroundColor: 'transparent', borderRadius: 11 },
   dateChipDim: { color: colors.inkMuted },
   dow: {
     fontFamily: fontFamilies.mono[500],

@@ -8,13 +8,14 @@ import {
   LayoutAnimation,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   useAnimatedValue,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -31,6 +32,7 @@ import {
 } from '@/features/piket/api/piket';
 import { formatCurrency, formatWeekdayDate } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
+import { ensureCameraPermission } from '@/lib/media-permissions';
 import { toast } from '@/stores/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { usePiketDraft, type RoomDraft } from '@/stores/piket-draft-store';
@@ -68,7 +70,7 @@ function useInfoDialog() {
 }
 
 export default function PiketScreen() {
-  const { data, isLoading } = usePiketToday();
+  const { data, isLoading, refetch, isFetching } = usePiketToday();
   const { drafts } = usePiketDraft();
   const [view, setView] = useState<PiketView>('mine');
 
@@ -82,6 +84,14 @@ export default function PiketScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => void refetch()}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         <View style={styles.segmented}>
           <Pressable
@@ -255,6 +265,7 @@ function ReviewSheet({
   onClose: () => void;
 }) {
   const approved = submission?.status === 'approved';
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={submission != null}
@@ -263,7 +274,10 @@ function ReviewSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.sheetHandle} />
           {submission && (
             <>
@@ -869,10 +883,8 @@ async function pickPhoto(
   slot: 'before' | 'after',
   setPhoto: (roomId: string, slot: 'before' | 'after', uri: string) => void,
 ): Promise<boolean> {
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
-  if (!permission.granted) {
-    return false;
-  }
+  const ok = await ensureCameraPermission();
+  if (!ok) return false;
   const result = await ImagePicker.launchCameraAsync({
     allowsEditing: false,
     quality: 0.7,
@@ -1187,7 +1199,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingTop: 8,
     paddingHorizontal: 20,
-    paddingBottom: 12,
     maxHeight: '85%',
     gap: 8,
   },

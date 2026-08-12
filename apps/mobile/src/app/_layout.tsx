@@ -1,6 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
@@ -12,11 +11,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { UpdateDialog } from '@/components/update/update-dialog';
 import { useUpdateCheck } from '@/hooks/use-update-check';
 import { apiCheckHealth } from '@/lib/api-client';
-import {
-  configureAndroidChannel,
-  deepLinkFromResponse,
-  registerPushToken,
-} from '@/lib/notifications';
+import { registerPushToken, setupNotifications } from '@/lib/notifications';
+import { connectRealtime, disconnectRealtime, setupRealtimeListeners } from '@/lib/realtime';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { colors } from '@/theme/colors';
@@ -24,32 +20,10 @@ import { useSerumahFonts } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
 
-/** Navigate to a tab when a push notification is tapped. */
-function goToDeepLink(deepLink?: string) {
-  const route = deepLinkFromResponseWithKey(deepLink);
-  if (!route) return;
-  if (route === 'beranda') {
-    router.navigate('/');
-  } else if (route === 'piket') {
-    router.navigate('/(tabs)/piket');
-  } else if (route === 'swap') {
-    router.navigate('/(tabs)/swap');
-  } else if (route === 'tagihan') {
-    router.navigate('/(tabs)/tagihan');
-  }
-}
-
-function deepLinkFromResponseWithKey(deepLink?: string) {
-  if (!deepLink) return null;
-  const key = deepLink.replace('/(tabs)/', '').replace(/\//g, '');
-  const valid = ['piket', 'swap', 'tagihan', 'beranda', 'index'];
-  return valid.includes(key) ? key : null;
-}
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const fontsLoaded = useSerumahFonts();
-  const { decision, checking, dismissed, dismiss } = useUpdateCheck();
+  const { decision, checking, recheck } = useUpdateCheck();
   const stage = useAuthStore((s) => s.stage);
   const hydrate = useAuthStore((s) => s.hydrate);
   const [ready, setReady] = useState(false);
@@ -79,14 +53,16 @@ export default function RootLayout() {
     return () => clearTimeout(t);
   }, [ready, holdDone]);
 
-  // Push notifications: Android channel + register the device token once the
-  // user is authenticated, and route taps to the relevant tab.
+  // Push notifications: init handler + channel + deep-link listener (no-op di
+  // Expo Go). Registered once on mount.
   useEffect(() => {
-    void configureAndroidChannel();
-    const sub = Notifications.addNotificationResponseReceivedListener((res) =>
-      goToDeepLink(deepLinkFromResponse(res) ?? undefined),
-    );
-    return () => sub.remove();
+    let cleanup: (() => void) | null = null;
+    void setupNotifications().then((fn) => {
+      cleanup = fn;
+    });
+    return () => {
+      cleanup?.();
+    };
   }, []);
 
   // Push notifications: register the device token after the splash, whenever
@@ -96,6 +72,17 @@ export default function RootLayout() {
     if (!holdDone || stage !== 'ready') return;
     void registerPushToken();
   }, [holdDone, stage]);
+
+  // Realtime (Socket.io): connect saat login, disconnect saat logout,
+  // daftarkan listener → invalidate React Query saat event update datang.
+  useEffect(() => {
+    if (stage !== 'ready') {
+      disconnectRealtime();
+      return;
+    }
+    connectRealtime();
+    return setupRealtimeListeners(queryClient);
+  }, [stage]);
 
   if (!ready) {
     // While behind the native splash render a plain matching backdrop — the
@@ -149,10 +136,9 @@ export default function RootLayout() {
         )}
         {manifest && (
           <UpdateDialog
-            visible={!checking && !dismissed && updateVisible}
-            force={decision.type === 'force'}
+            visible={!checking && updateVisible}
             manifest={manifest}
-            onDismiss={dismiss}
+            onDismiss={recheck}
           />
         )}
       </ThemeProvider>

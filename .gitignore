@@ -36,3 +36,6 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Firebase admin SDK service account keys (private — jangan commit)
+*-adminsdk-*.json

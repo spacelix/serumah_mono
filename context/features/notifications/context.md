@@ -1,22 +1,23 @@
-# Feature Context — Notifications (FCM Push)
+# Feature Context — Notifications (Push)
 
 ## 1. Goal & Scope
 
-Push notifications via **FCM** (Firebase Cloud Messaging). Backend (self-hosted NestJS) sends; React Native (Expo) receives. Scope is strictly the **locked set below** — not every event gets a push. Sender: FCM **HTTP v1 API** (JWT service account, no SDK).
+Push notifications. Backend (self-hosted NestJS) sends; React Native (Expo) receives. Sender: **Expo Push Service** (`https://exp.host/--/api/v2/push/send`) — best practice per docs.expo.dev, Expo yang relay ke FCM/APNs, tanpa FCM credentials di server.
 
 Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat wajib yang dikirim.** Tidak semua aksi → notif.
 
 ## 2. Data Model
 
-- `Anggota.pushToken` (`String?`, map `push_token`) + `pushTokenUpdatedAt` (`DateTime?`) — FCM token per device.
+- `Anggota.pushToken` (`String?`, map `push_token`) + `pushTokenUpdatedAt` (`DateTime?`) — **Expo push token** per device.
 - Migrasi: `add_push_token`.
 
 ## 3. Env & Android Config
 
-- Backend env: `FCM_PROJECT_ID`, `FCM_PRIVATE_KEY` (PEM, `\n` escaped), `FCM_CLIENT_EMAIL`.
-- Mobile Android: **`google-services.json`** (dari Firebase console, app `com.serumah.serumah`) → `apps/mobile/google-services.json` (gitignored). Di-refer dari `app.json` → `android.googleServicesFile`.
+- **Backend tidak butuh FCM env** — cukup kirim token Expo ke `exp.host`. (FCM vars tidak diperlukan.)
+- Mobile env: **`EXPO_PUBLIC_EAS_PROJECT_ID`** (Expo project id) — dipakai `getExpoPushTokenAsync({ projectId })`; fallback dari `extra.eas.projectId` (EAS inject saat build).
+- Mobile Android: **`google-services.json`** (dari Firebase console, app `com.serumah.serumah`) → `apps/mobile/google-services.json` (gitignored, di-inject CI via secret `GOOGLE_SERVICES_BASE64`). Di-refer dari `app.json` → `android.googleServicesFile`. Plus **FCM V1 service account key** di EAS (untuk build app, bukan server).
 - Mobile deps: `expo-notifications` (SDK 57 compatible), `expo-device` (sudah ada). **Tidak bisa diuji via Expo Go (push Android dihapus sejak SDK 53) — harus development build / APK.**
-- Token yang dikirim = **native FCM token** (`Notifications.getDevicePushTokenAsync`), jadi backend kirim **langsung ke FCM**, bukan relay Expo.
+- Token yang dikirim = **Expo push token** (`Notifications.getExpoPushTokenAsync`, format `ExponentPushToken[...]`).
 
 ## 4. Locked Notification Set
 
@@ -53,6 +54,23 @@ Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat waj
 - `confirm` di `GalonService.confirm` → setelah `rotateGalon` menentukan next member, kirim: (1) notif "sudah dibeli" ke semua anggota; (2) nudge ke next member.
 - Nudge bisa juga dipicu manual (tombol bel galon di beranda) → `POST /galon/nudge` (dikirim ke member giliran aktif).
 
+### B3. Weekend status — event-driven (hook di `schedule.service.ts` `setWeekendStatus`)
+
+| Pemicu | Penerima | Pesan | Deep link |
+|---|---|---|---|
+| **Status Di kos/Pulang diubah** | **semua anggota rumah** (selain pengubah) | "{nama} Di kos akhir pekan ini." / "{nama} pulang akhir pekan ini." | `/(tabs)` (beranda) |
+
+- Hook dipanggil setelah upsert `WeekendStatus`. 1 pilihan berlaku utk seluruh akhir pekan (bukan per hari). Tanpa detail siapa yang dapat piket (keputusan 2026-08-11).
+
+### E. Weekend status — reminder belum pilih (cron Jumat)
+
+- `0 8 * * 5` (Jumat 08:00) + `0 19 * * 5` (Jumat 19:00, 1 jam sebelum freeze 20:00): ke anggota yang **belum punya `WeekendStatus` sama sekali** minggu berjalan (1 pilihan utk seluruh akhir pekan → cukup sekali per anggota, bukan per hari). Pesan "Belum pilih Di kos / Pulang akhir pekan ini. Deadline Jumat 20:00." Deep link `/(tabs)` (beranda).
+- Konsisten dgn freeze Jumat 20:00 (status tidak bisa diubah setelahnya).
+
+### F. Weekend status — tidak konfirmasi saat freeze (cron Jumat 20:00)
+
+- `0 20 * * 5` (`freezeWeekendCron`): setelah jadwal weekend dibekukan, anggota yang **belum punya `WeekendStatus` sama sekali** (Sabtu & Minggu belum tercatat) dapat notif: "Lo ga konfirmasi Pulang atau Di kos, jadi buat weekend ini lo bertanggung jawab sepenuhnya." Deep link `/(tabs)` (beranda).
+
 
 ### C. Denda reminder — cron mingguan
 
@@ -62,6 +80,10 @@ Locked principle (2026-08-10): **hanya notif yang butuh approver + pengingat waj
 
 - Guard `last-day-of-month` (30 utk 30-hari; 28/29 utk Februari) — bukan tepat tgl 30.
 - **Generate iuran bulan depan dulu** via `IuranService.ensureBulan` (bulan berikutnya), lalu kirim ke semua anggota: "Iuran {bulan depan} sudah keluar, tagihan lo {amount}". Deep link `/(tabs)/tagihan`.
+
+### G. Jadwal bulan habis — cron 22:00 (`scheduleExhaustedReminder` di schedule.service)
+
+- Cek jadwal weekday masa depan; jika tidak ada → notif PJ **sekali** (Redis marker `schedule:exhausted:{rumahId}`): "Generate jadwal bulan depan" → deep link `/(tabs)`. Empty state + tombol Generate muncul di mobile.
 
 ## 5. API Contract (NestJS)
 
@@ -75,20 +97,19 @@ Module: `fcm` + `notifications`.
 
 Hooks di service (kirim notif, bukan endpoint): `piket.service` (submit→reviewer), `swap.service` (create→penerima; accept/reject→pengaju), `denda.service`/`iuran.service` (upload-bukti→reviewer pembayaran), `galon.service` (confirm→semua anggota + next member).
 
-## 6. FCM Sending (FcmService)
+## 6. Push Sending (FcmService)
 
-- `POST https://fcm.googleapis.com/v1/projects/{FCM_PROJECT_ID}/messages:send`
-- Auth: `Authorization: Bearer {JWT}` — JWT di-sign dengan `FCM_PRIVATE_KEY`, scope `https://www.googleapis.com/auth/firebase.messaging`, `exp` ~1 jam.
-- `data` selalu berisi `deepLink`; `notification` title/body; Android `android.notification.channelId` (channel dibuat di mobile).
-- Token basi (`UNREGISTERED`/`INVALID_ARGUMENT`) → hapus `pushToken`.
+- `POST https://exp.host/--/api/v2/push/send` — body `{ to: <ExponentPushToken>, title, body, data: { deepLink } }`. **Tanpa auth** (Expo Push API).
+- Token `DeviceNotRegistered` → hapus `pushToken`.
 - **Idempoten:** semua pengiriman di-guard — piket reminder cek status submission; reviewer/denda/iuran cek status transaksi; denda mingguan cek `belum_bayar`; iuran cek bulan belum lunas/tergenerate.
 
 ## 7. Mobile (expo-notifications)
 
-- `app/_layout.tsx`: `requestPermissionsAsync` saat login/start; **`getDevicePushTokenAsync`** (native FCM token) → `POST /push/token`; refresh saat app start.
-- `NotificationResponse` listener → `router.push(data.deepLink)`.
-- Foreground: tampilkan banner/toast (jangan sistem notif dobel).
-- Android channel id konsisten dgn `FcmService` (`serumah`).
+- `app/_layout.tsx`: `requestPermissionsAsync` saat login/start; **`getExpoPushTokenAsync({ projectId: expoProjectId() })`** → `POST /push/token`; refresh saat app start; `setNotificationHandler` agar tampil saat foreground.
+- `NotificationResponse` listener → `router.push(data.deepLink)` (parser `routeForDeepLink` tunggal di `lib/notifications.ts`).
+- Foreground: banner/toast (handler di atas).
+- Android channel id konsisten (`serumah`).
+- Log push di-gate `__DEV__` (tidak mencetak token di produksi).
 - **Harus development build / APK release** — Expo Go tidak mendukung push Android (SDK 53+).
 
 ## 8. Files

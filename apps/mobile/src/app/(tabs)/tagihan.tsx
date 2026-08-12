@@ -10,6 +10,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +31,7 @@ import {
   formatWeekdayDate,
 } from '@/lib/format';
 import { mediaSource } from '@/lib/api-client';
+import { ensureMediaLibraryPermission } from '@/lib/media-permissions';
 import { useAuthStore } from '@/stores/auth-store';
 import { dialog } from '@/stores/dialog-store';
 import { toast } from '@/stores/toast-store';
@@ -65,6 +67,18 @@ const SEGMENTS: { key: Segment; label: string }[] = [
 export default function TagihanScreen() {
   const [bulan, setBulan] = useState(currentMonth());
   const [segment, setSegment] = useState<Segment>('denda');
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    void queryClient
+      .invalidateQueries({ queryKey: tagihanKeys.denda(bulan) })
+      .then(() => queryClient.invalidateQueries({ queryKey: tagihanKeys.iuran(bulan) }))
+      .then(() => queryClient.invalidateQueries({ queryKey: tagihanKeys.listrik(bulan) }))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['tagihan', 'months'] }))
+      .finally(() => setRefreshing(false));
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -95,6 +109,14 @@ export default function TagihanScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.pine]}
+            tintColor={colors.pine}
+          />
+        }
       >
         {segment === 'denda' && <DendaView bulan={bulan} />}
         {segment === 'iuran' && <IuranView bulan={bulan} />}
@@ -308,6 +330,7 @@ function DendaDetailSheet({
   onClose: () => void;
   onUpload: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const qrisSource = mediaSource(qrisUrl, token);
 
@@ -319,7 +342,10 @@ function DendaDetailSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + 26 }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.sheetHandle} />
           {denda && (
             <>
@@ -1682,15 +1708,8 @@ function dendaNote(d: Denda): string {
 }
 
 async function capturePhoto(): Promise<string | null> {
-  const permission =
-    await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    dialog.alert(
-      'Izin galeri',
-      'Izinkan akses galeri untuk memilih bukti pembayaran.',
-    );
-    return null;
-  }
+  const ok = await ensureMediaLibraryPermission();
+  if (!ok) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
     quality: 0.7,
   });
@@ -1850,7 +1869,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius['3xl'],
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 30,
     maxHeight: '85%',
   },
   sheetHandle: {

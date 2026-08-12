@@ -81,6 +81,7 @@ model Anggota {
   role         String   @default("anggota")     // 'admin' | 'anggota'
   pushToken    String?  @map("push_token")      // FCM device token (push notif)
   pushTokenUpdatedAt DateTime? @map("push_token_updated_at") @db.Timestamptz
+  lastNudgeAt  DateTime? @map("last_nudge_at")  @db.Timestamptz // nudge galon terakhir (maks 1x/hari WIB, locked 2026-08-12)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user             User?      @relation(fields: [id], references: [id])
@@ -136,6 +137,8 @@ model WeekendStatus {
   mingguMulai DateTime @map("minggu_mulai") @db.Date  // Monday of week
   hari        String                               // 'sabtu' | 'minggu' (drift column, see notes)
   status      String                               // 'di_kos' | 'pulang'
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz // urutan pilihan di_kos (untuk distribusi weekend)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz     // ganti status terakhir (cooldown 6 jam, locked 2026-08-12)
 
   anggota Anggota @relation(fields: [anggotaId], references: [id])
 
@@ -310,6 +313,7 @@ model SwapRequest {
   tanggalKe   DateTime @db.Date          // hari piket si penerima (ke) yang ditukar (mutual, locked 2026-08-10)
   status      String   @default("diajukan") // 'diajukan' | 'diterima' | 'ditolak'
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz // waktu diproses (accept/reject) — untuk Histori swap
 
   dari Anggota @relation("SwapDari", fields: [dariAnggotaId], references: [id])
   ke   Anggota @relation("SwapKe", fields: [keAnggotaId], references: [id])

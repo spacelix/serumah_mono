@@ -1,11 +1,12 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedSheet } from '@/components/ui/animated-sheet';
 import {
   currentMonth,
   formatMonthLabel,
-  shiftMonth,
   useTagihanMonths,
 } from '@/features/tagihan/api/tagihan';
 import { colors } from '@/theme/colors';
@@ -13,8 +14,9 @@ import { fontFamilies } from '@/theme/typography';
 
 /**
  * Month filter untuk tab Tagihan. Bar full-width (border 1px line, radius 11)
- * dengan navigasi `‹`/`›` dan tombol bulan (label + `▼`) yang membuka bottom
- * sheet "Pilih bulan" hanya berisi bulan-bulan yang punya data.
+ * dengan navigasi `‹`/`›` (nonaktif di ujung daftar bulan) dan tombol bulan
+ * (label + `▼`) yang membuka bottom sheet "Pilih bulan" hanya berisi
+ * bulan-bulan yang punya data.
  */
 export function MonthPicker({
   value,
@@ -24,32 +26,49 @@ export function MonthPicker({
   onChange: (bulan: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { data } = useTagihanMonths();
+  const months = useMonthOptions(data?.months ?? [], value);
+
+  const index = months.indexOf(value);
+  const atStart = index <= 0;
+  const atEnd = index >= months.length - 1;
 
   return (
     <>
       <View style={styles.bar}>
         <Pressable
-          onPress={() => onChange(shiftMonth(value, -1))}
+          onPress={() => onChange(months[index + 1] ?? value)}
+          disabled={atEnd}
           style={styles.navBtn}
           hitSlop={4}
         >
-          <ChevronLeft color={colors.inkSoft} size={16} strokeWidth={2.4} />
+          <ChevronLeft
+            color={atEnd ? colors.lineDash : colors.inkSoft}
+            size={16}
+            strokeWidth={2.4}
+          />
         </Pressable>
         <Pressable onPress={() => setOpen(true)} style={styles.centerBtn}>
           <Text style={styles.label}>{formatMonthLabel(value)}</Text>
           <Text style={styles.drop}>▼</Text>
         </Pressable>
         <Pressable
-          onPress={() => onChange(shiftMonth(value, 1))}
+          onPress={() => onChange(months[index - 1] ?? value)}
+          disabled={atStart}
           style={styles.navBtn}
           hitSlop={4}
         >
-          <ChevronRight color={colors.inkSoft} size={16} strokeWidth={2.4} />
+          <ChevronRight
+            color={atStart ? colors.lineDash : colors.inkSoft}
+            size={16}
+            strokeWidth={2.4}
+          />
         </Pressable>
       </View>
 
       {open && (
         <MonthSheet
+          months={months}
           value={value}
           onChange={onChange}
           onClose={() => setOpen(false)}
@@ -59,19 +78,25 @@ export function MonthPicker({
   );
 }
 
+/** Bulan-bulan yang tersedia: data + bulan aktif + bulan berjalan, descending. */
+function useMonthOptions(available: string[], value: string): string[] {
+  const all = new Set([...available, value, currentMonth()]);
+  return [...all].sort().reverse();
+}
+
 function MonthSheet({
+  months,
   value,
   onChange,
   onClose,
 }: {
+  months: string[];
   value: string;
   onChange: (bulan: string) => void;
   onClose: () => void;
 }) {
-  const { data } = useTagihanMonths();
+  const insets = useSafeAreaInsets();
   const today = currentMonth();
-  const all = new Set([...(data?.months ?? []), value, today]);
-  const months = [...all].sort().reverse();
 
   const onSelect = (bulan: string) => {
     onChange(bulan);
@@ -79,57 +104,51 @@ function MonthSheet({
   };
 
   return (
-    <Modal
+    <AnimatedSheet
       visible
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
+      onClose={onClose}
+      sheetStyle={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
-          <View style={styles.handle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Pilih bulan</Text>
-            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={6}>
-              <Text style={styles.closeText}>×</Text>
-            </Pressable>
-          </View>
+      <View style={styles.handle} />
+      <View style={styles.sheetHeader}>
+        <Text style={styles.sheetTitle}>Pilih bulan</Text>
+        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={6}>
+          <Text style={styles.closeText}>×</Text>
+        </Pressable>
+      </View>
 
-          <ScrollView
-            style={styles.listScroll}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-          >
-            <View style={styles.listGroup}>
-              {months.map((bulan) => {
-                const squad = statusLabel(bulan, today);
-                const active = bulan === value;
-                return (
-                  <Pressable
-                    key={bulan}
-                    onPress={() => onSelect(bulan)}
-                    style={[styles.row, active && styles.rowActive]}
-                  >
-                    <Text
-                      style={[styles.rowLabel, active && styles.rowLabelActive]}
-                    >
-                      {formatMonthLabel(bulan)}
-                    </Text>
-                    <Text
-                      style={[styles.rowStatus, active && styles.rowStatusActive]}
-                    >
-                      {squad}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
+      <ScrollView
+        style={styles.listScroll}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.listGroup}>
+          {months.map((bulan) => {
+            const squad = statusLabel(bulan, today);
+            const active = bulan === value;
+            return (
+              <Pressable
+                key={bulan}
+                onPress={() => onSelect(bulan)}
+                style={[styles.row, active && styles.rowActive]}
+              >
+                <Text
+                  style={[styles.rowLabel, active && styles.rowLabelActive]}
+                >
+                  {formatMonthLabel(bulan)}
+                </Text>
+                <Text
+                  style={[styles.rowStatus, active && styles.rowStatusActive]}
+                >
+                  {squad}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-      </Pressable>
-    </Modal>
+      </ScrollView>
+    </AnimatedSheet>
   );
 }
 
@@ -177,21 +196,14 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: colors.inkSoft,
   },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(20, 26, 23, 0.55)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     width: '100%',
-    // TODO: 50% is a guess, need to be adjusted
     maxHeight: '50%',
     backgroundColor: colors.paper,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
     paddingHorizontal: 20,
-    paddingBottom: 12,
     gap: 8,
   },
   handle: {

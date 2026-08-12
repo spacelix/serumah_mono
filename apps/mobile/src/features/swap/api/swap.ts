@@ -14,12 +14,18 @@ export interface SwapRequest {
   dari: SwapMember;
   ke: SwapMember;
   createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface SwapDay {
+  tanggal: string;
+  ruangan: string[];
 }
 
 export interface SwapTarget {
   id: string;
   nama: string;
-  days: string[];
+  days: SwapDay[];
 }
 
 export interface SwapListResponse {
@@ -32,8 +38,8 @@ export async function apiGetSwaps(): Promise<SwapListResponse> {
   return response.data;
 }
 
-export async function apiGetSwapAvailableDays(): Promise<string[]> {
-  const response = await apiClient.get<string[]>('/swap/available-days');
+export async function apiGetSwapAvailableDays(): Promise<SwapDay[]> {
+  const response = await apiClient.get<SwapDay[]>('/swap/available-days');
   return response.data;
 }
 

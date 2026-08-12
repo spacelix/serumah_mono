@@ -15,16 +15,12 @@ import { radius } from '@/theme/radius';
 
 interface UpdateDialogProps {
   visible: boolean;
-  manual?: boolean;
-  force?: boolean;
   manifest: UpdateManifest;
   onDismiss: () => void;
 }
 
 export function UpdateDialog({
   visible,
-  manual = false,
-  force = false,
   manifest,
   onDismiss,
 }: UpdateDialogProps) {
@@ -54,22 +50,19 @@ export function UpdateDialog({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={force ? undefined : onDismiss}
+      onRequestClose={onDismiss}
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>
-            {force && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>WAJIB</Text>
-              </View>
-            )}
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>WAJIB</Text>
+            </View>
           </View>
           <Text style={styles.title}>Update tersedia</Text>
           <Text style={styles.body}>
-            {force
-              ? 'Versi sebelumnya tidak lagi didukung. Silakan perbaharui untuk melanjutkan.'
-              : `Versi baru tersedia. Perbaharui untuk fitur terbaru dan perbaikan.`}
+            Versi sebelumnya tidak lagi didukung. Silakan perbaharui untuk
+            melanjutkan.
           </Text>
           {manifest.versionName.length > 0 && (
             <Text style={styles.meta}>v{manifest.versionName}</Text>
@@ -77,14 +70,6 @@ export function UpdateDialog({
           {error && <Text style={styles.error}>{error}</Text>}
 
           <View style={styles.buttons}>
-            {!force && (
-              <Pressable
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={onDismiss}
-              >
-                <Text style={styles.buttonSecondaryText}>Nanti saja</Text>
-              </Pressable>
-            )}
             <Pressable
               style={[
                 styles.button,
@@ -195,18 +180,8 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
   buttonPrimaryText: {
     color: colors.paper,
-    fontFamily: fontFamilies.body[600],
-    fontSize: 13,
-  },
-  buttonSecondaryText: {
-    color: colors.ink,
     fontFamily: fontFamilies.body[600],
     fontSize: 13,
   },

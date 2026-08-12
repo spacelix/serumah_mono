@@ -23,10 +23,10 @@ Module: `dashboard` (aggregate) or existing endpoints.
 
 Payload composition:
 
-- `weekend`: saturday & sunday status for the current week (`WeekendStatus`).
-- `galon`: active turn (`GiliranGalon` + member name).
+- `weekend`: **satu status** (`di_kos`/`pulang`/null) untuk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked 2026-08-11) + `frozen` + `nextChangeAt` (ISO, waktu WIB kapan cooldown 6 jam berakhir; null bila tidak dalam cooldown, locked 2026-08-12) + `anggotaLain`.
+- `galon`: active turn (`GiliranGalon` + member name) + `nudgedToday` (caller sudah nudge hari ini WIB).
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
-- `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag }`.
+- `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag, anggotaList[], isMine }` — `anggotaList` bisa lebih dari 1 (weekend tumpuk, beberapa orang piket di hari yang sama).
 - `scheduleIncomplete`: true when an upcoming piket day this week (today→Sunday) is not yet scheduled (weekday without Jadwal, or weekend with Di kos members without Jadwal).
 - `isAdmin`: whether the caller is the PJ (`role='admin'`).
 
@@ -37,6 +37,7 @@ Locked decisions:
 - Weekday piket only Senin/Rabu/Jumat. Selasa+Kamis labeled **"LIBUR"**.
 - Weekend: tag from `weekend_status` (Di kos / Pulang) or **Free** when everyone is home.
 - Per-day status tag: `Hari ini` | `Selesai` | `Terjadwal` | `Bolong` | `Free` | `LIBUR`.
+- **Weekend di-kos tanpa jadwal = `Terjadwal` (bukan `LIBUR`)** — chip tanggal tetap rounded (paper), bukan transparent; free (semua pulang) = `Free` → chip transparent.
 - Weekend toggle is ONLY available until freeze (Friday 20:00). After that read-only (see `schedule`).
 - Billing summary only for the user (not all members).
 
@@ -44,7 +45,7 @@ Locked decisions:
 
 Screen: `app/(tabs)/index.tsx`. Components: `WeekendCard`, `GalonWidget`, `BillingSummary`, `ScheduleList`.
 
-- **WeekendCard** (hero, bg pine): "Minggu ini lo di kos atau pulang?" + per-day toggle (Sabtu, Minggu). States: Di kos / Pulang.
+- **WeekendCard** (hero, bg pine): "Weekend ini lo di kos?" + **satu toggle** Di kos/Pulang yang berlaku untuk Sabtu & Minggu (bukan per-day). States: Di kos / Pulang. Tombol disabled saat status sudah sama / sedang memproses (cegah spam notif) / **dalam cooldown 6 jam** (hint "Ganti status lagi pukul HH:MM WIB"). Error mutation ditampilkan via ConfirmDialog (misal ditolak 400/403).
 - **GalonWidget** (gold accent, 4px left border): "Giliran galon: [Nama]" + **"Sudah Beli"** button (see galon).
 - **BillingSummary**: concise total unpaid + **"Lihat detail"** → navigate to Tagihan tab.
 - **ScheduleList**: 7 rows (Senin–Minggu). Each: date chip (mono, mustard if today), member name, room names, status tag. LIBUR dashed.

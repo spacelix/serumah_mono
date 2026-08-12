@@ -152,4 +152,87 @@ export class NotificationsService {
       deepLink: '/(tabs)/piket',
     });
   }
+
+  /**
+   * Weekend status berubah (Di kos/Pulang) → info ke semua anggota lain.
+   * `nama` = yang mengubah status; `hari` = 'sabtu'/'minggu'; `status` =
+   * 'di_kos'/'pulang'. Tanpa detail siapa yang dapat jadwal piket.
+   */
+  async notifyWeekendStatus(
+    rumahId: string,
+    nama: string,
+    status: 'di_kos' | 'pulang',
+  ): Promise<void> {
+    const statusLabel =
+      status === 'di_kos' ? 'Di kos akhir pekan ini' : 'pulang akhir pekan ini';
+    const members = await this.prisma.anggota.findMany({
+      where: { rumahId },
+      select: { id: true, nama: true },
+    });
+    const others = members.filter((m) => m.nama !== nama).map((m) => m.id);
+    await this.sendToAnggota(others, {
+      title: 'Status akhir pekan',
+      body: `${nama} ${statusLabel}.`,
+      deepLink: '/',
+    });
+  }
+
+  /**
+   * Reminder belum memilih status weekend (Di kos/Pulang). Karena 1 pilihan
+   * berlaku utk seluruh akhir pekan, reminder dikirim sekali (bukan per hari).
+   */
+  async notifyWeekendReminder(anggotaId: string): Promise<void> {
+    await this.sendToAnggota([anggotaId], {
+      title: 'Pilih status akhir pekan',
+      body: 'Belum pilih Di kos / Pulang akhir pekan ini. Deadline Jumat 20:00.',
+      deepLink: '/',
+    });
+  }
+
+  /**
+   * Freeze tercapai dan anggota belum konfirmasi status weekend sama sekali —
+   * dianggap bertanggung jawab sepenuhnya akhir pekan ini.
+   */
+  async notifyWeekendMissed(anggotaId: string): Promise<void> {
+    await this.sendToAnggota([anggotaId], {
+      title: 'Status akhir pekan lo belum dipilih',
+      body: 'Lo ga konfirmasi Pulang atau Di kos, jadi buat weekend ini lo bertanggung jawab sepenuhnya.',
+      deepLink: '/',
+    });
+  }
+
+  /**
+   * Ada versi baru Serumah tersedia — broadcast ke semua anggota yang punya
+   * push token (dipicu GitHub Actions setelah release).
+   */
+  async notifyUpdateAvailable(
+    versionName: string,
+    notes?: string,
+  ): Promise<void> {
+    const members = await this.prisma.anggota.findMany({
+      where: { pushToken: { not: null } },
+      select: { id: true },
+    });
+    await this.sendToAnggota(
+      members.map((m) => m.id),
+      {
+        title: `Update Serumah ${versionName} tersedia`,
+        body: notes || 'Versi baru udah rilis — ketuk buat update.',
+        deepLink: '/',
+        action: 'update',
+      },
+    );
+  }
+
+  /**
+   * Akhir bulan: PJ diingatkan untuk generate jadwal bulan baru (manual,
+   * tidak ada auto-generate sejak 2026-08-12).
+   */
+  async notifyPjGenerateReminder(pjId: string): Promise<void> {
+    await this.sendToAnggota([pjId], {
+      title: 'Generate jadwal bulan depan',
+      body: 'Jadwal piket bulan ini mau habis. Tekan Generate Jadwal di Kelola Kos untuk bulan depan.',
+      deepLink: '/(tabs)',
+    });
+  }
 }

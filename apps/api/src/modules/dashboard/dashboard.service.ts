@@ -7,6 +7,7 @@ import { GalonService } from '../galon/galon.service';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
 const FREEZE_HOUR = 20; // Jumat 20:00 WIB
+const WEEKEND_STATUS_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 jam (locked 2026-08-12)
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // Asia/Jakarta is UTC+7, no DST
 const DOW_FULL = [
   'Minggu',
@@ -24,7 +25,7 @@ type StatusTag =
 export interface ScheduleRow {
   tanggal: Date;
   dow: string;
-  anggota: { id: string; nama: string } | null;
+  anggotaList: { id: string; nama: string }[];
   isMine: boolean;
   ruangan: string[];
   statusTag: StatusTag;
@@ -69,9 +70,9 @@ export class DashboardService {
   }) {
     return {
       weekend: {
-        saturday: null,
-        sunday: null,
+        status: null,
         frozen: false,
+        nextChangeAt: null,
         anggotaLain: [],
       },
       galon: { giliran: null, namaAnggota: null, isMine: false },
@@ -129,13 +130,27 @@ export class DashboardService {
       where: { anggotaId, mingguMulai: monday },
     });
 
-    const fetch = (hari: 'sabtu' | 'minggu') =>
-      rows.find((r) => r.hari === hari)?.status ?? null;
+    // 1 pilihan utk seluruh weekend (Sabtu+Minggu di-set bersamaan, locked
+    // 2026-08-11) — ambil status dari hari sabtu (identik dgn minggu).
+    const status = rows.find((r) => r.hari === 'sabtu')?.status ?? null;
+
+    // Cooldown 6 jam (locked 2026-08-12): kapan boleh ganti status lagi.
+    let nextChangeAt: string | null = null;
+    if (rows.length > 0) {
+      const lastChange = rows.reduce<Date>(
+        (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
+        rows[0]!.updatedAt,
+      );
+      const next = new Date(
+        lastChange.getTime() + WEEKEND_STATUS_COOLDOWN_MS,
+      );
+      if (next > new Date()) nextChangeAt = next.toISOString();
+    }
 
     return {
-      saturday: fetch('sabtu'),
-      sunday: fetch('minggu'),
+      status,
       frozen: this.isFrozen(monday),
+      nextChangeAt,
     };
   }
 
@@ -155,7 +170,9 @@ export class DashboardService {
         orderBy: { nama: 'asc' },
         select: { id: true, nama: true },
       }),
-      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
+      this.prisma.weekendStatus.findMany({
+        where: { mingguMulai: monday, anggota: { rumahId } },
+      }),
     ]);
 
     return members
@@ -275,19 +292,16 @@ export class DashboardService {
     const sunday = this.addDays(monday, 6);
     const today = this.toDay(new Date());
 
-    const [jadwal, weekendRows] = await Promise.all([
-      this.prisma.jadwal.findMany({
-        where: { rumahId, tanggal: { gte: monday, lte: sunday } },
-        orderBy: { tanggal: 'asc' },
-        select: {
-          tanggal: true,
-          anggota: { select: { id: true, nama: true } },
-          ruangan: true,
-          submissions: { select: { status: true } },
-        },
-      }),
-      this.prisma.weekendStatus.findMany({ where: { mingguMulai: monday } }),
-    ]);
+    const jadwal = await this.prisma.jadwal.findMany({
+      where: { rumahId, tanggal: { gte: monday, lte: sunday } },
+      orderBy: { tanggal: 'asc' },
+      select: {
+        tanggal: true,
+        anggota: { select: { id: true, nama: true } },
+        ruangan: true,
+        submissions: { select: { status: true } },
+      },
+    });
 
     // Pekan belum punya jadwal sama sekali → kosong; Beranda menampilkan
     // empty state (anggota) / banner pengingat (admin) alih-alih baris palsu.
@@ -295,40 +309,34 @@ export class DashboardService {
       return [];
     }
 
-    const jadwalByDate = new Map(jadwal.map((j) => [this.key(j.tanggal), j]));
-    const diKosByHari = new Map<'sabtu' | 'minggu', boolean>();
-    for (const r of weekendRows) {
-      if (r.status === 'di_kos')
-        diKosByHari.set(r.hari as 'sabtu' | 'minggu', true);
-    }
-
     const rows: ScheduleRow[] = [];
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
       const dowIndex = day.getUTCDay();
-      const record = jadwalByDate.get(this.key(day));
+      const dayJadwal = jadwal.filter((j) => this.key(j.tanggal) === this.key(day));
+      const record = dayJadwal[0]; // untuk status tag / submission
       const isWeekend = dowIndex === 0 || dowIndex === 6;
 
       let statusTag: StatusTag;
       if (isWeekend) {
-        const hari = dowIndex === 6 ? 'sabtu' : 'minggu';
-        if (diKosByHari.get(hari)) {
-          statusTag = this.submissionTag(record, day, today);
+        // Weekend aktif HANYA jika ada jadwal (seseorang dapat piket hari itu).
+        if (record) {
+          statusTag = this.submissionTag(record, day, today, true);
         } else {
-          statusTag = 'Free'; // everyone Pulang — free day
+          statusTag = 'Free'; // tidak ada yang dapat piket hari itu
         }
       } else if (!PIKET_WEEKDAYS.includes(dowIndex)) {
         statusTag = 'LIBUR';
       } else {
-        statusTag = this.submissionTag(record, day, today);
+        statusTag = this.submissionTag(record, day, today, false);
       }
 
       rows.push({
         tanggal: day,
         dow: DOW_FULL[dowIndex],
-        anggota: record?.anggota ?? null,
-        isMine: record?.anggota.id === currentAnggotaId,
-        ruangan: record?.ruangan ?? [],
+        anggotaList: dayJadwal.map((j) => j.anggota),
+        isMine: dayJadwal.some((j) => j.anggota.id === currentAnggotaId),
+        ruangan: dayJadwal[0]?.ruangan ?? [],
         statusTag,
       });
     }
@@ -346,9 +354,13 @@ export class DashboardService {
       | undefined,
     day: Date,
     today: Date,
+    weekendDiKos = false,
   ): StatusTag {
     if (record == null) {
-      return 'LIBUR';
+      // Weekend Di kos tanpa jadwal (belum generate) = "Terjadwal" (chip
+      // rounded). Weekend Di kos DENGAN jadwal tapi belum ada jadwal sama
+      // sekali tetap menunggu. Weekday tanpa jadwal = LIBUR.
+      return weekendDiKos ? 'Terjadwal' : 'LIBUR';
     }
     const status = record.submissions[0]?.status;
     if (status === 'approved') return 'Selesai';

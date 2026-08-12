@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { useEffect, useMemo } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, useAnimatedValue, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SerumahLogo } from '@/components/logo/serumah-logo';
@@ -16,8 +16,8 @@ import { fontFamilies } from '@/theme/typography';
 export function SplashScreen() {
   const insets = useSafeAreaInsets();
   const version = Constants.expoConfig?.version ?? '';
-  const rise = useMemo(() => new Animated.Value(0), []);
-  const word = useMemo(() => new Animated.Value(0), []);
+  const rise = useAnimatedValue(0);
+  const word = useAnimatedValue(0);
   const riseTranslate = useMemo(
     () => rise.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
     [rise],

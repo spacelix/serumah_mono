@@ -276,15 +276,16 @@ export class ScheduleService {
       });
     }
 
-    // Pemilik weekday minggu ini berdasar round-robin: untuk tiap hari piket,
-    // pemilik = weekdayOrdinal(day) % n. Ini deterministik — tidak bergantung
-    // pada row yang tersisa (yang mungkin sudah dihapus saat di_kos).
+    // Pemilik weekday minggu ini berdasar round-robin: untuk tiap hari piket
+    // yang BELUM LEWAT (≥ hari ini), pemilik = weekdayOrdinal(day) % n.
+    // Deterministik — tidak bergantung pada row yang tersisa.
+    const today = this.toDate(new Date());
     const allMembers = await this.members(rumahId);
     const n = allMembers.length;
     const ownerByDay = new Map<number, string>(); // timestamp → anggotaId
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
-      if (!this.isPiketDay(day)) continue;
+      if (!this.isPiketDay(day) || day < today) continue;
       const index = this.weekdayOrdinal(day) % n;
       ownerByDay.set(day.getTime(), allMembers[index]!.id);
     }
@@ -299,14 +300,15 @@ export class ScheduleService {
       return a.id.localeCompare(b.id);
     });
 
-    // Assign: pemilik hari piket pertama minggu ini (Rabu) → Sabtu, kedua
-    // (Jumat) → Minggu. Posisi dihitung GLOBAL (urutan hari piket minggu ini),
-    // bukan urutan dalam daftar di_kos — jadi B (Jumat, posisi 2) selalu Minggu
-    // meski A tidak ikut di_kos. Non-owner bergantian mulai Sabtu.
-    const piketDays: number[] = []; // timestamp hari piket minggu ini, urut
+    // Assign: pemilik hari piket pertama yang BELUM LEWAT (Rabu) → Sabtu,
+    // kedua (Jumat) → Minggu. Posisi dihitung GLOBAL (urutan hari piket
+    // tersisa minggu ini), bukan urutan dalam daftar di_kos — jadi B (Jumat,
+    // posisi 2) selalu Minggu meski A tidak ikut di_kos. Non-owner bergantian
+    // mulai Sabtu.
+    const piketDays: number[] = []; // timestamp hari piket tersisa, urut
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
-      if (this.isPiketDay(day)) piketDays.push(day.getTime());
+      if (this.isPiketDay(day) && day >= today) piketDays.push(day.getTime());
     }
     const sabtuMembers: { id: string }[] = [];
     const mingguMembers: { id: string }[] = [];

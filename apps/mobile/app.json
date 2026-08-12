@@ -2,14 +2,14 @@
   "expo": {
     "name": "Serumah",
     "slug": "serumah",
-    "version": "1.9.3",
+    "version": "1.9.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "serumah",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.serumah.serumah",
-      "versionCode": 18,
+      "versionCode": 19,
       "backgroundColor": "#EFEAE0",
       "googleServicesFile": "./google-services.json",
       "permissions": [

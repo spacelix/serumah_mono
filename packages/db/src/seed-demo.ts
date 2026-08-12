@@ -66,16 +66,6 @@ function todayWib(): Date {
   );
 }
 
-function addDays(date: Date, days: number): Date {
-  return new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate() + days,
-    ),
-  );
-}
-
 const roomNames = ROOMS.map((r) => r.nama);
 
 function makeUser(id: string, email: string): User {
@@ -149,71 +139,34 @@ async function main() {
     }
   }
 
-  // ── WEEKEND STATUS: Demo A di_kos utk minggu berjalan (rule: di_kos →
-  // bebas weekday minggu itu). Set SEBELUM generate weekday supaya konsisten.
+  // ── JADWAL WEEKDAY: hanya HARI INI (jika hari piket). Tidak ada hari lewat
+  // (tidak ada card piket aktif di hari lampau) dan besok sudah kosong →
+  // alur "jadwal habis" bisa diuji. Semua anggota AWALNYA "belum pilih"
+  // status weekend (tidak ada weekendStatus) → test di_kos/pulang manual.
   const today = todayWib();
-  const monday = addDays(today, -((today.getUTCDay() + 6) % 7));
-  for (const hari of ['sabtu', 'minggu'] as const) {
-    await prisma.weekendStatus.upsert({
-      where: {
-        anggotaId_mingguMulai_hari: {
-          anggotaId: memberIds.a,
-          mingguMulai: monday,
-          hari,
-        },
-      },
-      update: { status: 'di_kos' },
-      create: {
-        anggotaId: memberIds.a,
-        mingguMulai: monday,
-        hari,
-        status: 'di_kos',
-      },
-    });
-  }
 
-  // ── JADWAL WEEKDAY: masa lalu sampai HARI INI (hari terakhir = hari ini).
-  // Mulai 21 hari lalu, generate tiap Sen/Rab/Jum hingga hari ini. Setelah
-  // hari ini TIDAK ada jadwal → alur "jadwal habis" bisa diuji.
-  const start = addDays(today, -21);
-
-  // Clean existing demo schedule rows first (idempotent re-run).
+  // Clean existing demo schedule + weekend status rows (idempotent re-run).
   await prisma.jadwal.deleteMany({ where: { rumahId: rumah.id } });
+  await prisma.weekendStatus.deleteMany({
+    where: { anggota: { rumahId: rumah.id } },
+  });
 
   let count = 0;
-  let seq = 0;
-  for (
-    let cursor = start;
-    cursor <= today;
-    cursor = addDays(cursor, 1)
-  ) {
-    if (!PIKET_WEEKDAYS.includes(cursor.getUTCDay())) continue;
-    seq += 1;
-    // Round-robin: PJ → A → B → PJ → ...
-    const member =
-      anggotaData[seq % anggotaData.length]!.id;
-    const jadwalId = `00000000-0000-0000-0000-0000000d0${String(seq).padStart(3, '0')}`;
+  if (PIKET_WEEKDAYS.includes(today.getUTCDay())) {
+    // Round-robin dimulai dari Demo A (seq 1 → anggotaData[1]) agar bukan PJ.
+    const member = anggotaData[1]!.id;
+    const jadwalId = '00000000-0000-0000-0000-0000000d0a00';
     await prisma.jadwal.create({
       data: {
         id: jadwalId,
         rumahId: rumah.id,
-        tanggal: cursor,
+        tanggal: today,
         anggotaId: member,
         ruangan: roomNames,
       },
     });
     count += 1;
   }
-
-  // Rule "di_kos → bebas weekday": hapus jadwal weekday Demo A di minggu
-  // berjalan (termasuk hari ini) supaya konsisten dengan setWeekendStatus.
-  await prisma.jadwal.deleteMany({
-    where: {
-      rumahId: rumah.id,
-      anggotaId: memberIds.a,
-      tanggal: { gte: monday, lte: addDays(monday, 6) },
-    },
-  });
 
   console.log({
     rumah: rumah.nama,

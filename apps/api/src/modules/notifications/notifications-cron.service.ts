@@ -178,24 +178,4 @@ export class NotificationsCronService {
     }
     this.logger.log(`[NotificationsCron] Iuran bulan depan (${next.toISOString()}) dikirim`);
   }
-
-  // ── G. Reminder generate jadwal bulan baru — last day of month ───────
-  // Jadwal digenerate manual bulanan oleh PJ (no auto-generate sejak
-  // 2026-08-12). Di hari terakhir bulan, ingatkan PJ setiap rumah.
-  @Cron('0 8 28-31 * *')
-  async scheduleGenerateReminder(): Promise<void> {
-    const today = this.todayWib();
-    const tomorrow = this.addDays(today, 1);
-    if (tomorrow.getUTCMonth() === today.getUTCMonth()) return; // bukan hari terakhir
-
-    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
-    for (const rumah of rumahs) {
-      const pj = await this.prisma.anggota.findFirst({
-        where: { rumahId: rumah.id, role: 'admin' },
-        select: { id: true },
-      });
-      if (pj) await this.notifications.notifyPjGenerateReminder(pj.id);
-    }
-    this.logger.log(`[NotificationsCron] Reminder generate jadwal (akhir bulan)`);
-  }
 }

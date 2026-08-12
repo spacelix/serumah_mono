@@ -36,8 +36,8 @@ Locked decisions (from the old phase, preserved):
 - No back-to-back automatically satisfied (Selasa/Kamis gap).
 - **No duplicate weekday in one week (fixed 2026-08-11):** `ensureWeekday` excludes members who already hold another weekday Jadwal row that same week from the pick pool — so no one piket twice on Senin/Rabu/Jumat. This also keeps the assignment stable when the pool shrinks after a weekend assignee is excluded (`reconcileWeekdayForWeekend`). If the exclude-assigned pool would be empty (fewer members than piket days), it falls back to all non-weekend members so the day still gets scheduled.
 - New member joins: continue the cycle from where it left off without reset. Member leaves: skip from the cycle, regenerated schedules are rebuilt.
-- **Generate manual bulanan (locked 2026-08-12):** TIDAK ada cron jadwal (`pregenerateWeek`/`selfHealWeek`/`freezeWeekendCron` dihapus). PJ menekan **"Generate Jadwal"** → generate **weekday (Sen/Rab/Jum) dari hari ini sampai +1 bulan** sekaligus. Auto-fine cron (22:00) tetap berjalan.
-- **End-of-month reminder (locked 2026-08-12):** menjelang akhir bulan, sistem mengirim notif ke PJ untuk generate jadwal bulan baru. Sebelum jadwal bulan berikutnya digenerate, daftar jadwal menampilkan empty state + tombol Generate.
+- **Generate manual bulanan (locked 2026-08-12):** TIDAK ada cron jadwal (`pregenerateWeek`/`selfHealWeek`/`freezeWeekendCron` dihapus). PJ menekan **"Generate Jadwal"** → generate **weekday (Sen/Rab/Jum) dari hari ini sampai AKHIR BULAN BERIKUTNYA** (batas kalender). Auto-fine cron (22:00) tetap berjalan.
+- **Jadwal habis → notif PJ + empty state (locked 2026-08-12):** cron **22:00** (`scheduleExhaustedReminder`) cek jadwal weekday masa depan. Jika tidak ada lagi (hari ini ke depan), kirim notif ke PJ **sekali** (via Redis marker `schedule:exhausted:{rumahId}`, TTL 45 hari; di-reset saat generate). Empty state + tombol Generate muncul otomatis karena minggu kosong.
 
 **Weekend:**
 

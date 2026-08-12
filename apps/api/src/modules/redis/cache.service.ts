@@ -60,6 +60,15 @@ export class CacheService {
     }
   }
 
+  /** Hapus satu key langsung (di luar pola scope/resource). */
+  async del(rawKey: string): Promise<void> {
+    try {
+      await this.redis.del(rawKey);
+    } catch (err) {
+      this.logger.warn(`del failed for ${rawKey}: ${String(err)}`);
+    }
+  }
+
   /** Invalidate every key belonging to a scope (e.g. a whole rumah). */
   async invalidateScope(scope: string): Promise<void> {
     try {

@@ -365,25 +365,36 @@ export class ScheduleService {
   }
 
   /**
-   * Generate jadwal weekday (Sen/Rab/Jum) dari hari ini sampai +1 bulan.
-   * Weekend TIDAK di-generate di sini — event-driven saat user pilih di_kos
-   * per minggu (setWeekendStatus). Tidak ada auto-generate / cron jadwal.
+   * Generate jadwal weekday (Sen/Rab/Jum) dari hari ini sampai AKHIR BULAN
+   * BERIKUTNYA (batas kalender). Weekend TIDAK di-generate di sini —
+   * event-driven saat user pilih di_kos per minggu (setWeekendStatus).
+   * Tidak ada auto-generate / cron jadwal.
    */
   async generateRestOfWeek(payload: CurrentUserPayload) {
     const anggota = await this.requirePj(payload);
     const today = this.toDate(new Date());
-    const end = this.addDays(today, 31); // +1 bulan (±)
+    // End of NEXT calendar month (UTC-midnight).
+    const endOfNextMonth = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth() + 2,
+        0, // day 0 bulan setelahnya = hari terakhir bulan berikutnya
+      ),
+    );
 
     let count = 0;
     for (
       let cursor = today;
-      cursor <= end;
+      cursor <= endOfNextMonth;
       cursor = this.addDays(cursor, 1)
     ) {
       if (this.isPiketDay(cursor)) {
         if (await this.ensureWeekday(anggota.rumahId!, cursor)) count += 1;
       }
     }
+
+    // Reset marker "jadwal habis sudah dinotif" — bulan baru digenerate.
+    await this.cache.invalidate('schedule', `exhausted:${anggota.rumahId}`);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     return { message: 'Jadwal bulanan telah dibuat.', count };
   }
@@ -536,6 +547,50 @@ export class ScheduleService {
   async runAutoFineCron(): Promise<void> {
     const today = new Date();
     await this.autoFineProcess(today);
+  }
+
+  /**
+   * Daily 22:00 — cek jadwal weekday masa depan. Jika TIDAK ada lagi jadwal
+   * weekday (hari ini ke depan), jadwal bulan habis → kirim notif ke PJ
+   * (sekali, via Redis marker) agar generate jadwal baru. Empty state di
+   * mobile otomatis muncul karena minggu kosong.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_10PM)
+  async scheduleExhaustedReminder(): Promise<void> {
+    const today = this.toDate(new Date());
+    const rumahs = await this.prisma.rumah.findMany({ select: { id: true } });
+
+    for (const rumah of rumahs) {
+      const futureWeekday = await this.prisma.jadwal.findFirst({
+        where: {
+          rumahId: rumah.id,
+          tanggal: { gte: today },
+        },
+        select: { id: true },
+      });
+      if (futureWeekday) continue; // masih ada jadwal
+
+      // Habis — notif sekali (marker). Redis TTL ~45 hari cukup menutup gap
+      // antar generate.
+      const already = await this.cache.get<{ sent: boolean }>(
+        'schedule',
+        `exhausted:${rumah.id}`,
+      );
+      if (already) continue;
+      await this.cache.set(
+        'schedule',
+        `exhausted:${rumah.id}`,
+        { sent: true },
+        45 * 24 * 60 * 60,
+      );
+
+      const pj = await this.prisma.anggota.findFirst({
+        where: { rumahId: rumah.id, role: 'admin' },
+        select: { id: true },
+      });
+      if (pj) await this.notifications.notifyPjGenerateReminder(pj.id);
+    }
+    this.logger.log('[ScheduleService] Cek jadwal habis (22:00) selesai');
   }
 
   /** Manual guarded endpoint: runs the fine pass for a specific date. */

@@ -545,9 +545,10 @@ export class ScheduleService {
 
   /**
    * Pulang → weekday kembali (locked 2026-08-12): setelah jadwal weekend
-   * dihapus, isi ulang hari piket (Sen/Rab/Jum) yang KOSONG di MINGGU
-   * BERJALAN saja (monday..monday+6) dengan member ini. Hanya minggu itu
-   * weekday-nya dihapus saat di_kos; minggu lain TIDAK disentuh.
+   * dihapus, regenerate hari piket (Sen/Rab/Jum) yang KOSONG di MINGGU
+   * BERJALAN via `ensureWeekday` (round-robin, exclude member yang masih
+   * di_kos). Bukan mengisi semua slot kosong dengan satu orang — supaya slot
+   * milik anggota lain (yang belum memilih) tidak tertimpa.
    */
   private async restoreWeekdayForMember(
     rumahId: string,
@@ -555,8 +556,6 @@ export class ScheduleService {
     monday: Date,
   ): Promise<void> {
     const sunday = this.addDays(monday, 6);
-
-    const rooms = await this.activeRoomNames(rumahId);
     let created = 0;
     for (
       let cursor = monday;
@@ -568,16 +567,8 @@ export class ScheduleService {
         where: { rumahId, tanggal: cursor },
         select: { id: true },
       });
-      if (exists) continue; // slot sudah terisi (bukan milik member ini)
-      await this.prisma.jadwal.create({
-        data: {
-          rumahId,
-          tanggal: cursor,
-          anggotaId,
-          ruangan: rooms,
-        },
-      });
-      created += 1;
+      if (exists) continue; // slot sudah terisi
+      if (await this.ensureWeekday(rumahId, cursor)) created += 1;
     }
     if (created > 0) {
       this.logger.log(

@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx src/seed.ts",
     "db:seed:demo": "tsx src/seed-demo.ts",
+    "db:cleanup:demo": "tsx src/cleanup-demo.ts",
     "format": "prisma format",
     "generate": "prisma generate",
     "lint": "tsc --noEmit",

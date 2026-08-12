@@ -256,23 +256,25 @@ export class ScheduleService {
     });
     if (diKosMembers.length === 0) return 0;
 
-    // Members already holding a weekend Jadwal this week are skipped (already
-    // assigned a day, no back-to-back).
+    // Re-distribute penuh: hapus jadwal weekend minggu ini yang belum ada
+    // submission, lalu assign ulang semua di_kos merata (Sabtu & Minggu).
+    // Ini membuat pemanggilan ulang (mis. B di_kos setelah A) tetap adil:
+    // 2 orang → Sabtu 1, Minggu 1; bukan menumpuk di Sabtu.
     const existingRows = await this.prisma.jadwal.findMany({
-      where: {
-        rumahId,
-        tanggal: { gte: sabtu, lte: minggu },
-      },
-      select: { anggotaId: true },
+      where: { rumahId, tanggal: { gte: sabtu, lte: minggu } },
+      select: { id: true, submissions: { select: { id: true } } },
     });
-    const alreadyAssigned = new Set(existingRows.map((r) => r.anggotaId));
-    const available = diKosMembers.filter((m) => !alreadyAssigned.has(m.id));
-    if (available.length === 0) return 0;
+    const deletable = existingRows.filter((r) => r.submissions.length === 0);
+    if (deletable.length > 0) {
+      await this.prisma.jadwal.deleteMany({
+        where: { id: { in: deletable.map((r) => r.id) } },
+      });
+    }
 
     // Rotate so who lands on Sabtu vs Minggu shifts each week.
-    const n = available.length;
+    const n = diKosMembers.length;
     const rot = this.weekendOrdinal(monday) % n;
-    const rotated = [...available.slice(rot), ...available.slice(0, rot)];
+    const rotated = [...diKosMembers.slice(rot), ...diKosMembers.slice(0, rot)];
     const sabtuCount = Math.ceil(n / 2);
     const sabtuMembers = rotated.slice(0, sabtuCount);
     const mingguMembers = rotated.slice(sabtuCount);

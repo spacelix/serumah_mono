@@ -20,8 +20,8 @@ Module: `iuran`.
 | GET    | `/iuran?bulan=YYYY-MM`      | —                                 | `{ iuranList, pelunasan, rumah }` | For that month, all members of one rumah + pelunasan.                                                                                                                      |
 | POST   | `/iuran/ensure-bulan`       | `{ bulan }`                       | `{ created, updated }`            | Generate/repair iuran per member × 3 categories. Idempotent.                                                                                                               |
 | POST   | `/iuran/upload-bukti-total` | `{ bulan, buktiUrl }`             | `{ status }`                      | Update `buktiBayar` + status for ALL `belum_bayar` iuran of the user that month. **PJ/Admin → `lunas` directly**; member → `menunggu_konfirmasi`. Error if nothing to pay. |
-| POST   | `/iuran/:id/confirm-lunas`  | — (admin)                         | `{ iuran }`                       | Set `lunas`.                                                                                                                                                               |
-| POST   | `/iuran/pelunasan`          | `{ bulan, kategori, buktiLunas }` | `{ pelunasan }`                   | Admin. Upsert per (rumah+bulan+kategori).                                                                                                                                  |
+| POST   | `/iuran/:id/confirm-lunas`  | —                            | `{ iuran }`                       | Set `lunas`. **Reviewer-based** (locked 2026-08-18, hapus `@Roles('admin')`): hanya `reviewerId` yang di-assign boleh konfirmasi (member→PJ, PJ→round-robin member). |
+| POST   | `/iuran/pelunasan`          | `{ bulan, kategori, buktiLunas }` | `{ pelunasan }`               | Admin. Upsert per (rumah+bulan+kategori).                                                                                                                                  |
 
 Storage: proof → `photos/iuran/bukti_total/{bulan}_{ts}.jpg`; pelunasan → `photos/iuran/pelunasan/{bulan}_{kategori}_{ts}.jpg`.
 

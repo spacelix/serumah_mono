@@ -2,7 +2,7 @@
 
 ## 1. Goal & Scope
 
-User fine bills, QRIS payment to PJ/Admin, proof upload, and confirmation. Includes month filtering. PJ/Admin's own fines auto-paid on proof upload.
+User fine bills, QRIS payment to PJ/Admin, proof upload, and confirmation. Includes month filtering.
 
 ## 2. Data Model
 
@@ -18,9 +18,9 @@ Module: `denda`. Shared month-list endpoint lives in `tagihan` module.
 | ------ | ------------------------- | -------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/denda?bulan=YYYY-MM`    | —              | `{ qrisUrl, denda: Denda[] }` + member names | Month filter. Each `Denda` adds `origin` (`auto`/`partial`/`rejected`), `reviewerNama`, `tanggal` (jadwal submission), dan `detail: { ruanganNama, fotoBefore, fotoAfter, jenisSelesai[], jenisList[] }[]` — per-room cause for the sheet. `qrisUrl` from `rumah.qrisUrl`. |
 | GET    | `/tagihan/months`         | —              | `{ months: string[] }`                       | Distinct WIB months having any tagihan data (piket schedule, denda, iuran, listrik) — descending. Backs the month filter bottom sheet.                                            |
-| POST   | `/denda/:id/upload-bukti` | `{ buktiUrl }` | `{ status, receiverId }`                     | Validate owner + status `belum_bayar`. **PJ/Admin → status directly `lunas`** (receiverId = self). Member → `menunggu_konfirmasi` + `bayarKeAnggotaId` = active PJ of the rumah. |
-| POST   | `/denda/:id/approve`      | — (admin)      | `{ denda }`                                  | Insert `PembayaranApproval` approved + `lunas`.                                                                                                                                  |
-| POST   | `/denda/:id/reject`       | — (admin)      | `{ denda }`                                  | Insert approval rejected + reset `belum_bayar`, `bayarKeAnggotaId` null, `buktiBayar` null.                                                                                      |
+| POST   | `/denda/:id/upload-bukti` | `{ buktiUrl }` | `{ status, receiverId }`                     | Validate owner + status `belum_bayar`. Member → `menunggu_konfirmasi` + `bayarKeAnggotaId` = active PJ of the rumah + `reviewerId` assigned. |
+| POST   | `/denda/:id/approve`      | —              | `{ denda }`                                  | **Reviewer-based** (locked 2026-08-18, hapus `@Roles('admin')`): hanya `reviewerId` yang di-assign boleh approve (member→PJ, PJ→round-robin member). Insert `PembayaranApproval` approved + `lunas`. |
+| POST   | `/denda/:id/reject`       | —              | `{ denda }`                                  | Reviewer-based (sama). Insert approval rejected + reset `belum_bayar`, `bayarKeAnggotaId` null, `buktiBayar` null.                                                               |
 
 Storage: proof → `photos/denda_bukti/{denda_id}_{ts}.jpg` (upload via `/storage` first, then send URL). **Locked (TBC-3): MinIO bucket is public — DB stores permanent public URLs.**
 
@@ -28,8 +28,8 @@ Storage: proof → `photos/denda_bukti/{denda_id}_{ts}.jpg` (upload via `/storag
 
 Locked decisions:
 
-- State: `belum_bayar` → (upload proof) `menunggu_konfirmasi` → (PJ approve) `lunas`. Reject → back to `belum_bayar`.
-- **PJ/Admin's own fine → proof upload directly `lunas`** (no self-confirmation).
+- State: `belum_bayar` → (upload proof) `menunggu_konfirmasi` → (reviewer approve) `lunas`. Reject → back to `belum_bayar`.
+- **Reviewer assigned (locked 2026-08-10, diperbaiki 2026-08-18):** member's payment → PJ is reviewer; PJ's own payment → round-robin non-PJ member. Review validasi oleh `denda.reviewerId` (service), **bukan** role admin (sebelumnya `@Roles('admin')` di controller menolak reviewer non-admin — bug).
 - Payment ALWAYS goes to the PJ/Admin of the rumah (not peer approval — locked decision item 27).
 - **Fine amount is proportional (locked 2026-08-09):** `denda = rumah.nominal_denda × (unworkedItems / totalActiveItems)`, rounded — set when the submission is rejected (PiketService). `nominal_denda` is the "full" fine (nothing worked). Auto-fine (bolong, no submission) still charges the full `nominal_denda`.
 - Month filter = shared `MonthPicker` (bottom sheet "Pilih bulan", see UI spec 5) showing only months with data — default current month, history visible.

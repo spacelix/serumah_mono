@@ -32,10 +32,7 @@ export class GalonService {
   }
 
   /** Read the current galon turn for a known anggota (shared by dashboard). */
-  async currentFromAnggota(anggota: {
-    id: string;
-    rumahId: string | null;
-  }) {
+  async currentFromAnggota(anggota: { id: string; rumahId: string | null }) {
     if (!anggota.rumahId) {
       return {
         giliran: null,
@@ -118,13 +115,13 @@ export class GalonService {
       }),
     ]);
     await this.notifications.notifyGalonBought(
-      anggota.rumahId!,
+      anggota.rumahId,
       buyer?.nama ?? 'Anggota',
       nextMember?.nama ?? null,
     );
     await this.notifications.notifyGalonNudge(nextMember?.id ?? next.anggotaId);
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
-    this.realtime.emitToRumah(anggota.rumahId!, 'galon:updated', {
+    this.realtime.emitToRumah(anggota.rumahId, 'galon:updated', {
       id: giliran.id,
       nextId: next.anggotaId,
     });

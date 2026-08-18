@@ -89,7 +89,7 @@ export class ListrikService {
       const remainder = nominal - base * n;
       const shares: Record<string, number> = {};
       for (let i = 0; i < n; i++) {
-        const member = memberIds[(recordIndex + i) % n]!;
+        const member = memberIds[(recordIndex + i) % n];
         shares[member] = base + (i < remainder ? 1 : 0);
       }
       return shares;

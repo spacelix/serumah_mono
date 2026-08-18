@@ -104,7 +104,7 @@ export class SwapService {
       .filter((j) => PIKET_WEEKDAYS.includes(j.tanggal.getUTCDay()))
       .map((j) => ({
         tanggal: j.tanggal,
-        ruangan: (j.ruangan as string[]) ?? [],
+        ruangan: j.ruangan ?? [],
       }))
       .sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
 
@@ -146,7 +146,7 @@ export class SwapService {
       const list = daysByMember.get(j.anggotaId) ?? [];
       list.push({
         tanggal: j.tanggal,
-        ruangan: (j.ruangan as string[]) ?? [],
+        ruangan: j.ruangan ?? [],
       });
       daysByMember.set(j.anggotaId, list);
     }
@@ -155,8 +155,8 @@ export class SwapService {
       .map((m) => ({
         id: m.id,
         nama: m.nama,
-        days: (daysByMember.get(m.id) ?? []).sort((a, b) =>
-          a.tanggal.getTime() - b.tanggal.getTime(),
+        days: (daysByMember.get(m.id) ?? []).sort(
+          (a, b) => a.tanggal.getTime() - b.tanggal.getTime(),
         ),
       }))
       .filter((m) => m.days.length > 0);
@@ -238,7 +238,7 @@ export class SwapService {
       `[SwapService] ${anggota.nama} swap ${tanggalLo.toISOString()} ⇄ ${tanggalMereka.toISOString()} (${receiver.nama})`,
     );
     await this.notifications.notifySwapIncoming(receiver.id, anggota.nama);
-    this.realtime.emitToRumah(anggota.rumahId!, 'swap:updated', {
+    this.realtime.emitToRumah(anggota.rumahId, 'swap:updated', {
       id: swapRequest.id,
       status: swapRequest.status,
     });
@@ -285,7 +285,10 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} diterima oleh ${anggota.nama}`,
     );
-    await this.notifications.notifySwapAccepted(swap.dariAnggotaId, anggota.nama);
+    await this.notifications.notifySwapAccepted(
+      swap.dariAnggotaId,
+      anggota.nama,
+    );
     await this.cache.invalidateScope(`dashboard:${anggota.rumahId}`);
     this.realtime.emitToRumah(anggota.rumahId, 'swap:updated', {
       id: swap.id,
@@ -309,7 +312,10 @@ export class SwapService {
     this.logger.log(
       `[SwapService] Swap ${swap.id} ditolak oleh ${anggota.nama}`,
     );
-    await this.notifications.notifySwapRejected(swap.dariAnggotaId, anggota.nama);
+    await this.notifications.notifySwapRejected(
+      swap.dariAnggotaId,
+      anggota.nama,
+    );
     this.realtime.emitToRumah(anggota.rumahId, 'swap:updated', {
       id: swap.id,
       status: 'ditolak',

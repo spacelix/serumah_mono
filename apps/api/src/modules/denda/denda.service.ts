@@ -70,7 +70,10 @@ export class DendaService {
     const roomJenis = new Map<string, string[]>();
     const jenisName = new Map<string, string>();
     for (const room of rooms) {
-      roomJenis.set(room.id, room.jenisPiket.map((j) => j.nama));
+      roomJenis.set(
+        room.id,
+        room.jenisPiket.map((j) => j.nama),
+      );
       for (const j of room.jenisPiket) jenisName.set(j.id, j.nama);
     }
     const resolveJenis = (ids: string[]) =>
@@ -95,21 +98,20 @@ export class DendaService {
             : submissionStatus === 'rejected'
               ? 'rejected'
               : 'auto';
-        const reviewerNama =
-          d.submission?.approvals[0]?.reviewer?.nama ?? null;
+        const reviewerNama = d.submission?.approvals[0]?.reviewer?.nama ?? null;
 
         // Cause detail per room (from the linked submission's proofs).
         const detail = d.submission
           ? d.submission.proofs.map((p) => {
-            const done = new Set(resolveJenis(p.jenisSelesai));
-            return {
-              ruanganNama: p.ruangan.nama,
-              fotoBefore: p.fotoBefore,
-              fotoAfter: p.fotoAfter,
-              jenisSelesai: [...done],
-              jenisList: roomJenis.get(p.ruanganId) ?? [...done],
-            };
-          })
+              const done = new Set(resolveJenis(p.jenisSelesai));
+              return {
+                ruanganNama: p.ruangan.nama,
+                fotoBefore: p.fotoBefore,
+                fotoAfter: p.fotoAfter,
+                jenisSelesai: [...done],
+                jenisList: roomJenis.get(p.ruanganId) ?? [...done],
+              };
+            })
           : [];
 
         return {

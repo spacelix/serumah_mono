@@ -35,14 +35,14 @@ const KATEGORI: {
     biayaListrikWajib: number;
   }) => number;
 }[] = [
-    { key: 'kos', label: 'Sewa', amount: (r) => r.biayaKos },
-    { key: 'wifi', label: 'WiFi', amount: (r) => r.biayaWifi },
-    {
-      key: 'listrik_wajib',
-      label: 'Listrik Wajib',
-      amount: (r) => r.biayaListrikWajib,
-    },
-  ];
+  { key: 'kos', label: 'Sewa', amount: (r) => r.biayaKos },
+  { key: 'wifi', label: 'WiFi', amount: (r) => r.biayaWifi },
+  {
+    key: 'listrik_wajib',
+    label: 'Listrik Wajib',
+    amount: (r) => r.biayaListrikWajib,
+  },
+];
 
 interface ListrikAdjustment {
   total: number;
@@ -59,7 +59,7 @@ export class IuranService {
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
-  ) { }
+  ) {}
 
   private monthFromString(bulan: string): Date {
     const match = /^(\d{4})-(\d{2})$/.exec(bulan);
@@ -299,7 +299,11 @@ export class IuranService {
 
     await this.prisma.iuranBulanan.updateMany({
       where: { id: { in: pending.map((p) => p.id) } },
-      data: { status: 'menunggu_konfirmasi', reviewerId, buktiBayar: dto.buktiUrl },
+      data: {
+        status: 'menunggu_konfirmasi',
+        reviewerId,
+        buktiBayar: dto.buktiUrl,
+      },
     });
 
     this.logger.log(

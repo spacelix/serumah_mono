@@ -125,6 +125,6 @@ export class RumahScopeService {
         'Tidak ada anggota lain untuk memverifikasi pembayaran PJ.',
       );
     }
-    return others[count % others.length]!.id;
+    return others[count % others.length].id;
   }
 }

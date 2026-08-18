@@ -41,8 +41,8 @@ export class RealtimeGateway
         client.disconnect(true);
         return;
       }
-      const payload = await this.jwt.verifyAsync(token);
-      const userId = payload.sub as string;
+      const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
+      const userId = payload.sub;
       const anggota = await this.prisma.anggota.findUnique({
         where: { id: userId },
         select: { id: true, rumahId: true },
@@ -51,7 +51,7 @@ export class RealtimeGateway
         client.disconnect(true);
         return;
       }
-      client.data.rumahId = anggota.rumahId;
+      (client.data as Record<string, unknown>).rumahId = anggota.rumahId;
       await client.join(this.rumahRoom(anggota.rumahId));
     } catch {
       client.disconnect(true);

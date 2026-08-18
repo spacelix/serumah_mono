@@ -14,10 +14,6 @@ import { CacheService } from '../redis/cache.service';
 import { WeekendStatusDto } from './dto/schedule.dto';
 
 const PIKET_WEEKDAYS = [1, 3, 5]; // Senin(1), Rabu(3), Jumat(5)
-const WEEKEND_HARI: Record<number, 'sabtu' | 'minggu'> = {
-  0: 'minggu',
-  6: 'sabtu',
-};
 const FREEZE_HOUR = 20; // Jumat 20:00 WIB
 const FINE_DEADLINE_HOUR = 20; // 20:00 WIB
 const WEEKEND_STATUS_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 jam (locked 2026-08-12)
@@ -33,7 +29,7 @@ export class ScheduleService {
     private readonly cache: CacheService,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
-  ) { }
+  ) {}
 
   // ── DATE HELPERS (UTC-based so @db.Date matches Postgres `date` columns) ──
   // Prisma stores `@db.Date` as a date string derived from the UTC components
@@ -230,7 +226,10 @@ export class ScheduleService {
    * 3. Assign bergantian Sabtu/Minggu: pilih pertama → Sabtu, kedua → Minggu,
    *    ketiga → Sabtu (tumpuk), dst.
    */
-  private async ensureWeekendWeek(rumahId: string, monday: Date): Promise<number> {
+  private async ensureWeekendWeek(
+    rumahId: string,
+    monday: Date,
+  ): Promise<number> {
     const sabtu = this.addDays(monday, 5);
     const minggu = this.addDays(monday, 6);
 
@@ -646,7 +645,7 @@ export class ScheduleService {
     if (rows.length === 0) return null;
     return rows.reduce<Date>(
       (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
-      rows[0]!.updatedAt,
+      rows[0].updatedAt,
     );
   }
 
@@ -658,7 +657,11 @@ export class ScheduleService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_10PM)
   async runAutoFineCron(): Promise<void> {
-    const today = new Date();
+    // Wajib UTC-midnight (via toDate) — `deadline(date)` menghitung 20:00 WIB
+    // dari komponen tanggal. Kalau `new Date()` (jam 22:00) dikirim mentah,
+    // deadline bergeser ~22 jam ke depan → `now <= deadline` selalu true →
+    // jadwal tak pernah di-fine (bug ditemukan 2026-08-18).
+    const today = this.toDate(new Date());
     await this.autoFineProcess(today);
   }
 

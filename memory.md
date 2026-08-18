@@ -1,68 +1,66 @@
-# Memory — Serumah: Build lokal fix + revisi UI swap + notifikasi weekend + CLI test push (2026-08-11)
+# Memory — Serumah: Weekend order + cooldown 6 jam + nudge galon 1x/hari + cleanup demo + profil darurat wajib + v1.9.5 (2026-08-12)
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## What was built (sesi ini)
 
-**Semua committed & di-push ke `development` via SSH (`git@github.com:spacelix/serumah_mono.git`).**
+**Committed (3, sinkron `origin/development`):**
+- `856237b` **feat(weekend/galon):** cooldown 6 jam, nudge galon 1x/hari, weekend card responsif.
+- `621d8c7` **chore:** bump v1.9.5 (versionCode 20).
+- `766a2c8` **chore(db):** script cleanup-demo — hapus semua data rumah demo + user demo.
 
-- `c108cc2` **feat v1.9.0** — revisi UI swap + notifikasi weekend + CLI test push + notification icon all-white.
-- `3f6ac82` **ci:** install CMake 3.30.5 di `release.yml` (dibutuhkan `expo-build-properties` cmakeVersion).
-- `ef73fc4` **fix(api):** exclude `scripts/` dari `tsconfig.build.json` — `dist/main.js` kembali flattened (Docker CMD `node dist/main`).
+**Belum di-commit (onboarding profil darurat wajib):**
+- `apps/mobile/src/app/onboarding/profile.tsx`: `kontakDarurat` + `alamat` **wajib** — label "No. telepon darurat"/"Alamat darurat", placeholder tanpa "(opsional)", button "Lanjut" disabled sampai terisi, validasi alert per field, kirim tanpa `|| undefined`.
+- `context/features/onboarding/context.md` + `context/progress/progress-tracker.md`: keputusan locked.
 
-### Swap (`apps/mobile/src/app/(tabs)/swap.tsx` + `apps/api/src/modules/swap/`)
-- Form **3 langkah** (sebelumnya 2): pilih hari lo (kartu tanggal + daftar **ruangan**, bukan jenis piket) → pilih hari anggota lain → ringkasan "LO KASIH ⇄ LO AMBIL" + "Kirim ke {nama}"/"Ubah". Klik kartu langsung lanjut step.
-- **Swap hanya 1 minggu berjalan** (Sen–Min, hari ≥ hari ini) — `mondayOf(today)` +6, bukan 2 minggu.
-- **Histori swap kompak** (`Jum, 18 Jul · piket asli X → dikerjain Y` + `Diterima Y · 16 Jul 21:04`) — pakai `resolvedAt` (kolom baru, migrasi `20260810174332_swap_resolved_at`, set saat accept/reject).
-- **Filter bulan** di histori (default bulan berjalan, chevron `‹›` + sheet "Pilih bulan", nonaktif di ujung). Bar selalu tampil.
-- `DayBox` pakai **nama depan** (`firstName` di `lib/format.ts`).
-- Panah `⇄` jadi teks Space Grotesk (bukan lucide). Seed swap ditambah 4 request (incoming + history).
+### Weekend scheduling — urut berdasarkan waktu memilih
+- `WeekendStatus.createdAt` (migrasi `20260812163456_weekend_status_created_at`) — `ensureWeekendWeek` urut di_kos **berdasar urutan memilih** (createdAt asc), bukan pemilik weekday. Assign bergantian: pilih pertama → Sabtu, kedua → Minggu, ketiga → Sabtu (tumpuk). Helper `weekdayOwnerDay` (dead code) dihapus.
 
-### UI umum
-- **Welcome screen** (`(auth)/welcome.tsx`): auto-advance 3.5s/step, indicator = segmen aktif progress bar + dot untuk lainnya (selesai juga jadi dot), step terakhir STUCK (tidak auto ke login), transisi fade+slide naik.
-- **`components/ui/animated-sheet.tsx`** (baru): reusable bottom sheet — backdrop fade-in + sheet rise (pola confirm-dialog, `useNativeDriver`). Dipakai di filter bulan tagihan & swap.
-- Semua bottom sheet diberi `paddingBottom: insets.bottom + 26` (fix konten tertutup nav bar Android): denda detail, review piket, detail anggota, upload iuran, listrik, swap form.
-- **Kicker subscreen** (`components/ui/screen-header.tsx`) = **nama rumah** (sebelumnya "Serumah").
-- Fix `flex: 1` di tombol form swap (collaps ke 0 tinggi saat anak langsung sheet).
-- Fix require cycle: `auth-store → notifications → api-client → auth-store` — `clearPushToken` jadi dynamic import di `auth-store.ts`.
-- Format jam `19.00` → `19:00` (`formatDateTimeShort` di `lib/format.ts`).
+### Cooldown ganti status weekend 6 jam (locked)
+- `WeekendStatus.updatedAt` (migrasi `20260812165105_weekend_cooldown_and_nudge`).
+- `setWeekendStatus` tolak `400` jika <6 jam sejak perubahan terakhir → "Tunggu X menit lagi untuk ganti." Helper `lastWeekendStatusChange`.
+- Dashboard `GET /dashboard` expose `weekend.nextChangeAt` (ISO; null bila tak dalam cooldown).
 
-### Notifikasi weekend (baru, belum di-test)
-- `NotificationsService`: `notifyWeekendStatus` (ke semua anggota lain saat pilih Di kos/Pulang), `notifyWeekendReminder` (Jumat), `notifyWeekendMissed` (freeze).
-- `schedule.service.ts`: hook notif di `setWeekendStatus`; `freezeWeekendCron` kirim "bertanggung jawab sepenuhnya" ke yang belum pilih sama sekali.
-- `notifications-cron.service.ts`: cron **Jumat 08:00 + 19:00** reminder belum pilih (konsisten dgn freeze Jumat 20:00).
-- **CLI test push** `apps/api/scripts/send-notification.ts` (`bun run notif:test`): pilih rumah wajib → pilih skenario (8 opsi) → pilih anggota (indikator token ●/○) → kirim via Expo. Load `.env` manual (`scripts/lib/env.ts`, import pertama — tanpa dotenv, override selalu).
+### Nudge galon maks 1x/hari WIB (locked)
+- `Anggota.lastNudgeAt` (migrasi sama). `POST /galon/nudge` tolak `409` "Kamu udah colek galon hari ini." + set; reset tengah malam WIB (helper `isTodayWib`).
+- `currentFromAnggota` (galon + dashboard) expose `nudgedToday`.
 
-### Notification icon
-- `assets/images/notification-icon.png` = siluet **all-white** dari `splash-icon.png` (di-konversi, splash-icon punya warna jadi tidak valid langsung). Config `expo-notifications` di app.json: `icon` + `color: #EFEAE0`.
+### WeekendCard responsif (mobile)
+- `index.tsx`: `useSetWeekendStatus` punya `onError` → ConfirmDialog "Gagal ubah status" (root cause bug "tidak responsif": error server senyap). Tombol pressed-state.
+- Cooldown: tombol disable saat `nextChangeAt` masih depan + hint "Ganti status lagi pukul HH:MM WIB".
+- **Layout fix tombol Pulang terpotong di HP fisik:** label `flex: 1, minWidth: 0` (truncate `numberOfLines={1}`), tombol `flexShrink: 0`. User memilih **tetap satu baris** label (`Sab, 15 Agu & Min, 16 Agu`), bukan 2 baris.
+- `dashboard.ts` mobile: tipe `WeekendInfo.nextChangeAt`, `GalonInfo.nudgedToday`, hook `useNudgeGalon`.
+
+### Cleanup demo DB
+- `packages/db/src/cleanup-demo.ts` + script `db:cleanup:demo`. Hapus rumah "Kos Demo" (`00000000-0000-0000-0000-0000000d0000`) + user demo (`...0d0001/2/3`) + semua jadwal/proofs/denda/swap/iuran/galon/rooms/undangan **berurutan** (schema tanpa cascade). **Sudah dijalankan** ke DB server — terverifikasi bersih.
 
 ## Decisions made
-- **E2E M6 = hybrid**: iterasi ke backend **lokal** dulu, **VPS** untuk final verification (push, cron, migrate prod). Backend VPS belum punya kode notifikasi — harus redeploy.
-- **Tidak perlu seed dinamis** — app pribadi, tidak public (keputusan user, M6).
-- Remote SSH permanen (`git@github.com`); push dilakukan dari **Windows** (SSH key tidak tersedia di WSL sandbox).
-- Build lokal Windows butuh CMake **3.30.5** (via `expo-build-properties`) — CMake 3.22.1 punya bug `build.ninja still dirty`.
-- Expo Go / emulator tidak bisa push Android — test push hanya di **device fisik**.
+- **Cooldown weekend = 6 jam** (user pilih).
+- **Nudge reset = tengah malam WIB** (hari kalender, bukan sliding 24 jam).
+- Weekend label card **tetap satu baris**.
+- **Profil darurat wajib di onboarding, TANPA reminder modal di Beranda** (user pilih hapus modal — onboarding satu-satunya gerbang; tidak ada `profileIncomplete` di dashboard).
+- Tag v1.9.5 = version bump commit `621d8c7` (konvensi repo).
+- Push dari **Windows** (SSH key tidak tersedia di WSL).
 
 ## Problems solved
-- `build.ninja still dirty after 100 tries` (Windows): bukan path — root cause CMake 3.22.1 + bun `.bun` store. Fix: `android.cmakeVersion=3.30.5` (install via sdkmanager) + hapus `.cxx` stale. CI juga butuh `sdkmanager "cmake;3.30.5"` di release.yml.
-- `PluginError expo-build-properties PLUGIN_NOT_FOUND` di Windows: bun membuat junction target-relatif `../../../` yang di Windows dihitung dari root drive (`D:\`) → node tidak resolve. Fix: `rm` junction + `mklink /J` dengan target **absolut**.
-- `dist/main` tidak ditemukan di Docker: `scripts/send-notification.ts` ikut dikompilasi `nest build` → output jadi `dist/src/main.js`. Fix: exclude `scripts/` di `tsconfig.build.json`.
-- Tombol swap tak berteks/hilang: (1) disabled text `paper` di `disabledBg` tak terlihat; (2) `flex:1` → tinggi 0 saat anak langsung sheet.
-- `Invalid time value` di swap: API `available-days` masih return `string[]` lama — perlu restart API (shape baru `{tanggal, ruangan}`).
-- Dashboard jadwal tak update setelah swap diterima: `SwapService.accept` tidak invalidate cache `dashboard:{rumahId}` — tambah `CacheService.invalidateScope`.
+- **Weekend card "tidak responsif":** mutation tanpa `onError` → error server (403/400) senyap → tombol terasa mati. Fix: onError + ConfirmDialog.
+- **Tombol Pulang tertutup di HP fisik:** label tak punya flex → mendorong tombol keluar. Fix `flex:1/minWidth:0` label + `flexShrink:0` tombol.
+- **Migrasi `updated_at` NOT NULL gagal di tabel berisi data:** tambah kolom nullable → `UPDATE ... SET updated_at = created_at` → `SET NOT NULL`.
+- **Schema tanpa cascade** → cleanup harus hapus tabel anak dulu (pembayaranApproval via denda, proofs/approval via submission, dll).
 
 ## Current state
-- v1.9.0 (versionCode 15) sudah di-release (APK + version.json via GitHub Releases) — build CI sukses setelah fix CMake.
-- Remote SSH; push terakhir sukses dari Windows. Commit lokal terakhir `ef73fc4`.
-- **Backend VPS belum di-redeploy** (kode notifikasi weekend + fix dist/main belum di server).
-- Migrasi `swap_resolved_at` sudah di-apply di DB lokal.
-- Push end-to-end **belum di-test** di device fisik (baru siap: CLI + icon + config).
+- v1.9.5 (versionCode 20), tag annotated `v1.9.5` di `621d8c7`. **Tag BELUM di-push ke remote.**
+- 3 commit push ke `origin/development`. Migrasi `..._created_at` + `..._cooldown_and_nudge` sudah di-apply ke DB server (43.129.40.34).
+- **Backend VPS belum di-redeploy** dengan kode terbaru (cooldown/nudge/dashboard shape).
+- **Onboarding profil darurat wajib UNCOMMITTED** — hanya typecheck yang dijalankan (API + mobile hijau), build/lint/test final belum.
+- Rumah demo di server bersih; seed demo bisa dijalankan ulang (`bun run db:seed:demo`).
 
 ## Next session starts with
-1. **Redeploy backend VPS** (pull `development`, `docker compose up -d --build backend`, pastikan `dist/main` jalan + migrate prod).
-2. **Test push di device fisik**: install APK 1.9.0 → login → cek `anggota.push_token` terisi → `bun run notif:test` → pilih rumah Kos Mawar → trigger skenario (weekend status, galon, denda).
-3. Lanjut **M6**: E2E hybrid (lokal dulu) per alur inti (auth, onboarding, beranda, piket, denda, tagihan, swap, galon, notif), lalu final verification di VPS.
+1. **Verifikasi build** onboarding wajib (serahkan ke user): `bun run build lint typecheck test --filter=@serumah/api` + mobile lint/typecheck/test. Setelah green → commit item onboarding.
+2. **Push tag**: `git push origin v1.9.5` (dari Windows) → trigger GitHub Actions build APK.
+3. **Redeploy backend VPS** (pull `development`, `docker compose up -d --build`, migrate prod).
+4. Verifikasi HP fisik: cooldown weekend, nudge galon 1x/hari, tombol Pulang tidak terpotong, onboarding wajib.
 
 ## Open questions
-- Play Store? (M6 "final release" saat ini = in-app update via GitHub Releases, bukan store)
-- Kapan M5 items (Beranda/Piket/Tagihan/Swap/Profile) ditandai selesai di progress-tracker — fitur sudah dibangun, tapi checkbox M5 masih unchecked.
+- Test loop in-app update v1.9.4 → v1.9.5 belum dijalankan.
+- Progress-tracker M5 checkbox belum ditandai selesai penuh.

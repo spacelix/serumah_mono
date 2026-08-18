@@ -20,7 +20,9 @@ export class NotificationsService {
   /** Send to a list of anggota ids; clear tokens that FCM rejects. */
   async sendToAnggota(anggotaIds: string[], msg: PushMessage): Promise<void> {
     if (anggotaIds.length === 0) {
-      this.logger.warn('[NotificationsService] Kirim dilewati: tidak ada penerima');
+      this.logger.warn(
+        '[NotificationsService] Kirim dilewati: tidak ada penerima',
+      );
       return;
     }
     if (!this.fcm.enabled) {
@@ -47,7 +49,9 @@ export class NotificationsService {
         where: { id: { in: invalid } },
         data: { pushToken: null, pushTokenUpdatedAt: null },
       });
-      this.logger.log(`[NotificationsService] Hapus ${invalid.length} token basi`);
+      this.logger.log(
+        `[NotificationsService] Hapus ${invalid.length} token basi`,
+      );
     }
   }
 
@@ -86,7 +90,10 @@ export class NotificationsService {
     });
   }
 
-  async notifyPaymentReviewer(reviewerId: string, what: 'denda' | 'iuran'): Promise<void> {
+  async notifyPaymentReviewer(
+    reviewerId: string,
+    what: 'denda' | 'iuran',
+  ): Promise<void> {
     await this.sendToAnggota([reviewerId], {
       title: 'Bukti bayar nunggu konfirmasi',
       body:
@@ -106,9 +113,7 @@ export class NotificationsService {
       where: { rumahId },
       select: { id: true, nama: true },
     });
-    const others = members
-      .filter((m) => m.nama !== buyerName)
-      .map((m) => m.id);
+    const others = members.filter((m) => m.nama !== buyerName).map((m) => m.id);
     await this.sendToAnggota(others, {
       title: 'Galon udah dibeli',
       body: nextName
@@ -126,7 +131,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyDendaReminder(anggotaId: string, count: number, total: number): Promise<void> {
+  async notifyDendaReminder(
+    anggotaId: string,
+    count: number,
+    total: number,
+  ): Promise<void> {
     await this.sendToAnggota([anggotaId], {
       title: 'Denda belum dibayar',
       body: `Lo punya ${count} denda belum dibayar, total Rp ${total.toLocaleString('id-ID')}.`,
@@ -134,7 +143,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyIuranNextMonth(anggotaId: string, monthLabel: string, total: number): Promise<void> {
+  async notifyIuranNextMonth(
+    anggotaId: string,
+    monthLabel: string,
+    total: number,
+  ): Promise<void> {
     await this.sendToAnggota([anggotaId], {
       title: `Iuran ${monthLabel} udah keluar`,
       body: `Tagihan iuran lo bulan depan: Rp ${total.toLocaleString('id-ID')}.`,
@@ -142,10 +155,7 @@ export class NotificationsService {
     });
   }
 
-  async notifyPiketReminder(
-    anggotaId: string,
-    message: string,
-  ): Promise<void> {
+  async notifyPiketReminder(anggotaId: string, message: string): Promise<void> {
     await this.sendToAnggota([anggotaId], {
       title: 'Piket hari ini',
       body: message,

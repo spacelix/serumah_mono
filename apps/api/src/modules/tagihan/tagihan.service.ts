@@ -18,7 +18,7 @@ export class TagihanService {
     private readonly scope: RumahScopeService,
   ) {}
 
-/**
+  /**
    * Distinct WIB calendar months (YYYY-MM) that have any per-month tagihan
    * data for the member's rumah — piket schedule (`jadwal.tanggal`), denda
    * (`createdAt` in WIB), iuran (`bulan`), listrik (`bulan`) and pelunasan
@@ -56,7 +56,9 @@ export class TagihanService {
     const months = new Set<string>();
     for (const row of jadwal) months.add(this.monthKey(row.tanggal));
     for (const row of denda) {
-      months.add(this.monthKey(new Date(row.createdAt.getTime() + WIB_OFFSET_MS)));
+      months.add(
+        this.monthKey(new Date(row.createdAt.getTime() + WIB_OFFSET_MS)),
+      );
     }
     for (const row of listrik) months.add(this.monthKey(row.bulan));
     for (const row of iuran) months.add(this.monthKey(row.bulan));

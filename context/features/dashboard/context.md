@@ -19,7 +19,7 @@ Module: `dashboard` (aggregate) or existing endpoints.
 
 | Method | Path         | Response                                                                 | Notes                                 |
 | ------ | ------------ | ------------------------------------------------------------------------ | ------------------------------------- |
-| GET    | `/dashboard` | `{ weekend, galon, billing, scheduleWeek, scheduleIncomplete, isAdmin }` | Aggregate in one call for one screen. |
+| GET    | `/dashboard` | `{ weekend, galon, billing, scheduleWeek, scheduleIncomplete, profileIncomplete, isAdmin }` | Aggregate in one call for one screen. |
 
 Payload composition:
 
@@ -28,6 +28,7 @@ Payload composition:
 - `billing`: `{ totalUnpaid, countUnpaid, bulan }` from the user's iuran + denda.
 - `scheduleWeek`: 7 days (Senin–Minggu), each `{ tanggal, dow, ruanganNames[], statusTag, anggotaList[], isMine }` — `anggotaList` bisa lebih dari 1 (weekend tumpuk, beberapa orang piket di hari yang sama).
 - `scheduleIncomplete`: true when an upcoming piket day this week (today→Sunday) is not yet scheduled (weekday without Jadwal, or weekend with Di kos members without Jadwal).
+- `profileIncomplete`: true saat `kontakDarurat` ATAU `alamat` kosong (locked 2026-08-12 — wajib diisi) → Beranda menampilkan modal pengingat "Lengkapi profil darurat".
 - `isAdmin`: whether the caller is the PJ (`role='admin'`).
 
 ## 4. Business Rules & State Machine

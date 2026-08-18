@@ -43,6 +43,7 @@ export interface Dashboard {
   billing: BillingInfo;
   scheduleWeek: ScheduleRow[];
   scheduleIncomplete: boolean;
+  profileIncomplete: boolean;
   isAdmin: boolean;
   memberName: string;
 }
@@ -62,6 +63,7 @@ interface ApiDashboard {
   billing: BillingInfo;
   scheduleWeek: ApiScheduleRow[];
   scheduleIncomplete: boolean;
+  profileIncomplete: boolean;
   isAdmin: boolean;
   memberName: string;
 }

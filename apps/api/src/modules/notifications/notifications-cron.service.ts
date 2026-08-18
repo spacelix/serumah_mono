@@ -69,7 +69,10 @@ export class NotificationsCronService {
       PIKET_REMINDERS[PIKET_REMINDERS.length - 1];
     const piket = await this.todayPiket();
     for (const p of piket) {
-      await this.notifications.notifyPiketReminder(p.anggotaId, reminder.message);
+      await this.notifications.notifyPiketReminder(
+        p.anggotaId,
+        reminder.message,
+      );
     }
     this.logger.log(
       `[NotificationsCron] Reminder piket ${hour}:00 → ${piket.length} orang`,
@@ -135,7 +138,9 @@ export class NotificationsCronService {
         row._sum.nominal ?? 0,
       );
     }
-    this.logger.log(`[NotificationsCron] Denda mingguan → ${unpaid.length} anggota`);
+    this.logger.log(
+      `[NotificationsCron] Denda mingguan → ${unpaid.length} anggota`,
+    );
   }
 
   // ── D. Iuran bulan depan — last day of month ────────────────────────
@@ -176,6 +181,8 @@ export class NotificationsCronService {
         );
       }
     }
-    this.logger.log(`[NotificationsCron] Iuran bulan depan (${next.toISOString()}) dikirim`);
+    this.logger.log(
+      `[NotificationsCron] Iuran bulan depan (${next.toISOString()}) dikirim`,
+    );
   }
 }

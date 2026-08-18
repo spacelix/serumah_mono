@@ -174,6 +174,9 @@ export function useProfileInvalidate() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: profileKeys.me });
     void queryClient.invalidateQueries({ queryKey: profileKeys.rumah });
+    // Dashboard expose `profileIncomplete` — ikut di-refresh agar reminder
+    // profil darurat hilang setelah dilengkapi.
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   };
 }
 

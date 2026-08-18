@@ -27,7 +27,7 @@ export class PiketService {
     private readonly scope: RumahScopeService,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeGateway,
-  ) { }
+  ) {}
 
   private today(): Date {
     const now = new Date();
@@ -96,37 +96,37 @@ export class PiketService {
 
     const existingSubmission = jadwal?.submissions[0]
       ? {
-        id: jadwal.submissions[0].id,
-        status: jadwal.submissions[0].status,
-        submittedAt: jadwal.submissions[0].submittedAt,
-        reviewerId: jadwal.submissions[0].reviewerId,
-        reviewerName: jadwal.submissions[0].reviewer?.nama ?? null,
-        proofs: jadwal.submissions[0].proofs.map((p) => ({
-          ruanganId: p.ruanganId,
-          fotoBefore: p.fotoBefore,
-          fotoAfter: p.fotoAfter,
-          jenisSelesai: resolveJenis(p.jenisSelesai),
-        })),
-      }
+          id: jadwal.submissions[0].id,
+          status: jadwal.submissions[0].status,
+          submittedAt: jadwal.submissions[0].submittedAt,
+          reviewerId: jadwal.submissions[0].reviewerId,
+          reviewerName: jadwal.submissions[0].reviewer?.nama ?? null,
+          proofs: jadwal.submissions[0].proofs.map((p) => ({
+            ruanganId: p.ruanganId,
+            fotoBefore: p.fotoBefore,
+            fotoAfter: p.fotoAfter,
+            jenisSelesai: resolveJenis(p.jenisSelesai),
+          })),
+        }
       : null;
 
     const rumah = anggota.rumahId
       ? await this.prisma.rumah.findUnique({
-        where: { id: anggota.rumahId },
-        select: { nominalDenda: true },
-      })
+          where: { id: anggota.rumahId },
+          select: { nominalDenda: true },
+        })
       : null;
 
     return {
       jadwal: jadwal
         ? {
-          id: jadwal.id,
-          tanggal: jadwal.tanggal,
-          anggotaId: jadwal.anggotaId,
-          anggota: jadwal.anggota,
-          ruangan: jadwal.ruangan,
-          isMine: jadwal.anggotaId === anggota.id,
-        }
+            id: jadwal.id,
+            tanggal: jadwal.tanggal,
+            anggotaId: jadwal.anggotaId,
+            anggota: jadwal.anggota,
+            ruangan: jadwal.ruangan,
+            isMine: jadwal.anggotaId === anggota.id,
+          }
         : null,
       ruangan: ruangan.map((room) => ({ id: room.id, nama: room.nama })),
       jenisByRuangan,
@@ -218,10 +218,7 @@ export class PiketService {
 
     let reviewerId = '';
     const submission = await this.prisma.$transaction(async (tx) => {
-      reviewerId = await this.assignReviewer(
-        anggota.rumahId!,
-        anggota.id,
-      );
+      reviewerId = await this.assignReviewer(anggota.rumahId!, anggota.id);
       const created = await tx.piketSubmission.create({
         data: {
           jadwalId: jadwal.id,
@@ -289,9 +286,9 @@ export class PiketService {
         ...(isPending
           ? { status: 'menunggu', reviewerId: anggota.id }
           : {
-            status: { in: ['approved', 'rejected'] },
-            approvals: { some: { reviewerId: anggota.id } },
-          }),
+              status: { in: ['approved', 'rejected'] },
+              approvals: { some: { reviewerId: anggota.id } },
+            }),
       },
       orderBy: { submittedAt: isPending ? 'asc' : 'desc' },
       include: {
@@ -346,9 +343,9 @@ export class PiketService {
       const dendaPreview =
         totalItems > 0
           ? Math.round(
-            (nominalDenda * Math.max(totalItems - workedItems, 0)) /
-            totalItems,
-          )
+              (nominalDenda * Math.max(totalItems - workedItems, 0)) /
+                totalItems,
+            )
           : 0;
       return {
         id: s.id,
@@ -429,7 +426,7 @@ export class PiketService {
 
     this.logger.log(
       `[PiketService] Submission ${submission.id} disetujui oleh ${anggota.nama}` +
-      (denda ? ` (denda sisa ${denda.nominal})` : ''),
+        (denda ? ` (denda sisa ${denda.nominal})` : ''),
     );
     this.realtime.emitToRumah(anggota.rumahId, 'piket:updated', {
       id: submission.id,
@@ -551,7 +548,7 @@ export class PiketService {
     const pjSubCount = await this.prisma.piketSubmission.count({
       where: { anggotaId },
     });
-    return others[pjSubCount % others.length]!.id;
+    return others[pjSubCount % others.length].id;
   }
 
   private async getSubmissionForReview(

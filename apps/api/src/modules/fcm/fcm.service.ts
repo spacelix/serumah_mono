@@ -10,7 +10,6 @@ export interface PushMessage {
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 
 /**
  * Push via the Expo Push Service (best practice per docs.expo.dev): send the
@@ -54,7 +53,10 @@ export class FcmService {
         data?: { status?: string; details?: { error?: string } }[];
       };
       const ticket = body?.data?.[0];
-      if (ticket?.status === 'error' || ticket?.details?.error === 'DeviceNotRegistered') {
+      if (
+        ticket?.status === 'error' ||
+        ticket?.details?.error === 'DeviceNotRegistered'
+      ) {
         this.logger.warn(
           `[FcmService] Token tidak valid (${ticket?.details?.error ?? ticket?.status}), hapus.`,
         );

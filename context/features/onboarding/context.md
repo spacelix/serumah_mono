@@ -30,12 +30,13 @@ Locked decisions:
 - Rumah creator = `role='admin'`. Joiner via invite = `role='anggota'`.
 - Invite code: 6 digits, unique, server-generated. Admin can reset (rumah feature).
 - Profile photo optional; uploaded via storage endpoint → `profiles/{anggota_id}/avatar.jpg`.
+- **No. telepon darurat + alamat darurat WAJIB (locked 2026-08-12):** `kontakDarurat` dan `alamat` wajib diisi di onboarding — tombol "Lanjut" disabled & validasi alert bila kosong. User yang terlanjur lewat onboarding tanpa keduanya → dashboard expose `profileIncomplete` → modal pengingat di Beranda (ConfirmDialog, "Isi sekarang" → `/profile` / "Nanti").
 
 ## 5. UI Spec (React Native)
 
 Screens: `app/onboarding/profile.tsx`, `app/onboarding/create-rumah.tsx`, `app/onboarding/join-rumah.tsx`. No bottom nav.
 
-- **Onboarding Profile**: profile photo (100px circle + camera overlay), name input (required), emergency contact, address. **"Lanjut"** button disabled until name filled.
+- **Onboarding Profile**: profile photo (100px circle + camera overlay), name input (required), **no. telepon darurat (required)**, **alamat darurat (required)**. **"Lanjut"** button disabled until semua terisi.
 - **Create Rumah**: title **"Buat Kos Baru"**, kos name + address inputs, **"Buat & Dapatkan Kode Undangan"** button. After create: show invite code prominently + **"Bagikan ke temen"** + **"Lanjut ke Beranda"**.
 - **Join Rumah**: title **"Gabung Kos"**, 6-digit code input (auto-uppercase). Valid code → preview kos name + address + member count → **"Gabung"** button.
 

@@ -58,6 +58,8 @@ export class DashboardService {
       rumahId: anggota.rumahId,
       nama: anggota.nama,
       role: anggota.role,
+      kontakDarurat: anggota.kontakDarurat,
+      alamat: anggota.alamat,
     });
     await this.cache.set(scope, resource, dashboard);
     return dashboard;
@@ -67,6 +69,8 @@ export class DashboardService {
     id: string;
     nama: string;
     role: string;
+    kontakDarurat: string | null;
+    alamat: string | null;
   }) {
     return {
       weekend: {
@@ -85,6 +89,7 @@ export class DashboardService {
       },
       scheduleWeek: [],
       scheduleIncomplete: false,
+      profileIncomplete: this.isProfileIncomplete(anggota),
       isAdmin: anggota.role === 'admin',
       memberName: anggota.nama,
     };
@@ -95,6 +100,8 @@ export class DashboardService {
     rumahId: string;
     nama: string;
     role: string;
+    kontakDarurat: string | null;
+    alamat: string | null;
   }) {
     const [
       galon,
@@ -118,9 +125,23 @@ export class DashboardService {
       billing,
       scheduleWeek,
       scheduleIncomplete,
+      profileIncomplete: this.isProfileIncomplete(anggota),
       isAdmin: anggota.role === 'admin',
       memberName: anggota.nama,
     };
+  }
+
+  /**
+   * True jika profil darurat belum lengkap: no. telepon darurat ATAU alamat
+   * kosong (locked 2026-08-12 — wajib diisi sejak onboarding). User lama yang
+   * lewat onboarding sebelum field diwajibkan → Beranda menampilkan modal
+   * pengingat "Lengkapi profil darurat".
+   */
+  private isProfileIncomplete(anggota: {
+    kontakDarurat: string | null;
+    alamat: string | null;
+  }): boolean {
+    return !anggota.kontakDarurat?.trim() || !anggota.alamat?.trim();
   }
 
   // ── WEEKEND ─────────────────────────────────────────────────────────
@@ -139,11 +160,9 @@ export class DashboardService {
     if (rows.length > 0) {
       const lastChange = rows.reduce<Date>(
         (latest, r) => (r.updatedAt > latest ? r.updatedAt : latest),
-        rows[0]!.updatedAt,
+        rows[0].updatedAt,
       );
-      const next = new Date(
-        lastChange.getTime() + WEEKEND_STATUS_COOLDOWN_MS,
-      );
+      const next = new Date(lastChange.getTime() + WEEKEND_STATUS_COOLDOWN_MS);
       if (next > new Date()) nextChangeAt = next.toISOString();
     }
 
@@ -313,7 +332,9 @@ export class DashboardService {
     for (let offset = 0; offset < 7; offset += 1) {
       const day = this.addDays(monday, offset);
       const dowIndex = day.getUTCDay();
-      const dayJadwal = jadwal.filter((j) => this.key(j.tanggal) === this.key(day));
+      const dayJadwal = jadwal.filter(
+        (j) => this.key(j.tanggal) === this.key(day),
+      );
       const record = dayJadwal[0]; // untuk status tag / submission
       const isWeekend = dowIndex === 0 || dowIndex === 6;
 

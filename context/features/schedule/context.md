@@ -59,6 +59,7 @@ Locked decisions (from the old phase, preserved):
 
 - Submit deadline: 20:00. Cron daily 22:00, skips Selasa/Kamis.
 - Scheduled day without submission → create `PiketSubmission` status `bolong` + `Denda` flat `rumah.nominal_denda`.
+- **Bug fix (2026-08-18):** `runAutoFineCron` mengirim `new Date()` (jam 22:00) mentah ke `autoFineForRumah`, padahal `deadline(date)` menghitung 20:00 WIB dari komponen tanggal UTC-midnight → deadline bergeser ~22 jam ke depan → `now <= deadline` selalu true → **tidak pernah di-fine**. Fix: cron memakai `this.toDate(new Date())` (normalisasi UTC-midnight), konsisten dengan endpoint manual `runAutoFine`.
 
 ## 5. UI Spec (React Native)
 

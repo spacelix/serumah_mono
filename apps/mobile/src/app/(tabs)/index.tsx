@@ -30,7 +30,15 @@ import { radius } from '@/theme/radius';
 import { fontFamilies, type } from '@/theme/typography';
 
 export default function BerandaScreen() {
+  const router = useRouter();
   const { data, isLoading, refetch, isFetching } = useDashboard();
+  const [profileReminderDismissed, setProfileReminderDismissed] =
+    useState(false);
+
+  const showProfileReminder =
+    data != null &&
+    data.profileIncomplete &&
+    !profileReminderDismissed;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,6 +68,16 @@ export default function BerandaScreen() {
           </>
         )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={showProfileReminder}
+        title="Lengkapi profil darurat"
+        message="No. telepon darurat dan alamat kamu belum lengkap. Isi sekarang supaya kontak darurat siap kalau kamu butuh bantuan."
+        confirmText="Isi sekarang"
+        cancelText="Nanti"
+        onConfirm={() => router.push('/profile')}
+        onCancel={() => setProfileReminderDismissed(true)}
+      />
     </SafeAreaView>
   );
 }

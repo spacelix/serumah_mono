@@ -55,6 +55,20 @@ export default function OnboardingProfileScreen() {
       );
       return;
     }
+    if (kontakDarurat.trim() === '') {
+      dialog.alert(
+        'No. telepon darurat wajib diisi',
+        'Isi nomor HP keluarga atau teman yang bisa dihubungi kalau kamu butuh bantuan.',
+      );
+      return;
+    }
+    if (alamat.trim() === '') {
+      dialog.alert(
+        'Alamat darurat wajib diisi',
+        'Isi alamat lengkap kamu — dipakai kalau ada keadaan darurat.',
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       let uploadedUrl: string | undefined;
@@ -64,8 +78,8 @@ export default function OnboardingProfileScreen() {
       await apiUpdateProfile({
         nama: nama.trim(),
         fotoProfil: uploadedUrl,
-        kontakDarurat: kontakDarurat.trim() || undefined,
-        alamat: alamat.trim() || undefined,
+        kontakDarurat: kontakDarurat.trim(),
+        alamat: alamat.trim(),
       });
       setOnboarding(true, false);
       router.replace('/onboarding/create-rumah');
@@ -138,24 +152,29 @@ export default function OnboardingProfileScreen() {
                 autoCorrect={false}
               />
               <SerumahInput
-                label="Kontak darurat"
+                label="No. telepon darurat"
                 value={kontakDarurat}
                 onChangeText={setKontakDarurat}
-                placeholder="No. HP keluarga/teman (opsional)"
+                placeholder="No. HP keluarga/teman"
                 keyboardType="phone-pad"
               />
               <SerumahInput
-                label="Alamat"
+                label="Alamat darurat"
                 value={alamat}
                 onChangeText={setAlamat}
-                placeholder="Alamat lengkap (opsional)"
+                placeholder="Alamat lengkap kamu"
               />
             </View>
 
             <View style={styles.actions}>
               <SerumahButton
                 title={submitting ? 'Menyimpan…' : 'Lanjut'}
-                disabled={submitting || nama.trim() === ''}
+                disabled={
+                  submitting ||
+                  nama.trim() === '' ||
+                  kontakDarurat.trim() === '' ||
+                  alamat.trim() === ''
+                }
                 onPress={handleNext}
               />
             </View>

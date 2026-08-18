@@ -38,7 +38,6 @@ export class IuranController {
   }
 
   @Post(':id/confirm-lunas')
-  @Roles('admin')
   confirmLunas(
     @CurrentUser() payload: CurrentUserPayload,
     @Param('id') id: string,

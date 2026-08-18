@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { DendaService } from './denda.service';
 import { UploadBuktiDto } from './dto/denda.dto';
 
@@ -27,13 +26,11 @@ export class DendaController {
   }
 
   @Post(':id/approve')
-  @Roles('admin')
   approve(@CurrentUser() payload: CurrentUserPayload, @Param('id') id: string) {
     return this.dendaService.approve(payload, id);
   }
 
   @Post(':id/reject')
-  @Roles('admin')
   reject(@CurrentUser() payload: CurrentUserPayload, @Param('id') id: string) {
     return this.dendaService.reject(payload, id);
   }
